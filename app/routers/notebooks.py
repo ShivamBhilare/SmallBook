@@ -2,7 +2,8 @@ from fastapi import APIRouter, Request, Response, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.services.authentication.auth_service import login_required, get_optional_current_user
+from supabase import Client
+from app.services.authentication.auth_service import login_required, get_optional_current_user, get_supabase_client
 from app.services.notebooks import notebook_service
 
 # Prefix means all routes here start with /notebooks
@@ -48,15 +49,15 @@ async def read_workspace(request: Request, notebook_id: str, user = Depends(get_
 # ==========================================
 
 @router.get("/api/list")
-def api_get_notebooks(user = Depends(login_required)):
+def api_get_notebooks(user = Depends(login_required), client: Client = Depends(get_supabase_client)):
     """API endpoint for the frontend to fetch the user's notebooks."""
-    notebooks = notebook_service.get_user_notebooks(user.id)
+    notebooks = notebook_service.get_user_notebooks(client, user.id)
     return {"notebooks": notebooks}
 
 @router.get("/api/{notebook_id}")
-def api_get_single_notebook(notebook_id: str, user = Depends(login_required)):
+def api_get_single_notebook(notebook_id: str, user = Depends(login_required), client: Client = Depends(get_supabase_client)):
     """API endpoint to load specific notebook data into the workspace."""
-    notebook = notebook_service.get_notebook_by_id(notebook_id, user.id)
+    notebook = notebook_service.get_notebook_by_id(client, notebook_id, user.id)
     
     if not notebook:
         raise HTTPException(
@@ -64,4 +65,4 @@ def api_get_single_notebook(notebook_id: str, user = Depends(login_required)):
             detail="Notebook not found or you don't have access."
         )
         
-    return {"notebook": notebook}
+    return {"notebook": notebook}
