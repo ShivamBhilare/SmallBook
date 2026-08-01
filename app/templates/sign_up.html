@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - SmallBook{% endblock %}
+
+{% block navbar %}
+<nav class="w-full px-4 lg:px-8 py-4 flex justify-between items-center z-50">
+    <a href="/" class="flex items-center gap-sm cursor-pointer">
+        <img alt="SmallBook Logo" class="h-8 w-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClev6H_G8bgxiebPRYEsGg5DJQbeRbRX1bIbaGmZ7bw9bDu5oqjKqVzDyUnSE8M_e1hNmNtlHNtX8FW44z0Ri3qO-9nf0l1S4ztQNmPXQbIr7pJJocaG0lwVpX4TtEFBgGTOBbo6EDEx4QuGOQPzw0D05jnkECQQPyyvXkAO4ZTaNsUnjgxqO9qii1BPtKMkBKSt5A5HQLHqhJ1sJsZG5usQEtEZMXCbVP6vivy0VtikjnWP51f7lVlg">
+        <span class="text-headline-md font-headline-md font-bold text-primary dark:text-dark-text tracking-tight">SmallBook</span>
+    </a>
+    <button onclick="toggleTheme()" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+        <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+    </button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<main class="flex-1 flex items-center justify-center p-4">
+    <div x-data="signUpForm()" class="w-full max-w-md bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl custom-shadow p-6 sm:p-8 my-8 relative">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-2">Join SmallBook</h1>
+            <p class="text-body-md text-on-surface-variant dark:text-dark-text-muted">Start building your personal knowledge base.</p>
+        </div>
+
+        <!-- Notification Banner -->
+        <div x-show="errorMsg" x-transition class="mb-4 p-3.5 bg-error-container text-on-error-container rounded-xl text-body-sm flex items-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">error</span>
+            <span x-text="errorMsg"></span>
+        </div>
+        <div x-show="successMsg" x-transition class="mb-4 p-3.5 bg-secondary-fixed text-on-secondary-fixed rounded-xl text-body-sm flex items-start gap-2">
+            <span class="material-symbols-outlined text-[20px] mt-0.5">check_circle</span>
+            <span x-text="successMsg"></span>
+        </div>
+
+        <div class="relative flex items-center py-4 mb-2">
+            <div class="flex-grow border-t border-paper dark:border-dark-border"></div>
+            <span class="flex-shrink-0 mx-4 text-label-sm text-on-surface-variant dark:text-dark-text-muted">sign up with email</span>
+            <div class="flex-grow border-t border-paper dark:border-dark-border"></div>
+        </div>
+
+        <form @submit.prevent="submitForm" class="space-y-4">
+            <div>
+                <label for="fullname" class="block text-label-sm font-medium text-on-surface dark:text-dark-text mb-1.5 ml-1">Full Name</label>
+                <div class="relative bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors">
+                    <input type="text" id="fullname" x-model="fullname" class="w-full bg-transparent border-none focus:ring-0 text-body-md text-on-surface dark:text-dark-text placeholder:text-on-surface-variant/50 dark:placeholder:text-dark-text-muted px-4 py-3 outline-none rounded-xl" placeholder="Jane Doe">
+                </div>
+            </div>
+
+            <div>
+                <label for="email" class="block text-label-sm font-medium text-on-surface dark:text-dark-text mb-1.5 ml-1">Email Address</label>
+                <div class="relative bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors">
+                    <input type="email" id="email" x-model="email" required class="w-full bg-transparent border-none focus:ring-0 text-body-md text-on-surface dark:text-dark-text placeholder:text-on-surface-variant/50 dark:placeholder:text-dark-text-muted px-4 py-3 outline-none rounded-xl" placeholder="you@example.com">
+                </div>
+            </div>
+
+            <div>
+                <label for="password" class="block text-label-sm font-medium text-on-surface dark:text-dark-text mb-1.5 ml-1">Password</label>
+                <div class="relative bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors flex items-center">
+                    <input :type="showPassword ? 'text' : 'password'" id="password" x-model="password" required minlength="6" class="w-full bg-transparent border-none focus:ring-0 text-body-md text-on-surface dark:text-dark-text placeholder:text-on-surface-variant/50 dark:placeholder:text-dark-text-muted pl-4 pr-10 py-3 outline-none rounded-xl" placeholder="••••••••">
+                    <button type="button" @click="showPassword = !showPassword" class="absolute right-3 h-8 w-8 flex items-center justify-center text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text transition-colors">
+                        <span class="material-symbols-outlined text-[20px]" x-text="showPassword ? 'visibility_off' : 'visibility'">visibility</span>
+                    </button>
+                </div>
+                <p class="text-[12px] text-on-surface-variant/80 dark:text-dark-text-muted mt-1.5 ml-1">Must be at least 6 characters.</p>
+            </div>
+
+            <button type="submit" :disabled="loading" class="w-full bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full py-3 mt-4 font-label-md hover:opacity-80 transition-opacity flex items-center justify-center gap-2">
+                <span x-show="loading" class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                <span x-text="loading ? 'Creating Account...' : 'Create Account'">Create Account</span>
+            </button>
+        </form>
+
+        <p class="mt-8 text-center text-body-sm text-on-surface-variant dark:text-dark-text-muted">
+            Already have an account? 
+            <a href="/auth/sign-in" class="font-medium text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Sign in</a>
+        </p>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function signUpForm() {
+        return {
+            fullname: '',
+            email: '',
+            password: '',
+            showPassword: false,
+            loading: false,
+            errorMsg: '',
+            successMsg: '',
+            async submitForm() {
+                this.errorMsg = '';
+                this.successMsg = '';
+                this.loading = true;
+                try {
+                    const res = await fetch('/auth/api/sign-up', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            email: this.email, 
+                            password: this.password,
+                            fullname: this.fullname 
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data.detail || 'Registration failed');
+                    }
+                    if (data.session) {
+                        this.successMsg = data.message || 'Account created! Redirecting...';
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url || '/notebooks/dashboard';
+                        }, 500);
+                    } else {
+                        this.successMsg = data.message || 'Account created! Please check your email to confirm.';
+                    }
+                } catch (err) {
+                    this.errorMsg = err.message;
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

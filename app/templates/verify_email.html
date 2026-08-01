@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Email - SmallBook{% endblock %}
+
+{% block navbar %}
+<nav class="w-full px-4 lg:px-8 py-4 flex justify-between items-center z-50">
+    <a href="/" class="flex items-center gap-sm cursor-pointer">
+        <img alt="SmallBook Logo" class="h-8 w-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClev6H_G8bgxiebPRYEsGg5DJQbeRbRX1bIbaGmZ7bw9bDu5oqjKqVzDyUnSE8M_e1hNmNtlHNtX8FW44z0Ri3qO-9nf0l1S4ztQNmPXQbIr7pJJocaG0lwVpX4TtEFBgGTOBbo6EDEx4QuGOQPzw0D05jnkECQQPyyvXkAO4ZTaNsUnjgxqO9qii1BPtKMkBKSt5A5HQLHqhJ1sJsZG5usQEtEZMXCbVP6vivy0VtikjnWP51f7lVlg">
+        <span class="text-headline-md font-headline-md font-bold text-primary dark:text-dark-text tracking-tight">SmallBook</span>
+    </a>
+    <button onclick="toggleTheme()" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+        <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+    </button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<main class="flex-1 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl custom-shadow p-8 text-center relative">
+        
+        <div class="h-16 w-16 bg-surface-variant dark:bg-dark-panel-hover rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[32px]">mark_email_unread</span>
+        </div>
+        
+        <h1 class="text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-3">Check your email</h1>
+        
+        <p class="text-body-md text-on-surface-variant dark:text-dark-text-muted mb-8">
+            We've sent a verification link to <br>
+            <strong class="text-on-surface dark:text-dark-text font-semibold">user@example.com</strong>
+        </p>
+
+        <a href="mailto:" class="w-full inline-block bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full py-3 font-label-md hover:opacity-80 transition-opacity mb-4">
+            Open Email App
+        </a>
+        
+        <div class="flex flex-col items-center gap-4">
+            <button class="text-label-sm font-medium text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">
+                Click to resend link
+            </button>
+            <a href="/sign-in" class="inline-flex items-center gap-1 font-medium text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors text-body-sm">
+                <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                Back to Sign in
+            </a>
+        </div>
+
+    </div>
+</main>
+{% endblock %}

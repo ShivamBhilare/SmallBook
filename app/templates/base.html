@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" style="">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>{% block title %}SmallBook{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#faf9f5",
+                        "on-secondary-fixed-variant": "#7d2d0d",
+                        "primary": "#000000",
+                        "on-tertiary-fixed-variant": "#484646",
+                        "tertiary-fixed": "#e6e1e1",
+                        "secondary-fixed": "#ffdbcf",
+                        "on-secondary": "#ffffff",
+                        "inverse-on-surface": "#f2f1ed",
+                        "tertiary": "#000000",
+                        "on-primary-fixed-variant": "#474745",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#dbdad6",
+                        "primary-container": "#1c1c1a",
+                        "surface-container": "#efeeea",
+                        "on-surface": "#1b1c1a",
+                        "surface-container-low": "#f4f4f0",
+                        "primary-fixed-dim": "#c9c6c4",
+                        "surface": "#faf9f5",
+                        "surface-container-high": "#e9e8e4",
+                        "outline-variant": "#c7c7c0",
+                        "secondary-fixed-dim": "#ffb59c",
+                        "on-primary-container": "#858382",
+                        "outline": "#767872",
+                        "secondary": "#9c4323",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#5f5e5d",
+                        "on-primary-fixed": "#1c1c1a",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "primary-fixed": "#e5e2e0",
+                        "on-background": "#1b1c1a",
+                        "on-secondary-container": "#732606",
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#fc8d66",
+                        "surface-variant": "#e3e2df",
+                        "inverse-primary": "#c9c6c4",
+                        "tertiary-fixed-dim": "#cac5c5",
+                        "tertiary-container": "#1c1b1b",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#868383",
+                        "background": "#faf9f5",
+                        "on-surface-variant": "#464742",
+                        "inverse-surface": "#2f312e",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#390c00",
+                        "dark-bg": "#09090b",
+                        "dark-panel": "#18181b",
+                        "dark-panel-hover": "#27272a",
+                        "dark-border": "#3f3f46",
+                        "dark-text": "#f4f4f5",
+                        "dark-text-muted": "#a1a1aa",
+                        "dark-accent": "#E57754"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin": "32px",
+                        "xxl": "48px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "gutter": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter", "sans-serif"],
+                        "label-md": ["Inter", "sans-serif"],
+                        "headline-lg-mobile": ["Inter", "sans-serif"],
+                        "label-sm": ["Inter", "sans-serif"],
+                        "headline-md": ["Inter", "sans-serif"],
+                        "headline-xl": ["Inter", "sans-serif"],
+                        "headline-lg": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .custom-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .hover-custom-shadow:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .border-paper { border-color: #E5E5E5; }
+        
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c0; border-radius: 10px; }
+        @media (prefers-color-scheme: dark) {
+            .dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
+        }
+        ::-webkit-scrollbar-thumb:hover { background: #9c4323; }
+    </style>
+    
+    <!-- Block for any view-specific styles -->
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="bg-background dark:bg-dark-bg text-on-background dark:text-dark-text font-body-md flex flex-col {% block body_classes %}min-h-screen{% endblock %}">
+    
+    {% block navbar %}
+    <!-- TopNavBar (Common across app) -->
+    <nav x-data="{ userMenuOpen: false }" class="bg-surface dark:bg-dark-panel border-b border-paper dark:border-dark-border flex flex-col lg:flex-row justify-between items-center w-full px-4 lg:px-margin min-h-[64px] py-3 lg:py-0 z-50 flex-shrink-0 gap-3 lg:gap-0 sticky top-0">
+        <div class="flex items-center justify-between w-full lg:w-auto">
+            <a href="/" class="flex items-center gap-sm cursor-pointer">
+                <img alt="SmallBook Logo" class="h-8 w-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClev6H_G8bgxiebPRYEsGg5DJQbeRbRX1bIbaGmZ7bw9bDu5oqjKqVzDyUnSE8M_e1hNmNtlHNtX8FW44z0Ri3qO-9nf0l1S4ztQNmPXQbIr7pJJocaG0lwVpX4TtEFBgGTOBbo6EDEx4QuGOQPzw0D05jnkECQQPyyvXkAO4ZTaNsUnjgxqO9qii1BPtKMkBKSt5A5HQLHqhJ1sJsZG5usQEtEZMXCbVP6vivy0VtikjnWP51f7lVlg">
+                <span class="text-headline-md font-headline-md font-bold text-primary dark:text-dark-text tracking-tight">SmallBook</span>
+            </a>
+            <!-- Mobile Actions -->
+            <div class="flex lg:hidden items-center gap-2">
+                <button onclick="toggleTheme()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                    <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+                </button>
+                <div class="relative">
+                    <button @click="userMenuOpen = !userMenuOpen" class="h-8 w-8 rounded-full bg-surface-variant overflow-hidden border border-paper dark:border-dark-border flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[20px]">person</span>
+                    </button>
+                    <div x-show="userMenuOpen" @click.outside="userMenuOpen = false" x-transition class="absolute right-0 mt-2 w-48 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-lg py-1 z-50">
+                        <button @click="signOut()" class="w-full text-left px-4 py-2 text-body-sm text-error dark:text-error hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">logout</span>
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-start lg:justify-end gap-md w-full lg:w-auto">
+            <button class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-5 py-1.5 font-label-md flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+                Create Notebook
+            </button>
+            <!-- Desktop Actions -->
+            <div class="hidden lg:flex items-center gap-2 relative">
+                <button onclick="toggleTheme()" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                    <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+                </button>
+                <div class="relative">
+                    <button @click="userMenuOpen = !userMenuOpen" class="h-9 w-9 rounded-full bg-surface-variant overflow-hidden border border-paper dark:border-dark-border flex items-center justify-center text-on-surface-variant dark:text-dark-text">
+                        <span class="material-symbols-outlined text-[20px]">person</span>
+                    </button>
+                    <div x-show="userMenuOpen" @click.outside="userMenuOpen = false" x-transition class="absolute right-0 mt-2 w-48 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-lg py-1 z-50">
+                        <button @click="signOut()" class="w-full text-left px-4 py-2 text-body-sm text-error hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover flex items-center gap-2 font-medium">
+                            <span class="material-symbols-outlined text-[18px]">logout</span>
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endblock %}
+
+    {% block content %}{% endblock %}
+
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.querySelectorAll('.theme-icon').forEach(icon => {
+                icon.innerText = isDark ? 'light_mode' : 'dark_mode';
+            });
+        }
+
+        async function signOut() {
+            try {
+                await fetch('/auth/api/sign-out', { method: 'POST' });
+            } catch (e) {
+                console.error('Sign out error:', e);
+            } finally {
+                window.location.href = '/auth/sign-in';
+            }
+        }
+    </script>
+    
+    <!-- Block for any view-specific scripts -->
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

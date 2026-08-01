@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}SmallBook - Home{% endblock %}
+
+{% block content %}
+<!-- Sub-header / Toolbar -->
+<div class="bg-surface-container-low dark:bg-dark-panel w-full border-b border-paper dark:border-dark-border py-3 px-4 lg:px-margin z-40">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- Search Bar -->
+        <div class="w-full md:max-w-md flex items-center bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full px-4 py-1.5 focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors group">
+            <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted text-[20px] mr-2">search</span>
+            <input type="text" class="w-full bg-transparent border-none focus:ring-0 text-[14px] text-on-surface dark:text-dark-text placeholder:text-on-surface-variant/60 dark:placeholder:text-dark-text-muted outline-none" placeholder="Search notebooks...">
+        </div>
+        
+        <!-- Filters & Views -->
+        <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div class="flex items-center gap-1 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full p-1">
+                <button class="h-7 w-7 flex items-center justify-center rounded-full bg-surface-variant/80 dark:bg-dark-panel-hover text-primary dark:text-dark-text transition-all custom-shadow">
+                    <span class="material-symbols-outlined text-[18px]">grid_view</span>
+                </button>
+                <button class="h-7 w-7 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover/50 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">view_list</span>
+                </button>
+            </div>
+            
+            <button class="flex items-center gap-1.5 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border px-4 py-1.5 rounded-full text-[14px] font-medium text-on-surface dark:text-dark-text hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                Most Recent
+                <span class="material-symbols-outlined text-[18px]">expand_more</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Main Workspace -->
+<main class="flex-1 w-full max-w-7xl mx-auto px-4 lg:px-margin py-8 lg:py-12">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="font-semibold text-[24px] lg:text-[32px] tracking-tight text-on-surface dark:text-dark-text">Recent Notebooks</h1>
+    </div>
+    
+    <!-- Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        
+        <!-- Create New Card -->
+        <button class="group h-[220px] rounded-xl border-2 border-dashed border-outline-variant dark:border-dark-border hover:border-secondary dark:hover:border-dark-accent bg-surface-bright/50 dark:bg-dark-panel/50 flex flex-col items-center justify-center gap-4 transition-colors">
+            <div class="h-12 w-12 rounded-full bg-surface-variant dark:bg-dark-panel-hover group-hover:bg-secondary/10 dark:group-hover:bg-dark-accent/20 flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent text-[24px]">add</span>
+            </div>
+            <span class="font-label-md text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">Create New Notebook</span>
+        </button>
+        
+        <!-- Notebook Card 1 -->
+        <div class="group h-[220px] rounded-xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border p-5 flex flex-col justify-between hover-custom-shadow hover:border-secondary dark:hover:border-dark-accent transition-all cursor-pointer">
+            <div>
+                <div class="flex items-start justify-between mb-4">
+                    <div class="h-10 w-10 rounded-lg bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px]">menu_book</span>
+                    </div>
+                    <button class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted opacity-0 group-hover:opacity-100 hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-all">
+                        <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                </div>
+                <h3 class="font-label-md text-[16px] leading-[24px] font-semibold text-on-surface dark:text-dark-text mb-2 line-clamp-2 group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">Cognitive Science & UX Design</h3>
+                <p class="font-body-md text-[14px] leading-[20px] text-on-surface-variant dark:text-dark-text-muted line-clamp-2">Notes on how human working memory limits affect user interface design patterns and cognitive load theory application.</p>
+            </div>
+            <div class="pt-3 border-t border-paper dark:border-dark-border flex items-center justify-between mt-auto">
+                <span class="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">Modified 2 days ago</span>
+            </div>
+        </div>
+
+        <!-- Notebook Card 2 -->
+        <div class="group h-[220px] rounded-xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border p-5 flex flex-col justify-between hover-custom-shadow hover:border-secondary dark:hover:border-dark-accent transition-all cursor-pointer">
+            <div>
+                <div class="flex items-start justify-between mb-4">
+                    <div class="h-10 w-10 rounded-lg bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px]">biotech</span>
+                    </div>
+                    <button class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted opacity-0 group-hover:opacity-100 hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-all">
+                        <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                </div>
+                <h3 class="font-label-md text-[16px] leading-[24px] font-semibold text-on-surface dark:text-dark-text mb-2 line-clamp-2 group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">Biology 101 - Cell Structures</h3>
+                <p class="font-body-md text-[14px] leading-[20px] text-on-surface-variant dark:text-dark-text-muted line-clamp-2">Detailed breakdown of eukaryotic cell organelles, their functions, and the synthesis of proteins.</p>
+            </div>
+            <div class="pt-3 border-t border-paper dark:border-dark-border flex items-center justify-between mt-auto">
+                <span class="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">Modified 5 days ago</span>
+            </div>
+        </div>
+
+        <!-- Notebook Card 3 -->
+        <div class="group h-[220px] rounded-xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border p-5 flex flex-col justify-between hover-custom-shadow hover:border-secondary dark:hover:border-dark-accent transition-all cursor-pointer">
+            <div>
+                <div class="flex items-start justify-between mb-4">
+                    <div class="h-10 w-10 rounded-lg bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px]">history_edu</span>
+                    </div>
+                    <button class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted opacity-0 group-hover:opacity-100 hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-all">
+                        <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                </div>
+                <h3 class="font-label-md text-[16px] leading-[24px] font-semibold text-on-surface dark:text-dark-text mb-2 line-clamp-2 group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">Renaissance Art History</h3>
+                <p class="font-body-md text-[14px] leading-[20px] text-on-surface-variant dark:text-dark-text-muted line-clamp-2">Analysis of Da Vinci's techniques, the shift in perspective, and the influence of classical antiquity.</p>
+            </div>
+            <div class="pt-3 border-t border-paper dark:border-dark-border flex items-center justify-between mt-auto">
+                <span class="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">Modified 1 week ago</span>
+            </div>
+        </div>
+        
+    </div>
+</main>
+{% endblock %}

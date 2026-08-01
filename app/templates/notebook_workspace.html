@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+
+{% block title %}SmallBook - Notebook Workspace{% endblock %}
+{% block body_classes %}h-screen overflow-hidden relative{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --left-panel-width: 300px;
+        --right-panel-width: 320px;
+    }
+
+    /* Mobile Tab Switching Logic */
+    @media (max-width: 1023px) {
+        #panel-sources:not(.active-tab),
+        #panel-chat:not(.active-tab),
+        #panel-studio:not(.active-tab) {
+            display: none !important;
+        }
+        #panel-sources.active-tab,
+        #panel-chat.active-tab,
+        #panel-studio.active-tab {
+            display: flex !important;
+            width: 100% !important;
+        }
+    }
+
+    /* Modal Overlay Styling */
+    #upload-modal {
+        backdrop-filter: blur(4px);
+    }
+    
+    /* Collapsible Panel Styles */
+    #panel-sources, #panel-studio {
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body.is-resizing #panel-sources, body.is-resizing #panel-studio {
+        transition: none !important;
+    }
+    aside.collapsed {
+        width: 72px !important;
+    }
+    aside.collapsed .hide-on-collapse {
+        display: none !important;
+    }
+    aside.collapsed .panel-header {
+        justify-content: center !important;
+    }
+    aside.collapsed .p-md, aside.collapsed .px-md {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    
+    /* Left Panel Collapsed Adjustments */
+    aside.collapsed #add-source-btn span:not(.material-symbols-outlined) { display: none; }
+    aside.collapsed #add-source-btn { width: 40px; height: 40px; padding: 0; border-radius: 50%; margin: 0 auto; }
+    aside.collapsed .pdf-item { justify-content: center; padding: 12px 0; background: transparent; }
+    aside.collapsed .pdf-item-content { display: none; }
+    
+    /* Right Panel Collapsed Adjustments */
+    aside.collapsed .features-grid { display: flex !important; flex-direction: column !important; gap: 16px !important; }
+    aside.collapsed .feature-item { border-color: transparent !important; background: transparent !important; padding: 8px 0 !important; box-shadow: none !important; }
+    aside.collapsed .feature-item-text { display: none; }
+    aside.collapsed .note-card { border-color: transparent !important; background: transparent !important; padding: 8px 0 !important; justify-content: center; display: flex !important; box-shadow: none !important;}
+    aside.collapsed .note-card-content { display: none; }
+    aside.collapsed .note-card-icon { display: block !important; }
+    .note-card-icon { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Upload Modal Overlay (Hidden by default) -->
+<div id="upload-modal" class="hidden fixed inset-0 z-[100] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+    <!-- Modal Content -->
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-2xl custom-shadow flex flex-col">
+        <!-- Modal Header -->
+        <div class="p-6 pb-2 flex justify-between items-start">
+            <div class="text-center w-full">
+                <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text">Add Documents</h2>
+                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mt-1">Upload PDFs to analyze in your notebook</p>
+            </div>
+            <button onclick="closeUploadModal()" class="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <!-- Modal Body (Drag & Drop Zone) -->
+        <div class="p-8 pt-4">
+            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-12 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer" id="drop-zone">
+                <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-2">drop your files</h3>
+                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-8">pdf documents only</p>
+                
+                <button class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-6 py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <span class="material-symbols-outlined text-[18px]">upload</span>
+                    Upload files
+                </button>
+                <!-- Hidden file input triggered by the button/drop zone -->
+                <input type="file" id="file-input" class="hidden" accept=".pdf" multiple>
+            </div>
+            
+            <!-- Storage Quota -->
+            <div class="mt-6 flex items-center gap-4">
+                <div class="flex-1 h-1.5 bg-surface-variant dark:bg-dark-panel-hover rounded-full overflow-hidden">
+                    <div class="h-full bg-secondary dark:bg-dark-accent w-1/12 rounded-full"></div>
+                </div>
+                <span class="text-label-sm text-on-surface-variant dark:text-dark-text-muted whitespace-nowrap">3 / 50 files</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile/Tablet Tabs -->
+<div class="lg:hidden flex w-full border-b border-paper dark:border-dark-border bg-surface dark:bg-dark-panel px-4 pt-2 z-40 flex-shrink-0">
+    <button id="tab-sources" role="tab" onclick="switchTab('sources')" class="flex-1 pb-2 font-label-md text-on-surface-variant dark:text-dark-text-muted border-b-2 border-transparent aria-selected:border-secondary aria-selected:text-secondary dark:aria-selected:text-dark-accent dark:aria-selected:border-dark-accent transition-colors" aria-selected="false">Sources</button>
+    <button id="tab-chat" role="tab" onclick="switchTab('chat')" class="flex-1 pb-2 font-label-md text-on-surface-variant dark:text-dark-text-muted border-b-2 border-transparent aria-selected:border-secondary aria-selected:text-secondary dark:aria-selected:text-dark-accent dark:aria-selected:border-dark-accent transition-colors" aria-selected="true">Chat</button>
+    <button id="tab-studio" role="tab" onclick="switchTab('studio')" class="flex-1 pb-2 font-label-md text-on-surface-variant dark:text-dark-text-muted border-b-2 border-transparent aria-selected:border-secondary aria-selected:text-secondary dark:aria-selected:text-dark-accent dark:aria-selected:border-dark-accent transition-colors" aria-selected="false">Studio</button>
+</div>
+
+<!-- Workspace Layout -->
+<main class="flex-1 flex overflow-hidden w-full px-2 lg:px-3 py-2 lg:py-3 relative">
+    
+    <!-- Left Panel: Sources -->
+    <aside id="panel-sources" class="hidden lg:flex w-full lg:w-[var(--left-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+        <div class="panel-header hidden lg:flex px-3 py-2 border-b border-paper dark:border-dark-border items-center justify-between">
+            <h2 class="font-label-md font-semibold dark:text-dark-text hide-on-collapse">Sources</h2>
+            <button onclick="togglePanel('left')" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+                <span id="collapse-icon-left" class="material-symbols-outlined text-[20px]">keyboard_double_arrow_left</span>
+            </button>
+        </div>
+        <div class="p-md pt-4 lg:pt-md hide-on-collapse">
+            <button id="add-source-btn" onclick="openUploadModal()" class="w-full border border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent rounded-full py-sm font-label-md flex items-center justify-center gap-sm hover:bg-secondary/5 dark:hover:bg-dark-accent/10 transition-colors">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+                <span>Add Sources</span>
+            </button>
+        </div>
+        <div class="px-md pb-sm flex justify-between items-center hide-on-collapse">
+            <button class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
+                <span class="material-symbols-outlined text-[18px]">sort</span>
+            </button>
+            <button class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-md pb-md space-y-xs">
+            <!-- Source Item -->
+            <label onclick="openPanel('left')" title="Cognitive_Load_Theory.pdf" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group">
+                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
+                <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
+                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text">Cognitive_Load_Theory.pdf</div>
+                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox">
+                </div>
+            </label>
+            <!-- Source Item -->
+            <label onclick="openPanel('left')" title="UI_UX_Best_Practices_2024.pdf" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group">
+                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
+                <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
+                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text">UI_UX_Best_Practices_2024.pdf</div>
+                    <input class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox">
+                </div>
+            </label>
+            <!-- Source Item -->
+            <label onclick="openPanel('left')" title="Design_Systems_Scale.pdf" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group">
+                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
+                <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
+                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text">Design_Systems_Scale.pdf</div>
+                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox">
+                </div>
+            </label>
+        </div>
+    </aside>
+
+    <!-- Left Resizer -->
+    <div id="resizer-left" class="hidden lg:flex w-2 cursor-col-resize flex-shrink-0 group items-center justify-center relative z-10 transition-colors">
+        <div class="w-1 h-8 bg-outline-variant/30 dark:bg-dark-border group-hover:bg-secondary dark:group-hover:bg-dark-accent rounded-full transition-colors"></div>
+    </div>
+
+    <!-- Center Panel: Chat -->
+    <section id="panel-chat" class="active-tab flex-1 flex flex-col min-w-0 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+        <div class="pt-2 px-3 pb-0 lg:px-3 lg:py-2 lg:border-b border-paper dark:border-dark-border flex items-center justify-between z-10 bg-surface-container-lowest dark:bg-dark-panel">
+            <h2 class="font-label-md font-semibold dark:text-dark-text hidden lg:block">Chat</h2>
+            <div class="flex items-center gap-1 ml-auto">
+                <button class="h-7 w-7 lg:h-9 lg:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all" title="Tune Settings">
+                    <span class="material-symbols-outlined text-[18px] lg:text-[20px]">tune</span>
+                </button>
+                <button class="h-7 w-7 lg:h-9 lg:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all" title="More Options">
+                    <span class="material-symbols-outlined text-[18px] lg:text-[20px]">more_vert</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Chat History -->
+        <div class="flex-1 overflow-y-auto p-lg pb-32 space-y-lg relative z-0">
+            <!-- AI Message -->
+            <div class="flex gap-md max-w-3xl">
+                <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-md rounded-lg rounded-tl-none">
+                    <p class="font-body-md dark:text-dark-text">Hello! I'm ready to help you analyze your selected documents on Cognitive Load Theory and Design Systems. What would you like to explore first?</p>
+                </div>
+            </div>
+            
+            <!-- User Message (Improved Contrast) -->
+            <div class="flex gap-md max-w-3xl ml-auto flex-row-reverse">
+                <div class="flex-1 bg-secondary/10 dark:bg-dark-accent/10 border border-secondary/20 dark:border-dark-accent/20 p-md rounded-lg rounded-tr-none">
+                    <p class="font-body-md text-on-surface dark:text-dark-text">Summarize the main points on reducing intrinsic cognitive load in UI design based on the PDF.</p>
+                </div>
+            </div>
+            
+            <!-- AI Message (Detailed) -->
+            <div class="flex gap-md max-w-3xl">
+                <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-md rounded-lg rounded-tl-none space-y-md">
+                    <p class="font-body-md dark:text-dark-text">Based on "Cognitive_Load_Theory.pdf", here is a summary of reducing intrinsic load:</p>
+                    <ul class="list-disc list-inside font-body-md space-y-sm text-on-surface-variant dark:text-dark-text-muted">
+                        <li><strong>Simplify Information:</strong> Break complex tasks into smaller, manageable sub-tasks.</li>
+                        <li><strong>Provide Pre-training:</strong> Familiarize users with basic concepts before introducing complex ones.</li>
+                        <li><strong>Use Consistent Patterns:</strong> Leverage established design patterns so users don't have to learn new interactions.</li>
+                    </ul>
+                    <div class="flex gap-xs mt-sm">
+                        <span class="bg-surface-container-high dark:bg-dark-border text-on-surface-variant dark:text-dark-text-muted px-sm py-xs rounded-full font-label-sm">Cognitive_Load_Theory.pdf p.4</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="absolute bottom-0 left-0 w-full p-4 lg:p-6 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/90 to-transparent dark:from-dark-panel dark:via-dark-panel/90 pointer-events-none z-10">
+            <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-6 pr-2 py-2 flex items-center gap-2 max-w-3xl mx-auto pointer-events-auto">
+                
+                <!-- Text Area (Center) -->
+                <textarea class="flex-1 bg-transparent border-none resize-none focus:ring-0 font-body-md py-2 px-0 dark:text-dark-text dark:placeholder-dark-text-muted outline-none" placeholder="Start typing..." rows="1" style="min-height: 24px;"></textarea>
+                
+                <!-- Right Actions -->
+                <div class="flex items-center gap-1 flex-shrink-0">
+                    <!-- Custom Model Dropdown -->
+                    <div class="relative" id="model-dropdown-container">
+                        <button onclick="toggleDropdown()" class="bg-transparent border-none text-label-md text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-2 px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
+                            <span id="selected-model">Pro</span>
+                            <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                        </button>
+                        <!-- Dropdown Menu -->
+                        <div id="model-dropdown-menu" class="hidden absolute bottom-full right-0 mb-2 w-36 bg-surface-container-lowest dark:bg-dark-border border border-paper dark:border-dark-border rounded-xl shadow-lg overflow-hidden z-50">
+                            <button onclick="selectModel('Pro')" class="w-full text-left px-4 py-2.5 text-label-md hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text">Pro</button>
+                            <button onclick="selectModel('Fast')" class="w-full text-left px-4 py-2.5 text-label-md hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text">Fast</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Mic Button -->
+                    <button class="text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text transition-colors p-2 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex-shrink-0 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[22px]">mic</span>
+                    </button>
+
+                    <!-- Sources Chip (Hidden by default, shown when input is empty) -->
+                    <div id="sources-chip" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover px-3 py-1.5 rounded-full ml-1 transition-all">
+                        <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">description</span>
+                        <span id="sources-count" class="text-label-sm text-on-surface-variant dark:text-dark-text-muted">2</span>
+                    </div>
+
+                    <!-- Send Button (Shown when input has text) -->
+                    <button id="send-btn" class="hidden bg-[#C15F3C] dark:bg-dark-accent text-white rounded-full h-9 w-9 flex items-center justify-center hover:bg-[#a64e2e] dark:hover:opacity-90 transition-all ml-1">
+                        <span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Right Resizer -->
+    <div id="resizer-right" class="hidden lg:flex w-2 cursor-col-resize flex-shrink-0 group items-center justify-center relative z-10 transition-colors">
+        <div class="w-1 h-8 bg-outline-variant/30 dark:bg-dark-border group-hover:bg-secondary dark:group-hover:bg-dark-accent rounded-full transition-colors"></div>
+    </div>
+
+    <!-- Right Panel: Studio -->
+    <aside id="panel-studio" class="hidden lg:flex w-full lg:w-[var(--right-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+        <!-- Studio Header -->
+        <div class="panel-header hidden lg:flex px-3 py-2 border-b border-paper dark:border-dark-border items-center justify-between">
+            <h2 class="font-label-md font-semibold dark:text-dark-text hide-on-collapse">Studio</h2>
+            <button onclick="togglePanel('right')" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+                <span id="collapse-icon-right" class="material-symbols-outlined text-[20px]">keyboard_double_arrow_right</span>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto flex flex-col pb-md pt-2 lg:pt-0">
+            <!-- Studio Features -->
+            <div class="p-md hide-on-collapse">
+                <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest mb-sm">Features</h3>
+            </div>
+            <div class="px-md mb-sm">
+                <div class="features-grid grid grid-cols-2 gap-sm">
+                    <div onclick="openPanel('right')" title="Citations" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent">format_quote</span>
+                        <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text">Citations</span>
+                    </div>
+                    <div onclick="openPanel('right')" title="Detail" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent">description</span>
+                        <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text">Detail</span>
+                    </div>
+                    <div onclick="openPanel('right')" title="AI Mode" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent">auto_awesome</span>
+                        <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text">AI Mode</span>
+                    </div>
+                    <div onclick="openPanel('right')" title="History" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent">history</span>
+                        <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text">History</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Divider -->
+            <hr class="border-paper dark:border-dark-border mx-md my-sm hide-on-collapse">
+            
+            <!-- Saved Notes -->
+            <div class="px-md flex-1 flex flex-col">
+                <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest mb-sm hide-on-collapse">Saved Notes</h3>
+                <div class="space-y-sm">
+                    <!-- Note Card -->
+                    <div onclick="openPanel('right')" title="Intrinsic Load Reduction" class="note-card p-sm border border-paper dark:border-dark-border rounded-lg hover:border-secondary dark:hover:border-dark-accent transition-colors cursor-pointer group bg-surface-bright dark:bg-dark-panel">
+                        <span class="material-symbols-outlined note-card-icon text-[24px] text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">sticky_note_2</span>
+                        <div class="note-card-content">
+                            <h3 class="font-label-md truncate mb-xs group-hover:text-secondary dark:group-hover:text-dark-accent dark:text-dark-text transition-colors">Intrinsic Load Reduction</h3>
+                            <p class="font-label-sm text-on-surface-variant dark:text-dark-text-muted line-clamp-2">Key takeaway: Simplify tasks and use consistent patterns to minimize mental effort required to understand the interface.</p>
+                            <div class="mt-sm flex gap-xs">
+                                <span class="bg-surface-variant dark:bg-dark-border text-on-surface-variant dark:text-dark-text-muted px-xs py-[2px] rounded text-[10px] uppercase tracking-wide">Summary</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Note Card -->
+                    <div onclick="openPanel('right')" title="Design System Scalability" class="note-card p-sm border border-paper dark:border-dark-border rounded-lg hover:border-secondary dark:hover:border-dark-accent transition-colors cursor-pointer group bg-surface-bright dark:bg-dark-panel">
+                        <span class="material-symbols-outlined note-card-icon text-[24px] text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">sticky_note_2</span>
+                        <div class="note-card-content">
+                            <h3 class="font-label-md truncate mb-xs group-hover:text-secondary dark:group-hover:text-dark-accent dark:text-dark-text transition-colors">Design System Scalability</h3>
+                            <p class="font-label-sm text-on-surface-variant dark:text-dark-text-muted line-clamp-2">Ensure tokens are semantic (e.g., surface, on-surface) rather than literal (e.g., gray-100, black) for easier theming.</p>
+                            <div class="mt-sm flex gap-xs">
+                                <span class="bg-surface-variant dark:bg-dark-border text-on-surface-variant dark:text-dark-text-muted px-xs py-[2px] rounded text-[10px] uppercase tracking-wide">Quote</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Modal Logic
+    function openUploadModal() {
+        document.getElementById('upload-modal').classList.remove('hidden');
+    }
+
+    function closeUploadModal() {
+        document.getElementById('upload-modal').classList.add('hidden');
+    }
+
+    // Close modal when clicking outside the content area
+    document.getElementById('upload-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeUploadModal();
+        }
+    });
+
+    // Trigger file input when upload button or drop zone is clicked
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Basic visual feedback for drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-secondary', 'dark:border-secondary');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-secondary', 'dark:border-secondary');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-secondary', 'dark:border-secondary');
+        // Handle file drop logic here
+        const files = e.dataTransfer.files;
+        if(files.length > 0) {
+            console.log('Files dropped:', files);
+            // Optionally close modal after drop
+            // closeUploadModal();
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+         if(this.files.length > 0) {
+             console.log('Files selected:', this.files);
+             // Optionally close modal after selection
+             // closeUploadModal();
+         }
+    });
+
+    function switchTab(tabName) {
+        // Update aria-selected state on tab buttons
+        document.querySelectorAll('[role="tab"]').forEach(tab => {
+            tab.setAttribute('aria-selected', tab.id === `tab-${tabName}` ? 'true' : 'false');
+        });
+        
+        // Update active panel class
+        ['sources', 'chat', 'studio'].forEach(id => {
+            const panel = document.getElementById(`panel-${id}`);
+            if (id === tabName) {
+                panel.classList.add('active-tab');
+            } else {
+                panel.classList.remove('active-tab');
+            }
+        });
+    }
+    
+    // Custom Dropdown Logic
+    function toggleDropdown() {
+        document.getElementById('model-dropdown-menu').classList.toggle('hidden');
+    }
+    
+    function selectModel(model) {
+        document.getElementById('selected-model').innerText = model;
+        document.getElementById('model-dropdown-menu').classList.add('hidden');
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const container = document.getElementById('model-dropdown-container');
+        if (container && !container.contains(event.target)) {
+            document.getElementById('model-dropdown-menu').classList.add('hidden');
+        }
+    });
+    
+    // Panel Resizing Logic
+    let isResizingLeft = false;
+    let isResizingRight = false;
+    let startX = 0;
+    let startWidth = 0;
+    
+    const resizerLeft = document.getElementById('resizer-left');
+    const resizerRight = document.getElementById('resizer-right');
+    
+    if (resizerLeft && resizerRight) {
+        resizerLeft.addEventListener('mousedown', (e) => {
+            isResizingLeft = true;
+            startX = e.clientX;
+            startWidth = document.getElementById('panel-sources').getBoundingClientRect().width;
+            document.body.style.cursor = 'col-resize';
+            document.body.classList.add('select-none', 'is-resizing'); // Prevent text highlighting
+            e.preventDefault();
+        });
+        
+        resizerRight.addEventListener('mousedown', (e) => {
+            isResizingRight = true;
+            startX = e.clientX;
+            startWidth = document.getElementById('panel-studio').getBoundingClientRect().width;
+            document.body.style.cursor = 'col-resize';
+            document.body.classList.add('select-none', 'is-resizing');
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizingLeft && !isResizingRight) return;
+            
+            if (isResizingLeft) {
+                const diff = e.clientX - startX;
+                let newWidth = startWidth + diff;
+                if (newWidth < 200) newWidth = 200; // Minimum width
+                if (newWidth > 600) newWidth = 600; // Maximum width
+                document.documentElement.style.setProperty('--left-panel-width', `${newWidth}px`);
+            }
+            
+            if (isResizingRight) {
+                const diff = startX - e.clientX; // Moving left increases right panel width
+                let newWidth = startWidth + diff;
+                if (newWidth < 200) newWidth = 200;
+                if (newWidth > 600) newWidth = 600;
+                document.documentElement.style.setProperty('--right-panel-width', `${newWidth}px`);
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            isResizingLeft = false;
+            isResizingRight = false;
+            document.body.style.cursor = 'default';
+            document.body.classList.remove('select-none', 'is-resizing');
+        });
+    }
+    
+    // Panel Collapsing Logic
+    function togglePanel(side) {
+        const panel = side === 'left' ? document.getElementById('panel-sources') : document.getElementById('panel-studio');
+        const resizer = side === 'left' ? document.getElementById('resizer-left') : document.getElementById('resizer-right');
+        const icon = side === 'left' ? document.getElementById('collapse-icon-left') : document.getElementById('collapse-icon-right');
+        
+        panel.classList.toggle('collapsed');
+        const isCollapsed = panel.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+            resizer.style.display = 'none';
+            icon.innerText = side === 'left' ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
+        } else {
+            resizer.style.display = '';
+            icon.innerText = side === 'left' ? 'keyboard_double_arrow_left' : 'keyboard_double_arrow_right';
+        }
+    }
+
+    function openPanel(side) {
+        const panel = side === 'left' ? document.getElementById('panel-sources') : document.getElementById('panel-studio');
+        if (panel.classList.contains('collapsed')) {
+            togglePanel(side);
+        }
+    }
+
+    // Input Field Logic for Send Button/Sources Chip
+    const chatInput = document.querySelector('#panel-chat textarea');
+    const sendBtn = document.getElementById('send-btn');
+    const sourcesChip = document.getElementById('sources-chip');
+
+    chatInput.addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+            sendBtn.classList.remove('hidden');
+            sourcesChip.classList.add('hidden');
+        } else {
+            sendBtn.classList.add('hidden');
+            sourcesChip.classList.remove('hidden');
+        }
+    });
+
+    // Basic auto-resize for textarea
+    chatInput.addEventListener('input', function() {
+        this.style.height = '24px'; // Reset height to recalculate
+        this.style.height = (this.scrollHeight) + 'px';
+        
+        // Limit max height (e.g., 5 lines approx)
+        if(this.scrollHeight > 120) {
+            this.style.overflowY = 'auto';
+            this.style.height = '120px';
+        } else {
+            this.style.overflowY = 'hidden';
+        }
+    });
+</script>
+{% endblock %}
