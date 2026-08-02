@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from dotenv import load_dotenv
 
 # Load environment variables from a .env file
@@ -15,13 +15,34 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Supabase credentials are not set in the environment variables.")
 
-# 2. Per-request Supabase client factory dependency
-def get_supabase_client() -> Client:
-    """Creates a fresh, isolated Supabase client instance per request."""
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# 3. Security scheme definition (auto_error=False allows fallback to cookies)
+# 2. Security scheme definition
 security = HTTPBearer(auto_error=False)
+
+def get_token_from_request(request: Request, credentials: Optional[HTTPAuthorizationCredentials] = None) -> Optional[str]:
+    """Helper to extract JWT token from Authorization header or HTTP cookie."""
+    if credentials and credentials.credentials:
+        return credentials.credentials
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    token = request.cookies.get("access_token")
+    if token:
+        if token.startswith("Bearer "):
+            return token[7:]
+        return token
+    return None
+
+# 3. Per-request Supabase client factory dependency
+def get_supabase_client(request: Request) -> Client:
+    """Creates a fresh client per request, attaching the user's JWT to trigger RLS."""
+    # Now this checks BOTH cookies and headers safely!
+    token = get_token_from_request(request) 
+    
+    if token:
+        options = ClientOptions(headers={"Authorization": f"Bearer {token}"})
+        return create_client(SUPABASE_URL, SUPABASE_KEY, options=options)
+        
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 4. Auth Core Service Functions
 def sign_up_user(client: Client, email: str, password: str, full_name: Optional[str] = None):
@@ -67,17 +88,6 @@ def update_user_password(client: Client, access_token: str, new_password: str, r
     client.auth.set_session(access_token=access_token, refresh_token=refresh_token or "")
     return client.auth.update_user({"password": new_password})
 
-def get_token_from_request(request: Request, credentials: Optional[HTTPAuthorizationCredentials] = None) -> Optional[str]:
-    """Helper to extract JWT token from Authorization header or HTTP cookie."""
-    if credentials and credentials.credentials:
-        return credentials.credentials
-    token = request.cookies.get("access_token")
-    if token:
-        if token.startswith("Bearer "):
-            return token[7:]
-        return token
-    return None
-
 def get_current_user_from_token(client: Client, token: str):
     """Retrieves user object from Supabase JWT token using per-request client."""
     user_response = client.auth.get_user(token)
@@ -119,4 +129,4 @@ def get_optional_current_user(
         return get_current_user_from_token(client, token)
     except Exception:
         return None
-
+

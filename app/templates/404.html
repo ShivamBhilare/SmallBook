@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<main class="flex-1 flex flex-col items-center justify-center p-4 text-center">
+    <span class="material-symbols-outlined text-[80px] text-on-surface-variant dark:text-dark-text-muted mb-4">
+        sentiment_dissatisfied
+    </span>
+    
+    <h1 class="text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-2">
+        404 - Page Not Found
+    </h1>
+    
+    <p class="text-body-md text-on-surface-variant dark:text-dark-text-muted mb-8 max-w-md">
+        Oops! The page or notebook you're looking for doesn't exist, has been deleted, or you don't have access to it.
+    </p>
+    
+    <a href="/notebooks/dashboard" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-8 py-3 font-label-md hover:opacity-80 transition-opacity flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px]">home</span>
+        Return to Dashboard
+    </a>
+</main>
+{% endblock %}

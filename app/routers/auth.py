@@ -2,9 +2,14 @@ from typing import Optional
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, status, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, EmailStr
 from supabase import Client
 
+from app.models.auth_models import (
+    SignInSchema,
+    SignUpSchema,
+    ForgotPasswordSchema,
+    UpdatePasswordSchema,
+)
 from app.services.authentication.auth_service import (
     sign_in_user,
     sign_up_user,
@@ -22,26 +27,6 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # Setup templates directory location
 templates = Jinja2Templates(directory="app/templates")
-
-# ==========================================
-# PYDANTIC SCHEMAS
-# ==========================================
-class SignInSchema(BaseModel):
-    email: EmailStr
-    password: str
-
-class SignUpSchema(BaseModel):
-    email: EmailStr
-    password: str
-    fullname: Optional[str] = None
-
-class ForgotPasswordSchema(BaseModel):
-    email: EmailStr
-
-class UpdatePasswordSchema(BaseModel):
-    access_token: str
-    password: str
-    refresh_token: Optional[str] = ""
 
 # ==========================================
 # HTML PAGE RENDERERS & FORM HANDLERS
