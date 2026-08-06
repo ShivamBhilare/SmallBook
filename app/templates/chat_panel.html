@@ -1,0 +1,86 @@
+<section id="panel-chat" class="active-tab flex-1 flex flex-col min-w-0 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+    <div class="pt-2 px-3 pb-0 lg:px-3 lg:py-2 lg:border-b border-paper dark:border-dark-border flex items-center justify-between z-10 bg-surface-container-lowest dark:bg-dark-panel">
+        <h2 class="font-label-md font-semibold dark:text-dark-text hidden lg:block">Chat</h2>
+        <div class="flex items-center gap-1 ml-auto">
+            <button class="h-7 w-7 lg:h-9 lg:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all" title="Tune Settings">
+                <span class="material-symbols-outlined text-[18px] lg:text-[20px]">tune</span>
+            </button>
+            <button class="h-7 w-7 lg:h-9 lg:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all" title="More Options">
+                <span class="material-symbols-outlined text-[18px] lg:text-[20px]">more_vert</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Chat History -->
+    <div class="flex-1 overflow-y-auto p-lg pb-32 space-y-lg relative z-0">
+        <!-- AI Message -->
+        <div class="flex gap-md max-w-3xl">
+            <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-md rounded-lg rounded-tl-none">
+                <p class="font-body-md dark:text-dark-text">Hello! I'm ready to help you analyze your selected documents on Cognitive Load Theory and Design Systems. What would you like to explore first?</p>
+            </div>
+        </div>
+        
+        <!-- User Message (Improved Contrast) -->
+        <div class="flex gap-md max-w-3xl ml-auto flex-row-reverse">
+            <div class="flex-1 bg-secondary/10 dark:bg-dark-accent/10 border border-secondary/20 dark:border-dark-accent/20 p-md rounded-lg rounded-tr-none">
+                <p class="font-body-md text-on-surface dark:text-dark-text">Summarize the main points on reducing intrinsic cognitive load in UI design based on the PDF.</p>
+            </div>
+        </div>
+        
+        <!-- AI Message (Detailed) -->
+        <div class="flex gap-md max-w-3xl">
+            <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-md rounded-lg rounded-tl-none space-y-md">
+                <p class="font-body-md dark:text-dark-text">Based on "Cognitive_Load_Theory.pdf", here is a summary of reducing intrinsic load:</p>
+                <ul class="list-disc list-inside font-body-md space-y-sm text-on-surface-variant dark:text-dark-text-muted">
+                    <li><strong>Simplify Information:</strong> Break complex tasks into smaller, manageable sub-tasks.</li>
+                    <li><strong>Provide Pre-training:</strong> Familiarize users with basic concepts before introducing complex ones.</li>
+                    <li><strong>Use Consistent Patterns:</strong> Leverage established design patterns so users don't have to learn new interactions.</li>
+                </ul>
+                <div class="flex gap-xs mt-sm">
+                    <span class="bg-surface-container-high dark:bg-dark-border text-on-surface-variant dark:text-dark-text-muted px-sm py-xs rounded-full font-label-sm">Cognitive_Load_Theory.pdf p.4</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Input Area -->
+    <div class="absolute bottom-0 left-0 w-full p-4 lg:p-6 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/90 to-transparent dark:from-dark-panel dark:via-dark-panel/90 pointer-events-none z-10">
+        <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-6 pr-2 py-2 flex items-center gap-2 max-w-3xl mx-auto pointer-events-auto">
+            
+            <!-- Text Area (Center) -->
+            <textarea class="flex-1 bg-transparent border-none resize-none focus:ring-0 font-body-md py-2 px-0 dark:text-dark-text dark:placeholder-dark-text-muted outline-none" placeholder="Start typing..." rows="1" style="min-height: 24px;"></textarea>
+            
+            <!-- Right Actions -->
+            <div class="flex items-center gap-1 flex-shrink-0">
+                <!-- Custom Model Dropdown -->
+                <div class="relative" id="model-dropdown-container">
+                    <button onclick="toggleDropdown()" class="bg-transparent border-none text-label-md text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-2 px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
+                        <span id="selected-model">Pro</span>
+                        <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="model-dropdown-menu" class="hidden absolute bottom-full right-0 mb-2 w-36 bg-surface-container-lowest dark:bg-dark-border border border-paper dark:border-dark-border rounded-xl shadow-lg overflow-hidden z-50">
+                        <button onclick="selectModel('Pro')" class="w-full text-left px-4 py-2.5 text-label-md hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text">Pro</button>
+                        <button onclick="selectModel('Fast')" class="w-full text-left px-4 py-2.5 text-label-md hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text">Fast</button>
+                    </div>
+                </div>
+                
+                <!-- Mic Button -->
+                <button class="text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text transition-colors p-2 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex-shrink-0 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[22px]">mic</span>
+                </button>
+
+                <!-- Sources Chip (Hidden by default, shown when input is empty) -->
+                <div id="sources-chip" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover px-3 py-1.5 rounded-full ml-1 transition-all">
+                    <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">description</span>
+                    <span id="sources-count" class="text-label-sm text-on-surface-variant dark:text-dark-text-muted">2</span>
+                </div>
+
+                <!-- Send Button (Shown when input has text) -->
+                <button id="send-btn" class="hidden bg-[#C15F3C] dark:bg-dark-accent text-white rounded-full h-9 w-9 flex items-center justify-center hover:bg-[#a64e2e] dark:hover:opacity-90 transition-all ml-1">
+                    <span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>

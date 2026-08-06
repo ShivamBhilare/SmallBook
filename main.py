@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.routers.auth import router as auth_router
 from app.routers.notebooks import router as notebooks_router
+from app.routers.sources import router as sources_router
 from app.services.authentication.auth_service import get_optional_current_user
 
 app = FastAPI(title="SmallBook")
@@ -17,6 +18,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Include the separated routers
 app.include_router(auth_router)
 app.include_router(notebooks_router)
+app.include_router(sources_router)
 
 # --- GLOBAL 404 HANDLER ---
 @app.exception_handler(StarletteHTTPException)

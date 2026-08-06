@@ -35,9 +35,10 @@ async def read_workspace(request: Request, notebook_id: str, user=Depends(get_op
     if not user:
         return RedirectResponse(url="/auth/sign-in", status_code=status.HTTP_303_SEE_OTHER)
         
+    client = get_supabase_client(request)
     try:
         # Pass 'request' to automatically trigger RLS policy
-        response = get_supabase_client(request).table("notebooks").select("id").eq("id", notebook_id).execute()
+        response = client.table("notebooks").select("id, title").eq("id", notebook_id).execute()
     except APIError:
         raise HTTPException(status_code=404, detail="Notebook not found")
     
@@ -45,13 +46,20 @@ async def read_workspace(request: Request, notebook_id: str, user=Depends(get_op
     if not response.data:
         raise HTTPException(status_code=404, detail="Notebook not found")
 
+    notebook_data = response.data[0]
+    
+    from app.services.sources.source_service import get_notebook_sources
+    sources = get_notebook_sources(client, notebook_id)
+
     return templates.TemplateResponse(
         request=request, 
         name="notebook_workspace.html", 
         context={
             "title": "Notebook Workspace",
             "notebook_id": notebook_id,
-            "user": user
+            "user": user,
+            "notebook": notebook_data,
+            "sources": sources
         }
     )
 

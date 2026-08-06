@@ -86,14 +86,27 @@
         
         <!-- Modal Body (Drag & Drop Zone) -->
         <div class="p-8 pt-4">
-            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-12 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer" id="drop-zone">
-                <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-2">drop your files</h3>
-                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-8">pdf documents only</p>
+            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-12 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer relative overflow-hidden" id="drop-zone">
                 
-                <button class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-6 py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <span class="material-symbols-outlined text-[18px]">upload</span>
-                    Upload files
-                </button>
+                <!-- Default Drop Zone Content -->
+                <div id="drop-zone-content" class="w-full flex flex-col items-center transition-opacity duration-300">
+                    <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-2">drop your files</h3>
+                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-8">pdf documents only</p>
+                    
+                    <button class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-6 py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity">
+                        <span class="material-symbols-outlined text-[18px]">upload</span>
+                        Upload files
+                    </button>
+                </div>
+                
+                <!-- Upload Progress Overlay (Hidden by default) -->
+                <div id="upload-progress" class="hidden absolute inset-0 bg-surface-bright/95 dark:bg-dark-panel-hover/95 backdrop-blur-sm flex flex-col items-center justify-center z-10 transition-opacity duration-300">
+                    <span id="upload-spinner" class="material-symbols-outlined animate-spin text-[40px] text-secondary dark:text-dark-accent mb-4">progress_activity</span>
+                    <span id="upload-success-icon" class="hidden material-symbols-outlined text-[40px] text-green-600 dark:text-green-400 mb-4">check_circle</span>
+                    <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-1" id="upload-title">Uploading...</h3>
+                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md" id="upload-subtitle">Please wait</p>
+                </div>
+
                 <!-- Hidden file input triggered by the button/drop zone -->
                 <input type="file" id="file-input" class="hidden" accept=".pdf" multiple>
             </div>
@@ -105,6 +118,67 @@
                 </div>
                 <span class="text-label-sm text-on-surface-variant dark:text-dark-text-muted whitespace-nowrap">3 / 50 files</span>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Source Modal Overlay (Hidden by default) -->
+<div id="delete-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+        <div class="flex justify-between items-start">
+            <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Remove Source</h3>
+            <button onclick="closeDeleteModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+        
+        <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted">
+            Remove <span id="delete-modal-filename" class="font-semibold text-on-surface dark:text-dark-text truncate inline-block max-w-[240px] align-bottom"></span>?
+        </p>
+
+        <div class="flex flex-col gap-2.5 mt-2">
+            <!-- Active / Primary button: Remove from Notebook -->
+            <button id="btn-delete-notebook" onclick="confirmDeleteSource('notebook')" class="w-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:opacity-90 transition-opacity font-medium">
+                <span class="material-symbols-outlined text-[18px]">bookmark_remove</span>
+                <span>Remove from Notebook</span>
+            </button>
+            
+            <!-- Secondary button: Delete from Library -->
+            <button id="btn-delete-library" onclick="confirmDeleteSource('library')" class="w-full border border-error/50 text-error dark:border-red-400/50 dark:text-red-400 font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:bg-error/10 dark:hover:bg-red-400/10 transition-colors font-medium">
+                <span class="material-symbols-outlined text-[18px]">delete_forever</span>
+                <span>Delete from Library</span>
+            </button>
+
+            <!-- Cancel button -->
+            <button onclick="closeDeleteModal()" class="w-full py-1.5 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Source Modal Overlay (Hidden by default) -->
+<div id="rename-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+        <div class="flex justify-between items-start">
+            <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Rename Source</h3>
+            <button onclick="closeRenameModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="rename-input" class="text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">Document Name</label>
+            <input type="text" id="rename-input" onkeydown="if(event.key==='Enter') confirmRenameSource()" class="w-full px-3.5 py-2.5 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl text-on-surface dark:text-dark-text focus:outline-none focus:border-secondary dark:focus:border-dark-accent text-sm" placeholder="Enter file name...">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 mt-2">
+            <button onclick="closeRenameModal()" class="px-4 py-2 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+                Cancel
+            </button>
+            <button onclick="confirmRenameSource()" class="bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md px-5 py-2 rounded-full hover:opacity-90 transition-opacity font-medium">
+                Save
+            </button>
         </div>
     </div>
 </div>
@@ -134,36 +208,48 @@
             </button>
         </div>
         <div class="px-md pb-sm flex justify-between items-center hide-on-collapse">
-            <button class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
-                <span class="material-symbols-outlined text-[18px]">sort</span>
-            </button>
-            <button class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
+            <div class="relative">
+                <button onclick="toggleSortMenu(event)" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
+                    <span class="material-symbols-outlined text-[18px]">sort</span>
+                </button>
+                <div id="sort-menu" class="hidden absolute left-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                    <button type="button" onclick="sortSources('az')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">sort_by_alpha</span> A-Z
+                    </button>
+                    <button type="button" onclick="sortSources('recent')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">schedule</span> Most Recent
+                    </button>
+                    <button type="button" onclick="sortSources('oldest')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">history</span> Oldest
+                    </button>
+                </div>
+            </div>
+            <button onclick="toggleSelectAllSources()" class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
         </div>
-        <div class="flex-1 overflow-y-auto px-md pb-md space-y-xs">
-            <!-- Source Item -->
-            <label onclick="openPanel('left')" title="Cognitive_Load_Theory.pdf" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group">
+        
+        <div class="flex-1 overflow-y-auto px-md pb-md space-y-xs" id="sources-list">
+            {% for source in sources %}
+            <label onclick="openPanel('left')" title="{{ source.original_filename }}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="{{ source.id }}" data-filename="{{ source.original_filename|escape }}" data-created-at="{{ source.created_at or '' }}">
                 <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
                 <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
-                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text">Cognitive_Load_Theory.pdf</div>
-                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox">
+                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename">{{ source.original_filename }}</div>
+                    <div class="flex items-center gap-1 flex-shrink-0 relative">
+                        <button type="button" onclick="toggleSourceMenu(event, '{{ source.id }}')" class="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
+                            <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                        </button>
+                        <div id="source-menu-{{ source.id }}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                            <button type="button" onclick="promptRenameSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
+                            </button>
+                            <button type="button" onclick="promptDeleteSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px]">delete</span> Remove Source
+                            </button>
+                        </div>
+                        <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="{{ source.id }}">
+                    </div>
                 </div>
             </label>
-            <!-- Source Item -->
-            <label onclick="openPanel('left')" title="UI_UX_Best_Practices_2024.pdf" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group">
-                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
-                <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
-                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text">UI_UX_Best_Practices_2024.pdf</div>
-                    <input class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox">
-                </div>
-            </label>
-            <!-- Source Item -->
-            <label onclick="openPanel('left')" title="Design_Systems_Scale.pdf" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group">
-                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
-                <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
-                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text">Design_Systems_Scale.pdf</div>
-                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox">
-                </div>
-            </label>
+            {% endfor %}
         </div>
     </aside>
 
@@ -172,93 +258,8 @@
         <div class="w-1 h-8 bg-outline-variant/30 dark:bg-dark-border group-hover:bg-secondary dark:group-hover:bg-dark-accent rounded-full transition-colors"></div>
     </div>
 
-    <!-- Center Panel: Chat -->
-    <section id="panel-chat" class="active-tab flex-1 flex flex-col min-w-0 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
-        <div class="pt-2 px-3 pb-0 lg:px-3 lg:py-2 lg:border-b border-paper dark:border-dark-border flex items-center justify-between z-10 bg-surface-container-lowest dark:bg-dark-panel">
-            <h2 class="font-label-md font-semibold dark:text-dark-text hidden lg:block">Chat</h2>
-            <div class="flex items-center gap-1 ml-auto">
-                <button class="h-7 w-7 lg:h-9 lg:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all" title="Tune Settings">
-                    <span class="material-symbols-outlined text-[18px] lg:text-[20px]">tune</span>
-                </button>
-                <button class="h-7 w-7 lg:h-9 lg:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all" title="More Options">
-                    <span class="material-symbols-outlined text-[18px] lg:text-[20px]">more_vert</span>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Chat History -->
-        <div class="flex-1 overflow-y-auto p-lg pb-32 space-y-lg relative z-0">
-            <!-- AI Message -->
-            <div class="flex gap-md max-w-3xl">
-                <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-md rounded-lg rounded-tl-none">
-                    <p class="font-body-md dark:text-dark-text">Hello! I'm ready to help you analyze your selected documents on Cognitive Load Theory and Design Systems. What would you like to explore first?</p>
-                </div>
-            </div>
-            
-            <!-- User Message (Improved Contrast) -->
-            <div class="flex gap-md max-w-3xl ml-auto flex-row-reverse">
-                <div class="flex-1 bg-secondary/10 dark:bg-dark-accent/10 border border-secondary/20 dark:border-dark-accent/20 p-md rounded-lg rounded-tr-none">
-                    <p class="font-body-md text-on-surface dark:text-dark-text">Summarize the main points on reducing intrinsic cognitive load in UI design based on the PDF.</p>
-                </div>
-            </div>
-            
-            <!-- AI Message (Detailed) -->
-            <div class="flex gap-md max-w-3xl">
-                <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-md rounded-lg rounded-tl-none space-y-md">
-                    <p class="font-body-md dark:text-dark-text">Based on "Cognitive_Load_Theory.pdf", here is a summary of reducing intrinsic load:</p>
-                    <ul class="list-disc list-inside font-body-md space-y-sm text-on-surface-variant dark:text-dark-text-muted">
-                        <li><strong>Simplify Information:</strong> Break complex tasks into smaller, manageable sub-tasks.</li>
-                        <li><strong>Provide Pre-training:</strong> Familiarize users with basic concepts before introducing complex ones.</li>
-                        <li><strong>Use Consistent Patterns:</strong> Leverage established design patterns so users don't have to learn new interactions.</li>
-                    </ul>
-                    <div class="flex gap-xs mt-sm">
-                        <span class="bg-surface-container-high dark:bg-dark-border text-on-surface-variant dark:text-dark-text-muted px-sm py-xs rounded-full font-label-sm">Cognitive_Load_Theory.pdf p.4</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Input Area -->
-        <div class="absolute bottom-0 left-0 w-full p-4 lg:p-6 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/90 to-transparent dark:from-dark-panel dark:via-dark-panel/90 pointer-events-none z-10">
-            <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-6 pr-2 py-2 flex items-center gap-2 max-w-3xl mx-auto pointer-events-auto">
-                
-                <!-- Text Area (Center) -->
-                <textarea class="flex-1 bg-transparent border-none resize-none focus:ring-0 font-body-md py-2 px-0 dark:text-dark-text dark:placeholder-dark-text-muted outline-none" placeholder="Start typing..." rows="1" style="min-height: 24px;"></textarea>
-                
-                <!-- Right Actions -->
-                <div class="flex items-center gap-1 flex-shrink-0">
-                    <!-- Custom Model Dropdown -->
-                    <div class="relative" id="model-dropdown-container">
-                        <button onclick="toggleDropdown()" class="bg-transparent border-none text-label-md text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-2 px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
-                            <span id="selected-model">Pro</span>
-                            <span class="material-symbols-outlined text-[18px]">expand_more</span>
-                        </button>
-                        <!-- Dropdown Menu -->
-                        <div id="model-dropdown-menu" class="hidden absolute bottom-full right-0 mb-2 w-36 bg-surface-container-lowest dark:bg-dark-border border border-paper dark:border-dark-border rounded-xl shadow-lg overflow-hidden z-50">
-                            <button onclick="selectModel('Pro')" class="w-full text-left px-4 py-2.5 text-label-md hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text">Pro</button>
-                            <button onclick="selectModel('Fast')" class="w-full text-left px-4 py-2.5 text-label-md hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text">Fast</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Mic Button -->
-                    <button class="text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text transition-colors p-2 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex-shrink-0 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[22px]">mic</span>
-                    </button>
-
-                    <!-- Sources Chip (Hidden by default, shown when input is empty) -->
-                    <div id="sources-chip" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover px-3 py-1.5 rounded-full ml-1 transition-all">
-                        <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">description</span>
-                        <span id="sources-count" class="text-label-sm text-on-surface-variant dark:text-dark-text-muted">2</span>
-                    </div>
-
-                    <!-- Send Button (Shown when input has text) -->
-                    <button id="send-btn" class="hidden bg-[#C15F3C] dark:bg-dark-accent text-white rounded-full h-9 w-9 flex items-center justify-center hover:bg-[#a64e2e] dark:hover:opacity-90 transition-all ml-1">
-                        <span class="material-symbols-outlined text-[18px]">arrow_upward</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </section>
+    <!-- Center Panel: Chat (Included) -->
+    {% include 'chat_panel.html' %}
 
     <!-- Right Resizer -->
     <div id="resizer-right" class="hidden lg:flex w-2 cursor-col-resize flex-shrink-0 group items-center justify-center relative z-10 transition-colors">
@@ -339,18 +340,30 @@
 
 {% block extra_scripts %}
 <script>
-    // Modal Logic
+    let isUploading = false;
+
     function openUploadModal() {
         document.getElementById('upload-modal').classList.remove('hidden');
     }
 
     function closeUploadModal() {
+        if (isUploading) return; // Prevent closing while uploading
         document.getElementById('upload-modal').classList.add('hidden');
+        resetUploadUI();
+    }
+
+    function resetUploadUI() {
+        document.getElementById('drop-zone-content').classList.remove('opacity-0', 'pointer-events-none');
+        document.getElementById('upload-progress').classList.add('hidden');
+        document.getElementById('upload-spinner').classList.remove('hidden');
+        document.getElementById('upload-success-icon').classList.add('hidden');
+        document.getElementById('upload-title').innerText = "Uploading...";
+        document.getElementById('upload-subtitle').innerText = "Please wait";
     }
 
     // Close modal when clicking outside the content area
     document.getElementById('upload-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
+        if (e.target === this && !isUploading) {
             closeUploadModal();
         }
     });
@@ -360,13 +373,13 @@
     const fileInput = document.getElementById('file-input');
 
     dropZone.addEventListener('click', () => {
-        fileInput.click();
+        if (!isUploading) fileInput.click();
     });
 
     // Basic visual feedback for drag and drop
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.classList.add('border-secondary', 'dark:border-secondary');
+        if (!isUploading) dropZone.classList.add('border-secondary', 'dark:border-secondary');
     });
 
     dropZone.addEventListener('dragleave', (e) => {
@@ -377,21 +390,307 @@
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('border-secondary', 'dark:border-secondary');
-        // Handle file drop logic here
+        if (isUploading) return;
+        
         const files = e.dataTransfer.files;
         if(files.length > 0) {
-            console.log('Files dropped:', files);
-            // Optionally close modal after drop
-            // closeUploadModal();
+            uploadFiles(files);
         }
     });
 
     fileInput.addEventListener('change', function() {
-         if(this.files.length > 0) {
-             console.log('Files selected:', this.files);
-             // Optionally close modal after selection
-             // closeUploadModal();
+         if(this.files.length > 0 && !isUploading) {
+             uploadFiles(this.files);
          }
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Async upload function communicating with backend /sources/upload
+    async function uploadFiles(files) {
+        // Extract notebook_id from current URL path (/notebooks/workspace/{notebook_id})
+        const pathSegments = window.location.pathname.split('/');
+        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+
+        if (!notebookId) {
+            alert('Notebook ID not found.');
+            return;
+        }
+
+        // UI State change to Uploading
+        isUploading = true;
+        document.getElementById('drop-zone-content').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('upload-progress').classList.remove('hidden');
+
+        let successCount = 0;
+        let hasError = false;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type !== 'application/pdf') {
+                alert(`File "${file.name}" is not a PDF. Only PDF files are supported.`);
+                continue;
+            }
+
+            document.getElementById('upload-title').innerText = `Uploading ${i + 1} of ${files.length}`;
+            document.getElementById('upload-subtitle').innerText = file.name;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`/notebooks/${notebookId}/sources/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                let resultText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(resultText);
+                } catch (e) {
+                    throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Failed to upload source.');
+                }
+                
+                const filename = (result && result.filename) ? result.filename : file.name;
+                const sourceId = (result && result.source_id) ? result.source_id : '';
+                const nowIso = new Date().toISOString();
+                const sourcesList = document.getElementById('sources-list') || document.querySelector('#panel-sources .overflow-y-auto');
+                if (sourcesList) {
+                    const newSourceHtml = `
+                        <label onclick="openPanel('left')" title="${escapeHtml(filename)}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="${sourceId}" data-filename="${escapeHtml(filename)}" data-created-at="${nowIso}">
+                            <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
+                            <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
+                                <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename">${escapeHtml(filename)}</div>
+                                <div class="flex items-center gap-1 flex-shrink-0 relative">
+                                    <button type="button" onclick="toggleSourceMenu(event, '${sourceId}')" class="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
+                                        <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                                    </button>
+                                    <div id="source-menu-${sourceId}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                                        <button type="button" onclick="promptRenameSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
+                                        </button>
+                                        <button type="button" onclick="promptDeleteSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-[16px]">delete</span> Remove Source
+                                        </button>
+                                    </div>
+                                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">
+                                </div>
+                            </div>
+                        </label>
+                    `;
+                    sourcesList.insertAdjacentHTML('beforeend', newSourceHtml);
+                }
+
+                successCount++;
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert(`Error uploading ${file.name}: \n${error.message}`);
+                hasError = true;
+            }
+        }
+
+        // Close upload modal, reset UI, and restore interaction state
+        isUploading = false;
+        if (successCount > 0) {
+            closeUploadModal();
+        } else {
+            resetUploadUI();
+        }
+    }
+
+    function toggleSourceMenu(event, sourceId) {
+        event.preventDefault();
+        event.stopPropagation();
+        const targetMenu = document.getElementById(`source-menu-${sourceId}`);
+        document.querySelectorAll('.source-menu').forEach(menu => {
+            if (menu !== targetMenu) menu.classList.add('hidden');
+        });
+        if (targetMenu) {
+            targetMenu.classList.toggle('hidden');
+        }
+    }
+
+    let currentRenameSourceId = null;
+
+    function promptRenameSource(event, sourceId, currentName) {
+        event.preventDefault();
+        event.stopPropagation();
+        document.querySelectorAll('.source-menu').forEach(m => m.classList.add('hidden'));
+
+        currentRenameSourceId = sourceId;
+        const input = document.getElementById('rename-input');
+        if (input) {
+            input.value = currentName || '';
+        }
+        document.getElementById('rename-source-modal').classList.remove('hidden');
+        setTimeout(() => input && input.focus(), 100);
+    }
+
+    function closeRenameModal() {
+        currentRenameSourceId = null;
+        document.getElementById('rename-source-modal').classList.add('hidden');
+    }
+
+    async function confirmRenameSource() {
+        if (!currentRenameSourceId) return;
+
+        const input = document.getElementById('rename-input');
+        const newName = input ? input.value.trim() : '';
+
+        if (!newName) {
+            alert('Filename cannot be empty.');
+            return;
+        }
+
+        const sourceId = currentRenameSourceId;
+        const pathSegments = window.location.pathname.split('/');
+        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+
+        try {
+            const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}/rename`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: newName })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || 'Failed to rename source');
+            }
+
+            const data = await response.json();
+            const updatedName = (data.source && data.source.original_filename) ? data.source.original_filename : newName;
+
+            const itemLabel = document.querySelector(`label[data-source-id="${sourceId}"]`);
+            if (itemLabel) {
+                itemLabel.setAttribute('title', updatedName);
+                itemLabel.setAttribute('data-filename', updatedName);
+                const nameDiv = itemLabel.querySelector('.source-filename');
+                if (nameDiv) nameDiv.innerText = updatedName;
+
+                const renameBtn = itemLabel.querySelector('button[onclick^="promptRenameSource"]');
+                if (renameBtn) {
+                    renameBtn.setAttribute('onclick', `promptRenameSource(event, '${sourceId}', '${escapeHtml(updatedName)}')`);
+                }
+            }
+            closeRenameModal();
+        } catch (error) {
+            console.error('Rename error:', error);
+            alert(`Error renaming source: ${error.message}`);
+        }
+    }
+
+    let currentDeleteSourceId = null;
+
+    function promptDeleteSource(event, sourceId, filename) {
+        event.preventDefault();
+        event.stopPropagation();
+        document.querySelectorAll('.source-menu').forEach(m => m.classList.add('hidden'));
+
+        currentDeleteSourceId = sourceId;
+        document.getElementById('delete-modal-filename').innerText = `"${filename}"`;
+        document.getElementById('delete-source-modal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        currentDeleteSourceId = null;
+        document.getElementById('delete-source-modal').classList.add('hidden');
+    }
+
+    async function confirmDeleteSource(mode) {
+        if (!currentDeleteSourceId) return;
+
+        const sourceId = currentDeleteSourceId;
+        const pathSegments = window.location.pathname.split('/');
+        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+
+        try {
+            const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}?mode=${mode}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || 'Failed to remove source');
+            }
+
+            const itemLabel = document.querySelector(`label[data-source-id="${sourceId}"]`);
+            if (itemLabel) {
+                itemLabel.remove();
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert(`Error removing source: ${error.message}`);
+        } finally {
+            closeDeleteModal();
+        }
+    }
+
+    function toggleSelectAllSources() {
+        const checkboxes = document.querySelectorAll('#sources-list input[type="checkbox"]');
+        if (checkboxes.length === 0) return;
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+    }
+
+    function toggleSortMenu(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const sortMenu = document.getElementById('sort-menu');
+        if (sortMenu) sortMenu.classList.toggle('hidden');
+    }
+
+    function sortSources(criteria) {
+        const sortMenu = document.getElementById('sort-menu');
+        if (sortMenu) sortMenu.classList.add('hidden');
+
+        const sourcesList = document.getElementById('sources-list');
+        if (!sourcesList) return;
+
+        const items = Array.from(sourcesList.querySelectorAll('.pdf-item'));
+        if (items.length <= 1) return;
+
+        items.sort((a, b) => {
+            const filenameA = (a.dataset.filename || '').toLowerCase();
+            const filenameB = (b.dataset.filename || '').toLowerCase();
+            const dateA = new Date(a.dataset.createdAt || 0).getTime();
+            const dateB = new Date(b.dataset.createdAt || 0).getTime();
+
+            if (criteria === 'az') {
+                return filenameA.localeCompare(filenameB);
+            } else if (criteria === 'recent') {
+                return dateB - dateA;
+            } else if (criteria === 'oldest') {
+                return dateA - dateB;
+            }
+            return 0;
+        });
+
+        items.forEach(item => sourcesList.appendChild(item));
+    }
+
+    // Dismiss action menus when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.source-menu') && !e.target.closest('button[onclick^="toggleSourceMenu"]')) {
+            document.querySelectorAll('.source-menu').forEach(m => m.classList.add('hidden'));
+        }
+        if (!e.target.closest('#sort-menu') && !e.target.closest('button[onclick^="toggleSortMenu"]')) {
+            const sortMenu = document.getElementById('sort-menu');
+            if (sortMenu) sortMenu.classList.add('hidden');
+        }
     });
 
     function switchTab(tabName) {
@@ -515,28 +814,30 @@
     const sendBtn = document.getElementById('send-btn');
     const sourcesChip = document.getElementById('sources-chip');
 
-    chatInput.addEventListener('input', function() {
-        if (this.value.trim().length > 0) {
-            sendBtn.classList.remove('hidden');
-            sourcesChip.classList.add('hidden');
-        } else {
-            sendBtn.classList.add('hidden');
-            sourcesChip.classList.remove('hidden');
-        }
-    });
+    if (chatInput) {
+        chatInput.addEventListener('input', function() {
+            if (this.value.trim().length > 0) {
+                sendBtn.classList.remove('hidden');
+                sourcesChip.classList.add('hidden');
+            } else {
+                sendBtn.classList.add('hidden');
+                sourcesChip.classList.remove('hidden');
+            }
+        });
 
-    // Basic auto-resize for textarea
-    chatInput.addEventListener('input', function() {
-        this.style.height = '24px'; // Reset height to recalculate
-        this.style.height = (this.scrollHeight) + 'px';
-        
-        // Limit max height (e.g., 5 lines approx)
-        if(this.scrollHeight > 120) {
-            this.style.overflowY = 'auto';
-            this.style.height = '120px';
-        } else {
-            this.style.overflowY = 'hidden';
-        }
-    });
+        // Basic auto-resize for textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = '24px'; // Reset height to recalculate
+            this.style.height = (this.scrollHeight) + 'px';
+            
+            // Limit max height (e.g., 5 lines approx)
+            if(this.scrollHeight > 120) {
+                this.style.overflowY = 'auto';
+                this.style.height = '120px';
+            } else {
+                this.style.overflowY = 'hidden';
+            }
+        });
+    }
 </script>
 {% endblock %}

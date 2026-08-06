@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ title | default('Page Not Found - SmallBook') }}{% endblock %}
 
 {% block content %}
 <main class="flex-1 flex flex-col items-center justify-center p-4 text-center">
