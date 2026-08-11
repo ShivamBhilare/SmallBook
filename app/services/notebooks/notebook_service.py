@@ -28,7 +28,26 @@ def get_user_notebooks(supabase: Client, user_id: str) -> List[Dict[str, Any]]:
             .order("updated_at", desc=True)
             .execute()
         )
-        return response.data if response.data else []
+        notebooks = response.data if response.data else []
+        if not notebooks:
+            return []
+
+        try:
+            nb_ids = [n["id"] for n in notebooks]
+            ns_res = supabase.table("notebook_sources").select("notebook_id").in_("notebook_id", nb_ids).execute()
+            ns_data = ns_res.data or []
+            
+            counts = {}
+            for row in ns_data:
+                nid = row["notebook_id"]
+                counts[nid] = counts.get(nid, 0) + 1
+
+            for n in notebooks:
+                n["sources_count"] = counts.get(n["id"], 0)
+        except Exception as count_err:
+            logger.warning(f"Error fetching notebook source counts: {count_err}")
+
+        return notebooks
         
     except APIError as e:
         logger.error(f"Supabase API error fetching notebooks for user {user_id}: {e}")

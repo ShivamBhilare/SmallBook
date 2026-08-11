@@ -166,6 +166,50 @@ def get_notebook_sources(client: Client, notebook_id: str) -> list[dict]:
         print(f"Error fetching notebook sources: {e}")
         return []
 
+def get_all_user_sources(client: Client, user_id: str) -> list[dict]:
+    """
+    Retrieves all source documents uploaded by the user across all notebooks,
+    including linked notebook details for each source document.
+    """
+    try:
+        try:
+            s_res = client.table("sources").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        except Exception:
+            s_res = client.table("sources").select("*").eq("user_id", user_id).execute()
+
+        sources = s_res.data or []
+        if not sources:
+            return []
+
+        source_ids = [s["id"] for s in sources]
+        ns_res = client.table("notebook_sources").select("source_id, notebook_id").in_("source_id", source_ids).execute()
+        ns_data = ns_res.data or []
+
+        notebook_ids = list(set([row["notebook_id"] for row in ns_data if row.get("notebook_id")]))
+        
+        notebook_map = {}
+        if notebook_ids:
+            nb_res = client.table("notebooks").select("id, title").in_("id", notebook_ids).execute()
+            for nb in (nb_res.data or []):
+                notebook_map[nb["id"]] = nb["title"]
+
+        source_notebooks_map = {}
+        for row in ns_data:
+            sid = row["source_id"]
+            nid = row["notebook_id"]
+            if nid in notebook_map:
+                if sid not in source_notebooks_map:
+                    source_notebooks_map[sid] = []
+                source_notebooks_map[sid].append({"id": nid, "title": notebook_map[nid]})
+
+        for s in sources:
+            s["notebooks"] = source_notebooks_map.get(s["id"], [])
+
+        return sources
+    except Exception as e:
+        print(f"Error fetching all user sources: {e}")
+        return []
+
 def rename_source(client: Client, user_id: str, source_id: str, new_filename: str) -> dict:
     """
     Renames a source document for a user.
@@ -178,6 +222,40 @@ def rename_source(client: Client, user_id: str, source_id: str, new_filename: st
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found or permission denied.")
         
     return res.data[0]
+
+def link_sources_to_notebook(client: Client, user_id: str, notebook_id: str, source_ids: list[str]) -> list[dict]:
+    """
+    Links existing sources owned by user to the specified notebook.
+    Returns the newly linked source objects.
+    """
+    if not source_ids:
+        return []
+
+    # 1. Verify notebook access
+    nb = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+    if not nb.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notebook not found or permission denied.")
+
+    # 2. Verify source ownership
+    s_res = client.table("sources").select("*").eq("user_id", user_id).in_("id", source_ids).execute()
+    valid_sources = s_res.data or []
+    if not valid_sources:
+        return []
+
+    valid_source_ids = [s["id"] for s in valid_sources]
+
+    # 3. Check existing notebook_sources links
+    ns_res = client.table("notebook_sources").select("source_id").eq("notebook_id", notebook_id).in_("source_id", valid_source_ids).execute()
+    existing_linked = set([r["source_id"] for r in (ns_res.data or [])])
+
+    to_link_ids = [sid for sid in valid_source_ids if sid not in existing_linked]
+
+    if to_link_ids:
+        insert_rows = [{"notebook_id": notebook_id, "source_id": sid} for sid in to_link_ids]
+        client.table("notebook_sources").insert(insert_rows).execute()
+
+    newly_linked_sources = [s for s in valid_sources if s["id"] in to_link_ids]
+    return newly_linked_sources
 
 def remove_source_from_notebook(client: Client, user_id: str, notebook_id: str, source_id: str) -> bool:
     """

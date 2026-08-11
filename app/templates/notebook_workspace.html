@@ -72,29 +72,43 @@
 <!-- Upload Modal Overlay (Hidden by default) -->
 <div id="upload-modal" class="hidden fixed inset-0 z-[100] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
     <!-- Modal Content -->
-    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-2xl custom-shadow flex flex-col">
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-2xl custom-shadow flex flex-col overflow-hidden max-h-[85vh]">
         <!-- Modal Header -->
-        <div class="p-6 pb-2 flex justify-between items-start">
-            <div class="text-center w-full">
-                <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text">Add Documents</h2>
-                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mt-1">Upload PDFs to analyze in your notebook</p>
+        <div class="p-6 pb-3 flex justify-between items-start border-b border-paper dark:border-dark-border">
+            <div class="w-full">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text">Add Documents</h2>
+                    <button onclick="closeUploadModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mt-1">Upload new PDFs or link existing files from your library</p>
+                
+                <!-- Navigation Tabs -->
+                <div class="flex items-center gap-1.5 sm:gap-2 mt-3 bg-surface-bright dark:bg-dark-bg p-1 rounded-xl border border-paper dark:border-dark-border">
+                    <button type="button" id="tab-btn-upload" onclick="switchUploadTab('upload')" class="flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 bg-surface-container-lowest dark:bg-dark-panel text-on-surface dark:text-dark-text shadow-sm">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">upload_file</span>
+                        <span>Upload from Device</span>
+                    </button>
+                    <button type="button" id="tab-btn-library" onclick="switchUploadTab('library')" class="flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">library_books</span>
+                        <span>Link from Library</span>
+                    </button>
+                </div>
             </div>
-            <button onclick="closeUploadModal()" class="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
-                <span class="material-symbols-outlined">close</span>
-            </button>
         </div>
         
-        <!-- Modal Body (Drag & Drop Zone) -->
-        <div class="p-8 pt-4">
-            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-12 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer relative overflow-hidden" id="drop-zone">
+        <!-- Tab 1 View: Drag & Drop Zone -->
+        <div id="tab-content-upload" class="p-6">
+            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-8 sm:p-10 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer relative overflow-hidden" id="drop-zone">
                 
                 <!-- Default Drop Zone Content -->
                 <div id="drop-zone-content" class="w-full flex flex-col items-center transition-opacity duration-300">
                     <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-2">drop your files</h3>
-                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-8">pdf documents only</p>
+                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-6">pdf documents only</p>
                     
-                    <button class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-6 py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <span class="material-symbols-outlined text-[18px]">upload</span>
+                    <button type="button" class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-5 py-2 sm:px-6 sm:py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity text-xs sm:text-sm">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">upload</span>
                         Upload files
                     </button>
                 </div>
@@ -107,16 +121,53 @@
                     <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md" id="upload-subtitle">Please wait</p>
                 </div>
 
-                <!-- Hidden file input triggered by the button/drop zone -->
+                <!-- Hidden file input -->
                 <input type="file" id="file-input" class="hidden" accept=".pdf" multiple>
             </div>
-            
-            <!-- Storage Quota -->
-            <div class="mt-6 flex items-center gap-4">
-                <div class="flex-1 h-1.5 bg-surface-variant dark:bg-dark-panel-hover rounded-full overflow-hidden">
-                    <div class="h-full bg-secondary dark:bg-dark-accent w-1/12 rounded-full"></div>
+        </div>
+
+        <!-- Tab 2 View: Source Library Checklist (Hidden by default) -->
+        <div id="tab-content-library" class="hidden flex-1 flex flex-col p-6 overflow-hidden">
+            <!-- Search & Checklist Header -->
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-dark-text-muted text-[18px]">search</span>
+                    <input type="text" id="library-checklist-search" oninput="filterLibraryChecklist()" placeholder="Search library sources..." class="w-full bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full pl-9 pr-4 py-1.5 text-sm text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent transition-colors">
                 </div>
-                <span class="text-label-sm text-on-surface-variant dark:text-dark-text-muted whitespace-nowrap">3 / 50 files</span>
+                <button type="button" onclick="selectAllLibraryChecklist()" class="text-xs font-semibold text-secondary dark:text-dark-accent hover:underline whitespace-nowrap">
+                    Select All Unlinked
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div id="library-checklist-loading" class="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-variant dark:text-dark-text-muted">
+                <span class="material-symbols-outlined animate-spin text-[32px] text-secondary dark:text-dark-accent">progress_activity</span>
+                <p class="text-sm font-medium">Loading library sources...</p>
+            </div>
+
+            <!-- Empty Checklist State -->
+            <div id="library-checklist-empty" class="hidden flex-col items-center justify-center py-12 text-center text-on-surface-variant dark:text-dark-text-muted">
+                <span class="material-symbols-outlined text-[36px] mb-2 text-on-surface-variant/50">folder_open</span>
+                <p class="text-sm font-medium">No uploaded sources in library yet.</p>
+            </div>
+
+            <!-- Sources Checklist Scrollable Container -->
+            <div id="library-checklist-container" class="hidden flex-1 overflow-y-auto max-h-[280px] space-y-2 pr-1">
+                <!-- Checklist Items dynamically populated -->
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="mt-4 pt-3 border-t border-paper dark:border-dark-border flex items-center justify-between">
+                <span id="library-selected-count" class="text-xs font-medium text-on-surface-variant dark:text-dark-text-muted">0 sources selected</span>
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button type="button" onclick="closeUploadModal()" class="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" id="btn-submit-link-sources" onclick="submitLinkSources()" disabled class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-3.5 sm:px-4 py-1.5 flex items-center gap-1.5 sm:gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs sm:text-sm">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">add_link</span>
+                        <span>Link Sources</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -359,6 +410,221 @@
         document.getElementById('upload-success-icon').classList.add('hidden');
         document.getElementById('upload-title').innerText = "Uploading...";
         document.getElementById('upload-subtitle').innerText = "Please wait";
+        switchUploadTab('upload');
+    }
+
+    let librarySourcesData = [];
+
+    function switchUploadTab(tab) {
+        const uploadTabBtn = document.getElementById('tab-btn-upload');
+        const libraryTabBtn = document.getElementById('tab-btn-library');
+        const uploadContent = document.getElementById('tab-content-upload');
+        const libraryContent = document.getElementById('tab-content-library');
+
+        if (!uploadTabBtn || !libraryTabBtn) return;
+
+        if (tab === 'upload') {
+            uploadTabBtn.className = 'flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 bg-surface-container-lowest dark:bg-dark-panel text-on-surface dark:text-dark-text shadow-sm';
+            libraryTabBtn.className = 'flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text';
+            uploadContent.classList.remove('hidden');
+            libraryContent.classList.add('hidden');
+        } else {
+            libraryTabBtn.className = 'flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 bg-surface-container-lowest dark:bg-dark-panel text-on-surface dark:text-dark-text shadow-sm';
+            uploadTabBtn.className = 'flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text';
+            uploadContent.classList.add('hidden');
+            libraryContent.classList.remove('hidden');
+            loadLibraryChecklist();
+        }
+    }
+
+    async function loadLibraryChecklist() {
+        const loadingEl = document.getElementById('library-checklist-loading');
+        const emptyEl = document.getElementById('library-checklist-empty');
+        const containerEl = document.getElementById('library-checklist-container');
+
+        if (!loadingEl || !emptyEl || !containerEl) return;
+
+        loadingEl.classList.remove('hidden');
+        emptyEl.classList.add('hidden');
+        containerEl.classList.add('hidden');
+
+        const existingSourceIds = new Set();
+        document.querySelectorAll('.pdf-item[data-source-id]').forEach(el => {
+            const sid = el.getAttribute('data-source-id');
+            if (sid) existingSourceIds.add(sid);
+        });
+
+        try {
+            const res = await fetch('/api/sources/all');
+            if (!res.ok) throw new Error('Failed to fetch library sources');
+            const data = await res.json();
+            librarySourcesData = data.sources || [];
+
+            loadingEl.classList.add('hidden');
+            if (librarySourcesData.length === 0) {
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            renderLibraryChecklist(existingSourceIds);
+            containerEl.classList.remove('hidden');
+        } catch (err) {
+            console.error('Error loading library checklist:', err);
+            loadingEl.classList.add('hidden');
+            emptyEl.classList.remove('hidden');
+        }
+    }
+
+    function renderLibraryChecklist(existingSourceIds) {
+        const containerEl = document.getElementById('library-checklist-container');
+        const searchInput = document.getElementById('library-checklist-search');
+        const searchQuery = (searchInput ? searchInput.value : '').toLowerCase();
+        
+        if (!containerEl) return;
+        containerEl.innerHTML = '';
+
+        const filtered = librarySourcesData.filter(s => 
+            (s.original_filename || '').toLowerCase().includes(searchQuery)
+        );
+
+        if (filtered.length === 0) {
+            containerEl.innerHTML = '<div class="text-center py-8 text-sm text-on-surface-variant dark:text-dark-text-muted">No sources match your search.</div>';
+            updateLibrarySelectedCount();
+            return;
+        }
+
+        filtered.forEach(source => {
+            const isAlreadyLinked = existingSourceIds.has(source.id);
+            const itemHtml = `
+                <div class="flex items-center justify-between p-3 rounded-xl border border-paper dark:border-dark-border bg-surface-bright/50 dark:bg-dark-bg hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <input type="checkbox" value="${source.id}" ${isAlreadyLinked ? 'checked disabled' : ''} onchange="updateLibrarySelectedCount()" class="library-source-checkbox rounded border-outline-variant dark:border-dark-border text-secondary dark:text-dark-accent focus:ring-secondary cursor-pointer disabled:opacity-50">
+                        <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 shrink-0">picture_as_pdf</span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold text-on-surface dark:text-dark-text truncate leading-tight">${escapeHtml(source.original_filename)}</p>
+                            <p class="text-xs text-on-surface-variant dark:text-dark-text-muted mt-0.5">${formatBytesJs(source.file_size_bytes)}</p>
+                        </div>
+                    </div>
+                    ${isAlreadyLinked ? '<span class="text-[11px] font-medium bg-surface-variant/80 dark:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted px-2.5 py-1 rounded-full shrink-0">Already in Notebook</span>' : ''}
+                </div>
+            `;
+            containerEl.insertAdjacentHTML('beforeend', itemHtml);
+        });
+
+        updateLibrarySelectedCount();
+    }
+
+    function filterLibraryChecklist() {
+        const existingSourceIds = new Set();
+        document.querySelectorAll('.pdf-item[data-source-id]').forEach(el => {
+            const sid = el.getAttribute('data-source-id');
+            if (sid) existingSourceIds.add(sid);
+        });
+        renderLibraryChecklist(existingSourceIds);
+    }
+
+    function updateLibrarySelectedCount() {
+        const checkboxes = document.querySelectorAll('.library-source-checkbox:not(:disabled):checked');
+        const count = checkboxes.length;
+        const countEl = document.getElementById('library-selected-count');
+        const btn = document.getElementById('btn-submit-link-sources');
+        
+        if (countEl) countEl.innerText = `${count} source${count === 1 ? '' : 's'} selected`;
+        if (btn) btn.disabled = count === 0;
+    }
+
+    function selectAllLibraryChecklist() {
+        const unlinkedCheckboxes = document.querySelectorAll('.library-source-checkbox:not(:disabled)');
+        const allChecked = Array.from(unlinkedCheckboxes).every(cb => cb.checked);
+        unlinkedCheckboxes.forEach(cb => cb.checked = !allChecked);
+        updateLibrarySelectedCount();
+    }
+
+    async function submitLinkSources() {
+        const pathSegments = window.location.pathname.split('/');
+        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+
+        if (!notebookId) {
+            alert('Notebook ID not found.');
+            return;
+        }
+
+        const selectedCheckboxes = document.querySelectorAll('.library-source-checkbox:not(:disabled):checked');
+        const sourceIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+        if (sourceIds.length === 0) return;
+
+        const btn = document.getElementById('btn-submit-link-sources');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Linking...';
+        }
+
+        try {
+            const res = await fetch(`/notebooks/${notebookId}/sources/link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source_ids: sourceIds })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || 'Failed to link sources.');
+            }
+
+            const data = await res.json();
+            const newlyLinked = data.linked_sources || [];
+
+            const sourcesList = document.getElementById('sources-list') || document.querySelector('#panel-sources .overflow-y-auto');
+            if (sourcesList) {
+                newlyLinked.forEach(source => {
+                    const filename = source.original_filename || 'Untitled Source';
+                    const sourceId = source.id;
+                    const nowIso = new Date().toISOString();
+                    const newSourceHtml = `
+                        <label onclick="openPanel('left')" title="${escapeHtml(filename)}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="${sourceId}" data-filename="${escapeHtml(filename)}" data-created-at="${nowIso}">
+                            <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
+                            <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
+                                <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename">${escapeHtml(filename)}</div>
+                                <div class="flex items-center gap-1 flex-shrink-0 relative">
+                                    <button type="button" onclick="toggleSourceMenu(event, '${sourceId}')" class="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
+                                        <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                                    </button>
+                                    <div id="source-menu-${sourceId}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                                        <button type="button" onclick="promptRenameSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
+                                        </button>
+                                        <button type="button" onclick="promptDeleteSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-[16px]">delete</span> Remove Source
+                                        </button>
+                                    </div>
+                                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">
+                                </div>
+                            </div>
+                        </label>
+                    `;
+                    sourcesList.insertAdjacentHTML('beforeend', newSourceHtml);
+                });
+            }
+
+            closeUploadModal();
+        } catch (err) {
+            console.error(err);
+            alert(err.message || 'Error linking sources.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[16px] sm:text-[18px]">add_link</span><span>Link Selected Sources</span>';
+            }
+        }
+    }
+
+    function formatBytesJs(bytes) {
+        if (!bytes || bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
     // Close modal when clicking outside the content area

@@ -3,7 +3,7 @@
 {% block title %}SmallBook - Home{% endblock %}
 
 {% block content %}
-<div x-data="notebookDashboard()" class="flex flex-col min-h-screen">
+<div x-data="notebookDashboard()" @open-create-modal.window="isCreateModalOpen = true" class="flex flex-col min-h-screen">
     
     <div class="bg-surface-container-low dark:bg-dark-panel w-full border-b border-paper dark:border-dark-border py-3 px-4 lg:px-margin z-40">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -109,7 +109,7 @@
                         <!-- Bottom: Date/Sources -->
                         <div class="pt-3 border-t border-paper dark:border-dark-border flex items-center justify-between mt-auto">
                             <span class="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">
-                                <span x-text="formatDateUpper(notebook.created_at)"></span> &bull; 0 SOURCES
+                                <span x-text="formatDateUpper(notebook.created_at)"></span> &bull; <span x-text="(notebook.sources_count || 0) + ((notebook.sources_count || 0) === 1 ? ' SOURCE' : ' SOURCES')"></span>
                             </span>
                         </div>
                     </div>
@@ -122,7 +122,7 @@
                         <div class="flex-1 min-w-0">
                             <h3 class="font-semibold text-[16px] text-on-surface dark:text-dark-text line-clamp-1" x-text="notebook.title"></h3>
                             <p class="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted mt-1">
-                                <span x-text="formatDateUpper(notebook.created_at)"></span> &bull; 0 SOURCES
+                                <span x-text="formatDateUpper(notebook.created_at)"></span> &bull; <span x-text="(notebook.sources_count || 0) + ((notebook.sources_count || 0) === 1 ? ' SOURCE' : ' SOURCES')"></span>
                             </p>
                         </div>
                         
@@ -272,8 +272,14 @@
             // Initialize Component
             init() {
                 this.fetchNotebooks();
-                // Persist layout view selection when it changes
                 this.$watch('viewMode', value => localStorage.setItem('viewMode', value));
+                if (new URLSearchParams(window.location.search).get('create') === '1') {
+                    this.isCreateModalOpen = true;
+                    // Clean up URL query parameter without refresh
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('create');
+                    window.history.replaceState({}, '', url.toString());
+                }
             },
 
             // Fetch Notebooks on load

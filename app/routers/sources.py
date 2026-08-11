@@ -35,6 +35,23 @@ async def upload_source(
     
     return result
 
+@router.post("/link", response_model=dict)
+def link_existing_sources(
+    notebook_id: str,
+    payload: dict,
+    user = Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """
+    Links existing source documents from the user's library to this notebook.
+    """
+    source_ids = payload.get("source_ids", [])
+    if not source_ids:
+        raise HTTPException(status_code=400, detail="No source IDs provided.")
+        
+    linked_sources = source_service.link_sources_to_notebook(client, user.id, notebook_id, source_ids)
+    return {"status": "success", "linked_sources": linked_sources}
+
 @router.patch("/{source_id}/rename", response_model=dict)
 def rename_source(
     notebook_id: str,
@@ -66,4 +83,30 @@ def remove_source(
         source_service.delete_source_permanently(client, user.id, source_id)
     else:
         source_service.remove_source_from_notebook(client, user.id, notebook_id, source_id)
+    return Response(status_code=204)
+
+# Global router for cross-notebook source library actions
+global_sources_router = APIRouter(prefix="/api/sources", tags=["Global Sources"])
+
+@global_sources_router.get("/all", response_model=dict)
+def get_all_sources(
+    user = Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """
+    Fetches all PDF sources uploaded by the authenticated user across all notebooks.
+    """
+    sources = source_service.get_all_user_sources(client, user.id)
+    return {"sources": sources}
+
+@global_sources_router.delete("/{source_id}", status_code=204)
+def delete_source_permanently_endpoint(
+    source_id: str,
+    user = Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """
+    Permanently deletes a source document from everywhere (storage + DB).
+    """
+    source_service.delete_source_permanently(client, user.id, source_id)
     return Response(status_code=204)
