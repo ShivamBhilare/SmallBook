@@ -293,10 +293,20 @@
                                 <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                             </button>
                             <button type="button" onclick="promptDeleteSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                <span class="material-symbols-outlined text-[16px]">delete</span> Remove Source
+                                <span class="material-symbols-outlined text-[16px]">cancel</span> Remove / Cancel
                             </button>
                         </div>
-                        <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="{{ source.id }}">
+                        <div class="source-status-container flex items-center">
+                            {% if source.ingestion_status in ["pending", "processing", "queued"] %}
+                                <svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <input type="checkbox" value="{{ source.id }}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">
+                            {% else %}
+                                <input checked class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="{{ source.id }}">
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </label>
@@ -749,10 +759,16 @@
                                             <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                                         </button>
                                         <button type="button" onclick="promptDeleteSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                            <span class="material-symbols-outlined text-[16px]">delete</span> Remove Source
+                                            <span class="material-symbols-outlined text-[16px]">cancel</span> Remove / Cancel
                                         </button>
                                     </div>
-                                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">
+                                    <div class="source-status-container flex items-center">
+                                        <svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">
+                                    </div>
                                 </div>
                             </div>
                         </label>
@@ -883,6 +899,13 @@
         const pathSegments = window.location.pathname.split('/');
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
 
+        const btn = mode === 'library' ? document.getElementById('btn-delete-library') : document.getElementById('btn-delete-notebook');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Deleting...';
+        }
+
         try {
             const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}?mode=${mode}`, {
                 method: 'DELETE'
@@ -892,16 +915,20 @@
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.detail || 'Failed to remove source');
             }
-
+            // Clean up UI
             const itemLabel = document.querySelector(`label[data-source-id="${sourceId}"]`);
             if (itemLabel) {
                 itemLabel.remove();
             }
+            closeDeleteModal();
         } catch (error) {
             console.error('Delete error:', error);
             alert(`Error removing source: ${error.message}`);
         } finally {
-            closeDeleteModal();
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
     }
 
@@ -1091,7 +1118,49 @@
             }
         });
 
-        // Basic auto-resize for textarea
+    // Polling logic for source processing status
+    function pollSourceStatus() {
+        const spinners = document.querySelectorAll('.source-spinner');
+        if (spinners.length === 0) return;
+
+        const pathSegments = window.location.pathname.split('/');
+        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        if (!notebookId) return;
+
+        spinners.forEach(spinner => {
+            const labelEl = spinner.closest('label');
+            const sourceId = labelEl.dataset.sourceId;
+            if (!sourceId) return;
+
+            fetch(`/notebooks/${notebookId}/sources/${sourceId}/status`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        // Remove spinner, show checkbox
+                        const container = spinner.closest('.source-status-container');
+                        if(container) {
+                            spinner.remove();
+                            const checkbox = container.querySelector('input[type="checkbox"]');
+                            if (checkbox) {
+                                checkbox.classList.remove('hidden');
+                                checkbox.checked = true;
+                            }
+                            // Revert Remove / Cancel to Remove Source
+                            const cancelSpan = labelEl.querySelector('.cancel-text');
+                            if (cancelSpan) cancelSpan.innerText = "Remove Source";
+                            const cancelIcon = labelEl.querySelector('button[onclick^="promptDelete"] .material-symbols-outlined');
+                            if (cancelIcon) cancelIcon.innerText = "delete";
+                        }
+                    }
+                })
+                .catch(err => console.error('Error polling status:', err));
+        });
+    }
+
+    // Start polling every 3 seconds
+    setInterval(pollSourceStatus, 3000);
+
+    // Basic auto-resize for textarea
         chatInput.addEventListener('input', function() {
             this.style.height = '24px'; // Reset height to recalculate
             this.style.height = (this.scrollHeight) + 'px';

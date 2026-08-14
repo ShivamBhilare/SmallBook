@@ -44,6 +44,13 @@ def get_supabase_client(request: Request) -> Client:
         
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def get_service_role_client() -> Client:
+    """Creates a Supabase client using the service role key for background admin operations."""
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or SUPABASE_KEY
+    if not SUPABASE_URL or not service_role_key:
+        raise ValueError("Supabase URL or Service Role Key is missing.")
+    return create_client(SUPABASE_URL, service_role_key)
+
 # 4. Auth Core Service Functions
 def sign_up_user(client: Client, email: str, password: str, full_name: Optional[str] = None):
     """Registers a new user with Supabase Auth using per-request client."""

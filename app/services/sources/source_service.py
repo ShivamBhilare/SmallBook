@@ -22,7 +22,9 @@ def _async_storage_upload_and_trigger_celery(
     """
     # 1. Storage Upload
     try:
-        client.storage.from_(STORAGE_BUCKET).upload(
+        from app.services.authentication.auth_service import get_service_role_client
+        service_client = get_service_role_client()
+        service_client.storage.from_(STORAGE_BUCKET).upload(
             path=storage_path, 
             file=file_bytes, 
             file_options={"content-type": "application/pdf"}
@@ -31,16 +33,27 @@ def _async_storage_upload_and_trigger_celery(
         print(f"❌ Background storage upload failed for source {source_id}: {e}")
         return
 
-    # 2. Celery Handoff (Asynchronous Processing)
+    # 2. Celery Handoff (Asynchronous Processing with Direct Fallback)
     try:
         from app.core.celery_app import process_pdf_task
-        celery_task = process_pdf_task.delay(source_id, user_id)
+        celery_task = process_pdf_task.apply_async(
+            args=[source_id, user_id],
+            connect_timeout=10,
+            retry=True
+        )
 
         # Update the job tracker with the actual Celery Task ID
-        if job_id and getattr(celery_task, "id", None):
-            client.table("ingestion_jobs").update({"celery_task_id": celery_task.id}).eq("id", job_id).execute()
+        if getattr(celery_task, "id", None):
+            if job_id:
+                service_client.table("ingestion_jobs").update({"celery_task_id": celery_task.id}).eq("id", job_id).execute()
+            service_client.table("ingestion_jobs").update({"celery_task_id": celery_task.id}).eq("source_id", source_id).execute()
     except Exception as e:
-        print(f"⚠️ Warning: Redis/Celery connection failed. File saved, but task not dispatched. Error: {e}")
+        print(f"⚠️ Warning: Redis/Celery connection failed ({e}). Falling back to direct background thread execution...")
+        try:
+            from app.services.ingestion.celery_tasks import process_pdf_task
+            process_pdf_task.apply(args=[source_id, user_id])
+        except Exception as fallback_err:
+            print(f"❌ Ingestion task execution failed during fallback: {fallback_err}")
 
 def handle_source_upload(
     client: Client, 
@@ -271,33 +284,84 @@ def remove_source_from_notebook(client: Client, user_id: str, notebook_id: str, 
 
     return True
 
-def delete_source_permanently(client: Client, user_id: str, source_id: str) -> bool:
+def _async_cleanup_source_resources(storage_path: Optional[str], source_id: str):
     """
-    Permanently deletes a source document from everywhere:
-    removes storage file, all notebook links, ingestion jobs, and DB row.
+    Background worker to asynchronously clean up heavy external resources:
+    - Ingestion jobs and Celery task revoking
+    - Parent chunk records in document_chunks table
+    - PDF file in Supabase storage bucket
+    - Child chunk vectors in Qdrant Cloud
     """
-    # Fetch source record
-    src_res = client.table("sources").select("*").eq("id", source_id).eq("user_id", user_id).execute()
+    from app.services.authentication.auth_service import get_service_role_client
+    service_client = get_service_role_client()
+
+    # 1. Revoke active Celery tasks and clean ingestion_jobs
+    try:
+        jobs_res = service_client.table("ingestion_jobs").select("celery_task_id").eq("source_id", source_id).execute()
+        if jobs_res.data:
+            for job in jobs_res.data:
+                task_id = job.get("celery_task_id")
+                if task_id:
+                    try:
+                        from app.core.celery_app import celery_app
+                        celery_app.control.revoke(task_id, terminate=True)
+                        print(f"🛑 Revoked celery task {task_id} for deleted source {source_id}")
+                    except Exception as e:
+                        print(f"⚠️ Warning: Could not revoke celery task {task_id}: {e}")
+        service_client.table("ingestion_jobs").delete().eq("source_id", source_id).execute()
+    except Exception as e:
+        print(f"⚠️ Error cleaning ingestion jobs for source {source_id}: {e}")
+
+    # 2. Delete parent chunks from document_chunks
+    try:
+        service_client.table("document_chunks").delete().eq("source_id", source_id).execute()
+    except Exception as e:
+        print(f"⚠️ Error removing document_chunks for source {source_id}: {e}")
+
+    # 3. Delete file from Supabase storage bucket
+    if storage_path:
+        try:
+            service_client.storage.from_(STORAGE_BUCKET).remove([storage_path])
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to remove storage file {storage_path}: {e}")
+
+    # 4. Remove vectors from Qdrant Cloud
+    try:
+        from app.services.ingestion.qdrant_db import QdrantManager
+        q_mgr = QdrantManager()
+        q_mgr.delete_by_source_id(source_id)
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to remove vectors from Qdrant for source {source_id}: {e}")
+
+def delete_source_permanently(
+    client: Client, 
+    user_id: str, 
+    source_id: str, 
+    background_tasks: Optional[BackgroundTasks] = None
+) -> bool:
+    """
+    Permanently deletes a source document:
+    Synchronously removes database rows so the UI updates instantly,
+    and offloads heavy resource cleanup (Storage, Celery, Qdrant, Chunks) to the background.
+    """
+    # 1. Fetch source record to verify ownership and get storage path
+    src_res = client.table("sources").select("id, storage_path").eq("id", source_id).eq("user_id", user_id).execute()
     if not src_res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found or permission denied.")
 
     source = src_res.data[0]
     storage_path = source.get("storage_path")
 
-    # 1. Remove file from Supabase storage bucket
-    if storage_path:
-        try:
-            client.storage.from_(STORAGE_BUCKET).remove([storage_path])
-        except Exception as e:
-            print(f"⚠️ Warning: Failed to remove storage file {storage_path}: {e}")
-
-    # 2. Delete all links in notebook_sources
+    # 2. Synchronously delete notebook links
     client.table("notebook_sources").delete().eq("source_id", source_id).execute()
 
-    # 3. Delete from ingestion_jobs
-    client.table("ingestion_jobs").delete().eq("source_id", source_id).execute()
-
-    # 4. Delete source record
+    # 3. Synchronously delete source record so it instantly disappears from UI
     client.table("sources").delete().eq("id", source_id).eq("user_id", user_id).execute()
+
+    # 4. Offload heavy storage, Celery task revocation, document chunks & Qdrant vector deletion to background
+    if background_tasks is not None:
+        background_tasks.add_task(_async_cleanup_source_resources, storage_path, source_id)
+    else:
+        _async_cleanup_source_resources(storage_path, source_id)
 
     return True

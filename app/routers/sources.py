@@ -66,10 +66,27 @@ def rename_source(
     updated_source = source_service.rename_source(client, user.id, source_id, payload.filename)
     return {"status": "success", "source": updated_source}
 
+@router.get("/{source_id}/status", response_model=dict)
+def get_source_status(
+    notebook_id: str,
+    source_id: str,
+    user = Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """
+    Retrieves the background processing status for a source.
+    """
+    job_res = client.table("ingestion_jobs").select("*").eq("source_id", source_id).execute()
+    if not job_res.data:
+        raise HTTPException(status_code=404, detail="Status not found for this source.")
+        
+    return {"status": job_res.data[0].get("status", "unknown")}
+
 @router.delete("/{source_id}", status_code=204)
 def remove_source(
     notebook_id: str,
     source_id: str,
+    background_tasks: BackgroundTasks,
     mode: str = "notebook",
     user = Depends(login_required),
     client: Client = Depends(get_supabase_client)
@@ -80,7 +97,7 @@ def remove_source(
     mode='library': Permanently deletes source from everywhere (storage bucket + DB).
     """
     if mode == "library":
-        source_service.delete_source_permanently(client, user.id, source_id)
+        source_service.delete_source_permanently(client, user.id, source_id, background_tasks)
     else:
         source_service.remove_source_from_notebook(client, user.id, notebook_id, source_id)
     return Response(status_code=204)
@@ -102,11 +119,12 @@ def get_all_sources(
 @global_sources_router.delete("/{source_id}", status_code=204)
 def delete_source_permanently_endpoint(
     source_id: str,
+    background_tasks: BackgroundTasks,
     user = Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
     """
     Permanently deletes a source document from everywhere (storage + DB).
     """
-    source_service.delete_source_permanently(client, user.id, source_id)
+    source_service.delete_source_permanently(client, user.id, source_id, background_tasks)
     return Response(status_code=204)
