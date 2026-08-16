@@ -118,3 +118,47 @@ class QdrantManager:
             ),
             wait=False
         )
+
+    def search_child_chunks(
+        self, 
+        query_vector: list[float], 
+        source_ids: list[str] | None = None, 
+        limit: int = 20
+    ) -> list[dict]:
+        """
+        Queries Qdrant Cloud for the nearest child chunk vectors,
+        optionally filtered by a list of source_ids.
+        """
+        from qdrant_client.http.models import Filter, FieldCondition, MatchAny, MatchValue
+
+        query_filter = None
+        if source_ids:
+            if len(source_ids) == 1:
+                query_filter = Filter(
+                    must=[FieldCondition(key="source_id", match=MatchValue(value=source_ids[0]))]
+                )
+            else:
+                query_filter = Filter(
+                    must=[FieldCondition(key="source_id", match=MatchAny(any=source_ids))]
+                )
+
+        response = self.client.query_points(
+            collection_name=self.collection_name,
+            query=query_vector,
+            query_filter=query_filter,
+            limit=limit,
+            with_payload=True
+        )
+
+        results = []
+        for point in response.points:
+            payload = point.payload or {}
+            results.append({
+                "id": str(point.id),
+                "score": float(point.score),
+                "parent_id": payload.get("parent_id"),
+                "source_id": payload.get("source_id"),
+                "text": payload.get("text", ""),
+                "order": payload.get("order", 0)
+            })
+        return results

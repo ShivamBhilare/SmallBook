@@ -4,6 +4,13 @@
 {% block body_classes %}h-screen overflow-hidden relative{% endblock %}
 
 {% block extra_head %}
+<!-- Markdown, Math, and Sanitization Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked-katex-extension/lib/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
+
 <style>
     :root {
         --left-panel-width: 300px;
@@ -65,6 +72,27 @@
     aside.collapsed .note-card-content { display: none; }
     aside.collapsed .note-card-icon { display: block !important; }
     .note-card-icon { display: none; }
+
+    /* Markdown Styling Fallbacks */
+    .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    .prose li { margin-bottom: 0.35rem; }
+    .prose p { margin-bottom: 0.75rem; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose h1, .prose h2, .prose h3, .prose h4 { font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; color: inherit; }
+    .prose h3 { font-size: 1.1em; }
+    .prose pre { background-color: #f4f4f0; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 0.75rem; margin-bottom: 0.75rem; border: 1px solid #e5e5e5; }
+    .prose code { font-family: monospace; font-size: 0.85em; background-color: rgba(156, 67, 35, 0.1); color: #9c4323; padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
+    .prose pre code { background-color: transparent; color: inherit; padding: 0; border-radius: 0; }
+    .dark .prose pre { background-color: #18181b; border-color: #3f3f46; }
+    .dark .prose code { background-color: rgba(229, 119, 84, 0.15); color: #E57754; }
+    .dark .prose pre code { background-color: transparent; color: #f4f4f5; }
+    .prose table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.9em; }
+    .prose th, .prose td { border: 1px solid #c7c7c0; padding: 0.5rem 0.75rem; text-align: left; }
+    .prose th { background-color: rgba(0,0,0,0.05); font-weight: 600; }
+    .dark .prose th, .dark .prose td { border-color: #3f3f46; }
+    .dark .prose th { background-color: rgba(255,255,255,0.05); }
+    .prose strong { font-weight: 600; color: inherit; }
 </style>
 {% endblock %}
 
@@ -293,7 +321,7 @@
                                 <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                             </button>
                             <button type="button" onclick="promptDeleteSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                <span class="material-symbols-outlined text-[16px]">cancel</span> Remove / Cancel
+                                <span class="material-symbols-outlined text-[16px]">cancel</span> <span class="cancel-text">Remove / Cancel</span>
                             </button>
                         </div>
                         <div class="source-status-container flex items-center">
@@ -401,6 +429,62 @@
 
 {% block extra_scripts %}
 <script>
+    // Initialize Marked with KaTeX Extension safely
+    if (window.marked && window.markedKatex) {
+        marked.use(markedKatex({
+            throwOnError: false,
+            output: 'htmlAndMathml'
+        }));
+    }
+
+    // Escape HTML Helper Function (CRITICAL FOR UI SECURITY)
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    /**
+     * Professional Markdown and Math Parser
+     * Replaces the old regex-based formatMarkdownText function.
+     */
+    function formatMarkdownText(text) {
+        if (!text) return '';
+        
+        // 1. Parse markdown (including math via KaTeX extension)
+        let rawHtml = '';
+        try {
+            rawHtml = marked.parse(text);
+        } catch (e) {
+            console.error("Markdown parsing error:", e);
+            rawHtml = escapeHtml(text); // Fallback
+        }
+        
+        // 2. Sanitize HTML
+        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+            ADD_TAGS: [
+                'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 
+                'munderover', 'munder', 'mover', 'mfrac', 'msqrt', 'mroot', 'mfenced', 
+                'mphantom', 'mtext', 'mspace', 'maction', 'maligngroup', 'malignmark', 
+                'menclose', 'merror', 'mglyph', 'mlabeledtr', 'mlongdiv', 'mmultiscripts', 
+                'mscarries', 'mscarry', 'msgroup', 'msline', 'msrow', 'mstack', 'mstyle', 
+                'mtable', 'mtd', 'mtr', 'annotation', 'annotation-xml'
+            ],
+            ADD_ATTR: [
+                'class', 'style', 'aria-hidden', 'mathvariant', 'encoding', 'display', 'xmlns'
+            ]
+        });
+        
+        return cleanHtml;
+    }
+
+    /* -------------------------------------------------------------------------
+       UI & MODAL LOGIC (RESTORED)
+    ------------------------------------------------------------------------- */
     let isUploading = false;
 
     function openUploadModal() {
@@ -408,7 +492,7 @@
     }
 
     function closeUploadModal() {
-        if (isUploading) return; // Prevent closing while uploading
+        if (isUploading) return; 
         document.getElementById('upload-modal').classList.add('hidden');
         resetUploadUI();
     }
@@ -465,7 +549,10 @@
         });
 
         try {
-            const res = await fetch('/api/sources/all');
+            const pathSegments = window.location.pathname.split('/');
+            const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+            const res = await fetch(`/notebooks/${notebookId}/sources/library`);
+            
             if (!res.ok) throw new Error('Failed to fetch library sources');
             const data = await res.json();
             librarySourcesData = data.sources || [];
@@ -605,10 +692,12 @@
                                             <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                                         </button>
                                         <button type="button" onclick="promptDeleteSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                            <span class="material-symbols-outlined text-[16px]">delete</span> Remove Source
+                                            <span class="material-symbols-outlined text-[16px]">cancel</span> <span class="cancel-text">Remove / Cancel</span>
                                         </button>
                                     </div>
-                                    <input checked class="rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">
+                                    <div class="source-status-container flex items-center">
+                                        <input checked class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">
+                                    </div>
                                 </div>
                             </div>
                         </label>
@@ -616,8 +705,8 @@
                     sourcesList.insertAdjacentHTML('beforeend', newSourceHtml);
                 });
             }
-
             closeUploadModal();
+            updateSourcesCount();
         } catch (err) {
             console.error(err);
             alert(err.message || 'Error linking sources.');
@@ -637,82 +726,40 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
-    // Close modal when clicking outside the content area
+    // Modal Document Click Handlers
     document.getElementById('upload-modal').addEventListener('click', function(e) {
-        if (e.target === this && !isUploading) {
-            closeUploadModal();
-        }
+        if (e.target === this && !isUploading) closeUploadModal();
     });
 
-    // Trigger file input when upload button or drop zone is clicked
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
 
-    dropZone.addEventListener('click', () => {
-        if (!isUploading) fileInput.click();
-    });
-
-    // Basic visual feedback for drag and drop
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (!isUploading) dropZone.classList.add('border-secondary', 'dark:border-secondary');
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-secondary', 'dark:border-secondary');
-    });
-
+    dropZone.addEventListener('click', () => { if (!isUploading) fileInput.click(); });
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); if (!isUploading) dropZone.classList.add('border-secondary'); });
+    dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-secondary'); });
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.classList.remove('border-secondary', 'dark:border-secondary');
-        if (isUploading) return;
-        
-        const files = e.dataTransfer.files;
-        if(files.length > 0) {
-            uploadFiles(files);
-        }
+        dropZone.classList.remove('border-secondary');
+        if (!isUploading && e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files);
     });
-
     fileInput.addEventListener('change', function() {
-         if(this.files.length > 0 && !isUploading) {
-             uploadFiles(this.files);
-         }
+         if(this.files.length > 0 && !isUploading) uploadFiles(this.files);
     });
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    // Async upload function communicating with backend /sources/upload
     async function uploadFiles(files) {
-        // Extract notebook_id from current URL path (/notebooks/workspace/{notebook_id})
         const pathSegments = window.location.pathname.split('/');
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        if (!notebookId) { alert('Notebook ID not found.'); return; }
 
-        if (!notebookId) {
-            alert('Notebook ID not found.');
-            return;
-        }
-
-        // UI State change to Uploading
         isUploading = true;
         document.getElementById('drop-zone-content').classList.add('opacity-0', 'pointer-events-none');
         document.getElementById('upload-progress').classList.remove('hidden');
 
         let successCount = 0;
-        let hasError = false;
-
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             if (file.type !== 'application/pdf') {
-                alert(`File "${file.name}" is not a PDF. Only PDF files are supported.`);
+                alert(`File "${file.name}" is not a PDF.`);
                 continue;
             }
 
@@ -727,23 +774,13 @@
                     method: 'POST',
                     body: formData
                 });
-
-                let resultText = await response.text();
-                let result;
-                try {
-                    result = JSON.parse(resultText);
-                } catch (e) {
-                    throw new Error(`Server Error: ${response.status} ${response.statusText}`);
-                }
-
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Failed to upload source.');
-                }
+                let result = await response.json();
+                if (!response.ok) throw new Error(result.detail || 'Failed to upload source.');
                 
-                const filename = (result && result.filename) ? result.filename : file.name;
-                const sourceId = (result && result.source_id) ? result.source_id : '';
+                const filename = result.filename || file.name;
+                const sourceId = result.source_id || '';
                 const nowIso = new Date().toISOString();
-                const sourcesList = document.getElementById('sources-list') || document.querySelector('#panel-sources .overflow-y-auto');
+                const sourcesList = document.getElementById('sources-list');
                 if (sourcesList) {
                     const newSourceHtml = `
                         <label onclick="openPanel('left')" title="${escapeHtml(filename)}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="${sourceId}" data-filename="${escapeHtml(filename)}" data-created-at="${nowIso}">
@@ -759,7 +796,7 @@
                                             <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                                         </button>
                                         <button type="button" onclick="promptDeleteSource(event, '${sourceId}', '${escapeHtml(filename)}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                            <span class="material-symbols-outlined text-[16px]">cancel</span> Remove / Cancel
+                                            <span class="material-symbols-outlined text-[16px]">cancel</span> <span class="cancel-text">Remove / Cancel</span>
                                         </button>
                                     </div>
                                     <div class="source-status-container flex items-center">
@@ -775,24 +812,17 @@
                     `;
                     sourcesList.insertAdjacentHTML('beforeend', newSourceHtml);
                 }
-
                 successCount++;
             } catch (error) {
-                console.error('Upload error:', error);
                 alert(`Error uploading ${file.name}: \n${error.message}`);
-                hasError = true;
             }
         }
-
-        // Close upload modal, reset UI, and restore interaction state
         isUploading = false;
-        if (successCount > 0) {
-            closeUploadModal();
-        } else {
-            resetUploadUI();
-        }
+        if (successCount > 0) closeUploadModal();
+        else resetUploadUI();
     }
 
+    // Source Item Menus
     function toggleSourceMenu(event, sourceId) {
         event.preventDefault();
         event.stopPropagation();
@@ -800,135 +830,87 @@
         document.querySelectorAll('.source-menu').forEach(menu => {
             if (menu !== targetMenu) menu.classList.add('hidden');
         });
-        if (targetMenu) {
-            targetMenu.classList.toggle('hidden');
-        }
+        if (targetMenu) targetMenu.classList.toggle('hidden');
     }
 
+    // Rename Source Logic
     let currentRenameSourceId = null;
-
     function promptRenameSource(event, sourceId, currentName) {
         event.preventDefault();
         event.stopPropagation();
         document.querySelectorAll('.source-menu').forEach(m => m.classList.add('hidden'));
-
         currentRenameSourceId = sourceId;
         const input = document.getElementById('rename-input');
-        if (input) {
-            input.value = currentName || '';
-        }
+        if (input) input.value = currentName || '';
         document.getElementById('rename-source-modal').classList.remove('hidden');
         setTimeout(() => input && input.focus(), 100);
     }
-
     function closeRenameModal() {
         currentRenameSourceId = null;
         document.getElementById('rename-source-modal').classList.add('hidden');
     }
-
     async function confirmRenameSource() {
         if (!currentRenameSourceId) return;
-
         const input = document.getElementById('rename-input');
         const newName = input ? input.value.trim() : '';
+        if (!newName) { alert('Filename cannot be empty.'); return; }
 
-        if (!newName) {
-            alert('Filename cannot be empty.');
-            return;
-        }
-
-        const sourceId = currentRenameSourceId;
         const pathSegments = window.location.pathname.split('/');
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
 
         try {
-            const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}/rename`, {
+            const response = await fetch(`/notebooks/${notebookId}/sources/${currentRenameSourceId}/rename`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename: newName })
             });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.detail || 'Failed to rename source');
-            }
-
-            const data = await response.json();
-            const updatedName = (data.source && data.source.original_filename) ? data.source.original_filename : newName;
-
-            const itemLabel = document.querySelector(`label[data-source-id="${sourceId}"]`);
+            if (!response.ok) throw new Error('Failed to rename source');
+            
+            const updatedName = newName;
+            const itemLabel = document.querySelector(`label[data-source-id="${currentRenameSourceId}"]`);
             if (itemLabel) {
                 itemLabel.setAttribute('title', updatedName);
                 itemLabel.setAttribute('data-filename', updatedName);
                 const nameDiv = itemLabel.querySelector('.source-filename');
                 if (nameDiv) nameDiv.innerText = updatedName;
-
                 const renameBtn = itemLabel.querySelector('button[onclick^="promptRenameSource"]');
-                if (renameBtn) {
-                    renameBtn.setAttribute('onclick', `promptRenameSource(event, '${sourceId}', '${escapeHtml(updatedName)}')`);
-                }
+                if (renameBtn) renameBtn.setAttribute('onclick', `promptRenameSource(event, '${currentRenameSourceId}', '${escapeHtml(updatedName)}')`);
             }
             closeRenameModal();
         } catch (error) {
-            console.error('Rename error:', error);
             alert(`Error renaming source: ${error.message}`);
         }
     }
 
+    // Delete Source Logic
     let currentDeleteSourceId = null;
-
     function promptDeleteSource(event, sourceId, filename) {
         event.preventDefault();
         event.stopPropagation();
         document.querySelectorAll('.source-menu').forEach(m => m.classList.add('hidden'));
-
         currentDeleteSourceId = sourceId;
         document.getElementById('delete-modal-filename').innerText = `"${filename}"`;
         document.getElementById('delete-source-modal').classList.remove('hidden');
     }
-
     function closeDeleteModal() {
         currentDeleteSourceId = null;
         document.getElementById('delete-source-modal').classList.add('hidden');
     }
-
     async function confirmDeleteSource(mode) {
         if (!currentDeleteSourceId) return;
-
         const sourceId = currentDeleteSourceId;
         const pathSegments = window.location.pathname.split('/');
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
-
-        const btn = mode === 'library' ? document.getElementById('btn-delete-library') : document.getElementById('btn-delete-notebook');
-        const originalText = btn ? btn.innerHTML : '';
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Deleting...';
-        }
-
+        
         try {
-            const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}?mode=${mode}`, {
-                method: 'DELETE'
-            });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.detail || 'Failed to remove source');
-            }
-            // Clean up UI
+            const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}?mode=${mode}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Failed to remove source');
             const itemLabel = document.querySelector(`label[data-source-id="${sourceId}"]`);
-            if (itemLabel) {
-                itemLabel.remove();
-            }
+            if (itemLabel) itemLabel.remove();
+            updateSourcesCount();
             closeDeleteModal();
         } catch (error) {
-            console.error('Delete error:', error);
             alert(`Error removing source: ${error.message}`);
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
         }
     }
 
@@ -937,6 +919,7 @@
         if (checkboxes.length === 0) return;
         const allChecked = Array.from(checkboxes).every(cb => cb.checked);
         checkboxes.forEach(cb => cb.checked = !allChecked);
+        updateSourcesCount();
     }
 
     function toggleSortMenu(e) {
@@ -949,29 +932,20 @@
     function sortSources(criteria) {
         const sortMenu = document.getElementById('sort-menu');
         if (sortMenu) sortMenu.classList.add('hidden');
-
         const sourcesList = document.getElementById('sources-list');
         if (!sourcesList) return;
-
         const items = Array.from(sourcesList.querySelectorAll('.pdf-item'));
-        if (items.length <= 1) return;
-
+        
         items.sort((a, b) => {
             const filenameA = (a.dataset.filename || '').toLowerCase();
             const filenameB = (b.dataset.filename || '').toLowerCase();
             const dateA = new Date(a.dataset.createdAt || 0).getTime();
             const dateB = new Date(b.dataset.createdAt || 0).getTime();
-
-            if (criteria === 'az') {
-                return filenameA.localeCompare(filenameB);
-            } else if (criteria === 'recent') {
-                return dateB - dateA;
-            } else if (criteria === 'oldest') {
-                return dateA - dateB;
-            }
+            if (criteria === 'az') return filenameA.localeCompare(filenameB);
+            if (criteria === 'recent') return dateB - dateA;
+            if (criteria === 'oldest') return dateA - dateB;
             return 0;
         });
-
         items.forEach(item => sourcesList.appendChild(item));
     }
 
@@ -984,109 +958,72 @@
             const sortMenu = document.getElementById('sort-menu');
             if (sortMenu) sortMenu.classList.add('hidden');
         }
+        const modelMenu = document.getElementById('model-dropdown-menu');
+        if (modelMenu && !modelMenu.classList.contains('hidden') && !e.target.closest('#model-dropdown-container')) {
+            modelMenu.classList.add('hidden');
+        }
     });
 
+    // Mobile tabs switching
     function switchTab(tabName) {
-        // Update aria-selected state on tab buttons
         document.querySelectorAll('[role="tab"]').forEach(tab => {
             tab.setAttribute('aria-selected', tab.id === `tab-${tabName}` ? 'true' : 'false');
         });
-        
-        // Update active panel class
         ['sources', 'chat', 'studio'].forEach(id => {
             const panel = document.getElementById(`panel-${id}`);
-            if (id === tabName) {
-                panel.classList.add('active-tab');
-            } else {
-                panel.classList.remove('active-tab');
-            }
+            if (id === tabName) panel.classList.add('active-tab');
+            else panel.classList.remove('active-tab');
         });
     }
-    
-    // Custom Dropdown Logic
-    function toggleDropdown() {
-        document.getElementById('model-dropdown-menu').classList.toggle('hidden');
-    }
-    
-    function selectModel(model) {
-        document.getElementById('selected-model').innerText = model;
-        document.getElementById('model-dropdown-menu').classList.add('hidden');
-    }
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(event) {
-        const container = document.getElementById('model-dropdown-container');
-        if (container && !container.contains(event.target)) {
-            document.getElementById('model-dropdown-menu').classList.add('hidden');
-        }
-    });
-    
+
     // Panel Resizing Logic
-    let isResizingLeft = false;
-    let isResizingRight = false;
-    let startX = 0;
-    let startWidth = 0;
-    
+    let isResizingLeft = false, isResizingRight = false, startX = 0, startWidth = 0;
     const resizerLeft = document.getElementById('resizer-left');
     const resizerRight = document.getElementById('resizer-right');
     
     if (resizerLeft && resizerRight) {
         resizerLeft.addEventListener('mousedown', (e) => {
-            isResizingLeft = true;
-            startX = e.clientX;
+            isResizingLeft = true; startX = e.clientX;
             startWidth = document.getElementById('panel-sources').getBoundingClientRect().width;
             document.body.style.cursor = 'col-resize';
-            document.body.classList.add('select-none', 'is-resizing'); // Prevent text highlighting
+            document.body.classList.add('select-none', 'is-resizing');
             e.preventDefault();
         });
-        
         resizerRight.addEventListener('mousedown', (e) => {
-            isResizingRight = true;
-            startX = e.clientX;
+            isResizingRight = true; startX = e.clientX;
             startWidth = document.getElementById('panel-studio').getBoundingClientRect().width;
             document.body.style.cursor = 'col-resize';
             document.body.classList.add('select-none', 'is-resizing');
             e.preventDefault();
         });
-        
         document.addEventListener('mousemove', (e) => {
-            if (!isResizingLeft && !isResizingRight) return;
-            
             if (isResizingLeft) {
-                const diff = e.clientX - startX;
-                let newWidth = startWidth + diff;
-                if (newWidth < 200) newWidth = 200; // Minimum width
-                if (newWidth > 600) newWidth = 600; // Maximum width
+                let newWidth = startWidth + (e.clientX - startX);
+                if (newWidth < 200) newWidth = 200;
+                if (newWidth > 600) newWidth = 600;
                 document.documentElement.style.setProperty('--left-panel-width', `${newWidth}px`);
             }
-            
             if (isResizingRight) {
-                const diff = startX - e.clientX; // Moving left increases right panel width
-                let newWidth = startWidth + diff;
+                let newWidth = startWidth + (startX - e.clientX);
                 if (newWidth < 200) newWidth = 200;
                 if (newWidth > 600) newWidth = 600;
                 document.documentElement.style.setProperty('--right-panel-width', `${newWidth}px`);
             }
         });
-        
         document.addEventListener('mouseup', () => {
-            isResizingLeft = false;
-            isResizingRight = false;
+            isResizingLeft = false; isResizingRight = false;
             document.body.style.cursor = 'default';
             document.body.classList.remove('select-none', 'is-resizing');
         });
     }
     
-    // Panel Collapsing Logic
     function togglePanel(side) {
         const panel = side === 'left' ? document.getElementById('panel-sources') : document.getElementById('panel-studio');
         const resizer = side === 'left' ? document.getElementById('resizer-left') : document.getElementById('resizer-right');
         const icon = side === 'left' ? document.getElementById('collapse-icon-left') : document.getElementById('collapse-icon-right');
         
         panel.classList.toggle('collapsed');
-        const isCollapsed = panel.classList.contains('collapsed');
-        
-        if (isCollapsed) {
+        if (panel.classList.contains('collapsed')) {
             resizer.style.display = 'none';
             icon.innerText = side === 'left' ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
         } else {
@@ -1094,31 +1031,649 @@
             icon.innerText = side === 'left' ? 'keyboard_double_arrow_left' : 'keyboard_double_arrow_right';
         }
     }
-
     function openPanel(side) {
         const panel = side === 'left' ? document.getElementById('panel-sources') : document.getElementById('panel-studio');
-        if (panel.classList.contains('collapsed')) {
-            togglePanel(side);
+        if (panel.classList.contains('collapsed')) togglePanel(side);
+    }
+
+    /* -------------------------------------------------------------------------
+       CHAT SETTINGS & LLM DROPDOWNS
+    ------------------------------------------------------------------------- */
+    let currentPromptMode = 'hybrid';
+    let currentResponseLength = 'default';
+    let currentLlmModel = 'gemini/gemini-2.5-flash';
+    let tempPromptMode = 'hybrid';
+    let tempResponseLength = 'default';
+
+    function openConfigureChatModal() {
+        tempPromptMode = currentPromptMode;
+        tempResponseLength = currentResponseLength;
+        selectConfigMode(tempPromptMode);
+        selectConfigLength(tempResponseLength);
+        document.getElementById('configure-chat-modal').classList.remove('hidden');
+    }
+    function closeConfigureChatModal() { document.getElementById('configure-chat-modal').classList.add('hidden'); }
+    function saveChatConfiguration() {
+        currentPromptMode = tempPromptMode;
+        currentResponseLength = tempResponseLength;
+        closeConfigureChatModal();
+    }
+    function selectConfigMode(mode) {
+        tempPromptMode = mode;
+        ['strict', 'hybrid', 'concise'].forEach(m => {
+            const pill = document.getElementById(`pill-mode-${m}`);
+            if (!pill) return;
+            const checkIcon = pill.querySelector('.pill-check');
+            const descSpan = pill.querySelector('span:last-child');
+            if (m === mode) {
+                pill.className = 'config-pill p-3 rounded-xl text-left border transition-all flex flex-col gap-1 bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg border-secondary dark:border-dark-accent shadow-sm';
+                if (checkIcon) checkIcon.classList.remove('hidden');
+                if (descSpan) descSpan.className = 'text-[11px] opacity-90 leading-tight';
+            } else {
+                pill.className = 'config-pill p-3 rounded-xl text-left border transition-all flex flex-col gap-1 bg-surface-bright dark:bg-dark-bg border-paper dark:border-dark-border text-on-surface dark:text-dark-text hover:border-secondary dark:hover:border-dark-accent';
+                if (checkIcon) checkIcon.classList.add('hidden');
+                if (descSpan) descSpan.className = 'text-[11px] text-on-surface-variant dark:text-dark-text-muted leading-tight';
+            }
+        });
+    }
+    function selectConfigLength(length) {
+        tempResponseLength = length;
+        ['default', 'longer', 'shorter'].forEach(l => {
+            const pill = document.getElementById(`pill-length-${l}`);
+            if (!pill) return;
+            const checkIcon = pill.querySelector('.length-check');
+            if (l === length) {
+                pill.className = 'config-length-pill py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 border bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg border-secondary dark:border-dark-accent shadow-sm';
+                if (checkIcon) checkIcon.classList.remove('hidden');
+            } else {
+                pill.className = 'config-length-pill py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 border bg-surface-bright dark:bg-dark-bg border-paper dark:border-dark-border text-on-surface dark:text-dark-text hover:border-secondary dark:hover:border-dark-accent';
+                if (checkIcon) checkIcon.classList.add('hidden');
+            }
+        });
+    }
+
+    function toggleModelDropdown(event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('model-dropdown-menu');
+        if (menu) menu.classList.toggle('hidden');
+    }
+    function selectLlmModel(modelId, displayName) {
+        currentLlmModel = modelId;
+        const label = document.getElementById('selected-model-name');
+        if (label) label.innerText = displayName;
+        const checkMap = { 'gemini/gemini-2.5-flash': 'check-model-pro', 'gemini/gemini-2.0-flash-lite': 'check-model-fast', 'gpt-4o': 'check-model-gpt4o', 'claude-3-5-sonnet-20241022': 'check-model-claude' };
+        Object.keys(checkMap).forEach(m => {
+            const check = document.getElementById(checkMap[m]);
+            if (check) {
+                if (m === modelId) check.classList.remove('hidden');
+                else check.classList.add('hidden');
+            }
+        });
+        const menu = document.getElementById('model-dropdown-menu');
+        if (menu) menu.classList.add('hidden');
+    }
+
+    // Source count chips logic
+    function getSelectedSourceIds() {
+        const checked = document.querySelectorAll('.source-checkbox:checked');
+        return Array.from(checked).map(cb => cb.value).filter(Boolean);
+    }
+    function updateSourcesCount() {
+        const checked = document.querySelectorAll('.source-checkbox:checked');
+        const countSpan = document.getElementById('sources-count');
+        if (countSpan) countSpan.innerText = checked.length;
+    }
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.classList.contains('source-checkbox')) updateSourcesCount();
+    });
+    updateSourcesCount();
+
+    /* -------------------------------------------------------------------------
+       STREAMING RAG CHAT & PERSISTENCE LOGIC
+    ------------------------------------------------------------------------- */
+    let activeLastMessageId = null;  // Tracks the leaf/latest assistant message in active chain
+    let branchParentId = null;       // Set when user edits a prior prompt to create a timeline split
+
+    function getNotebookIdFromUrl() {
+        const pathSegments = window.location.pathname.split('/');
+        const wsIndex = pathSegments.indexOf('workspace');
+        if (wsIndex !== -1 && pathSegments[wsIndex + 1]) {
+            return pathSegments[wsIndex + 1];
+        }
+        return '{{ notebook_id }}';
+    }
+
+    function renderUserMessage(text, messageId, parentId, createdAt) {
+        const container = document.getElementById('chat-messages-container');
+        if (!container) return null;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'flex gap-3 max-w-3xl ml-auto flex-row-reverse animate-fade-in group';
+        if (messageId) msgDiv.setAttribute('data-message-id', messageId);
+        if (parentId) msgDiv.setAttribute('data-parent-id', parentId);
+
+        msgDiv.innerHTML = `
+            <div class="h-8 w-8 rounded-full bg-primary/10 dark:bg-dark-text/10 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary dark:text-dark-text">
+                <span class="material-symbols-outlined text-[18px]">person</span>
+            </div>
+            <div class="relative flex-1 bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/25 p-4 rounded-2xl rounded-tr-none">
+                <p class="font-body-md text-on-surface dark:text-dark-text leading-relaxed whitespace-pre-wrap">${escapeHtml(text)}</p>
+                <div class="mt-1 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onclick="editUserPrompt(${JSON.stringify(text)}, '${messageId || ''}', '${parentId || ''}')" class="text-[11px] text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent flex items-center gap-1 transition-colors" title="Edit prompt & split branch">
+                        <span class="material-symbols-outlined text-[14px]">edit</span>
+                        <span>Edit</span>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const spacer = document.getElementById('chat-bottom-spacer');
+        if (spacer) container.insertBefore(msgDiv, spacer);
+        else container.appendChild(msgDiv);
+        return msgDiv;
+    }
+
+    function renderAssistantMessage(text, messageId, citations, llmModel, createdAt) {
+        const container = document.getElementById('chat-messages-container');
+        if (!container) return null;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'flex gap-3 max-w-3xl animate-fade-in';
+        if (messageId) msgDiv.setAttribute('data-message-id', messageId);
+
+        let citationsHtml = '';
+        if (citations && citations.length > 0) {
+            citationsHtml = `
+                <div class="mt-3 pt-2.5 border-t border-paper/60 dark:border-dark-border/40 flex flex-wrap items-center gap-1.5 animate-fade-in">
+                    <span class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-wider mr-1">Sources:</span>
+                    ${citations.map(s => {
+                        const title = escapeHtml(s.source_title || s.document_title || 'Document');
+                        const pageNum = s.page_number || ((s.order || 0) + 1);
+                        const snippet = escapeHtml(s.chunk_snapshot || s.text_snippet || '');
+                        return `
+                            <div class="group/cit relative inline-block">
+                                <span class="inline-flex items-center gap-1 bg-surface-bright dark:bg-dark-bg text-on-surface-variant dark:text-dark-text-muted border border-paper dark:border-dark-border px-2 py-0.5 rounded-full text-xs cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                                    <span class="material-symbols-outlined text-[13px] text-secondary dark:text-dark-accent">description</span>
+                                    <span class="font-medium truncate max-w-[140px]">${title} (p.${pageNum})</span>
+                                </span>
+                                ${snippet ? `
+                                <div class="hidden group-hover/cit:block absolute bottom-full left-0 mb-2 w-64 p-2.5 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl z-50 text-[11px] dark:text-dark-text leading-relaxed pointer-events-none">
+                                    <p class="font-semibold text-secondary dark:text-dark-accent mb-1">${title}</p>
+                                    <p class="text-on-surface-variant dark:text-dark-text-muted italic line-clamp-4">"${snippet}"</p>
+                                </div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        msgDiv.innerHTML = `
+            <div class="h-8 w-8 rounded-full bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/30 flex items-center justify-center flex-shrink-0 text-secondary dark:text-dark-accent">
+                <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+            </div>
+            <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-4 rounded-2xl rounded-tl-none border border-paper/60 dark:border-dark-border/60">
+                <div class="font-body-md dark:text-dark-text leading-relaxed prose dark:prose-invert max-w-none ai-text-content">
+                    ${formatMarkdownText(text)}
+                </div>
+                <div class="ai-metadata-content">${citationsHtml}</div>
+            </div>
+        `;
+
+        const spacer = document.getElementById('chat-bottom-spacer');
+        if (spacer) container.insertBefore(msgDiv, spacer);
+        else container.appendChild(msgDiv);
+        return msgDiv;
+    }
+
+    function editUserPrompt(text, messageId, parentId) {
+        const input = document.getElementById('chat-input');
+        if (!input) return;
+
+        input.value = text;
+        branchParentId = (parentId && parentId !== 'null' && parentId !== 'None') ? parentId : null;
+
+        input.style.height = '';
+        const targetHeight = Math.min(input.scrollHeight, 120);
+        input.style.height = targetHeight + 'px';
+        input.style.overflowY = input.scrollHeight > 120 ? 'auto' : 'hidden';
+
+        const sendBtn = document.getElementById('send-btn');
+        const sourcesChip = document.getElementById('sources-chip');
+        if (sendBtn) sendBtn.classList.remove('hidden');
+        if (sourcesChip) sourcesChip.classList.add('hidden');
+
+        input.focus();
+    }
+
+    async function loadChatHistory() {
+        const notebookId = getNotebookIdFromUrl();
+        if (!notebookId) return;
+
+        const container = document.getElementById('chat-messages-container');
+        if (!container) return;
+
+        try {
+            const res = await fetch(`/notebooks/${notebookId}/chat/history`);
+            if (!res.ok) return;
+
+            const data = await res.json();
+            const messages = data.messages || [];
+
+            if (messages.length === 0) {
+                activeLastMessageId = null;
+                return;
+            }
+
+            // Clear placeholder welcome message
+            container.innerHTML = '';
+
+            messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    renderUserMessage(msg.content, msg.id, msg.parent_id, msg.created_at);
+                } else if (msg.role === 'assistant') {
+                    renderAssistantMessage(msg.content, msg.id, msg.citations || [], msg.llm_model, msg.created_at);
+                    activeLastMessageId = msg.id;
+                }
+            });
+
+            // Re-append spacer at bottom
+            const spacer = document.createElement('div');
+            spacer.id = 'chat-bottom-spacer';
+            spacer.className = 'h-28 sm:h-36 w-full flex-shrink-0 pointer-events-none';
+            container.appendChild(spacer);
+
+            container.scrollTop = container.scrollHeight;
+        } catch (err) {
+            console.error('Error loading chat history:', err);
         }
     }
 
-    // Input Field Logic for Send Button/Sources Chip
-    const chatInput = document.querySelector('#panel-chat textarea');
-    const sendBtn = document.getElementById('send-btn');
-    const sourcesChip = document.getElementById('sources-chip');
+    function appendLoadingIndicator() {
+        const container = document.getElementById('chat-messages-container');
+        if (!container) return null;
+        const loadingId = 'ai-loading-' + Date.now();
+        const msgDiv = document.createElement('div');
+        msgDiv.id = loadingId;
+        msgDiv.className = 'flex gap-3 max-w-3xl animate-fade-in';
+        msgDiv.innerHTML = `
+            <div class="h-8 w-8 rounded-full bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/30 flex items-center justify-center flex-shrink-0 text-secondary dark:text-dark-accent">
+                <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+            </div>
+            <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-4 rounded-2xl rounded-tl-none border border-paper/60 dark:border-dark-border/60 flex items-center gap-2.5">
+                <div class="flex items-center gap-1.5 py-0.5">
+                    <span class="w-2 h-2 rounded-full bg-secondary dark:bg-dark-accent animate-bounce" style="animation-delay: 0ms"></span>
+                    <span class="w-2 h-2 rounded-full bg-secondary dark:bg-dark-accent animate-bounce" style="animation-delay: 150ms"></span>
+                    <span class="w-2 h-2 rounded-full bg-secondary dark:bg-dark-accent animate-bounce" style="animation-delay: 300ms"></span>
+                </div>
+                <span class="text-xs font-medium text-on-surface-variant dark:text-dark-text-muted">Searching sources & preparing response...</span>
+            </div>
+        `;
+        const spacer = document.getElementById('chat-bottom-spacer');
+        if (spacer) container.insertBefore(msgDiv, spacer);
+        else container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+        return loadingId;
+    }
 
+    function initializeStreamingAiMessage(loadingId) {
+        const container = document.getElementById('chat-messages-container');
+        const loadingEl = loadingId ? document.getElementById(loadingId) : null;
+        const msgDiv = document.createElement('div');
+        msgDiv.id = loadingId;
+        msgDiv.className = 'flex gap-3 max-w-3xl animate-fade-in';
+        
+        msgDiv.innerHTML = `
+            <div class="h-8 w-8 rounded-full bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/30 flex items-center justify-center flex-shrink-0 text-secondary dark:text-dark-accent">
+                <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+            </div>
+            <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-4 rounded-2xl rounded-tl-none border border-paper/60 dark:border-dark-border/60">
+                <div class="font-body-md dark:text-dark-text leading-relaxed prose dark:prose-invert max-w-none ai-text-content">
+                    <div class="flex items-center gap-2 text-on-surface-variant dark:text-dark-text-muted text-xs py-1">
+                        <span class="inline-block w-2 h-2 rounded-full bg-secondary dark:bg-dark-accent animate-ping"></span>
+                        <span>Generating answer...</span>
+                    </div>
+                </div>
+                <div class="ai-metadata-content"></div>
+            </div>
+        `;
+
+        if (loadingEl) {
+            loadingEl.replaceWith(msgDiv);
+        } else {
+            const spacer = document.getElementById('chat-bottom-spacer');
+            if (spacer) container.insertBefore(msgDiv, spacer);
+            else container.appendChild(msgDiv);
+        }
+        
+        if (container) container.scrollTop = container.scrollHeight;
+
+        return {
+            element: msgDiv,
+            textContainer: msgDiv.querySelector('.ai-text-content'),
+            metadataContainer: msgDiv.querySelector('.ai-metadata-content')
+        };
+    }
+
+    function renderMetadata(container, data) {
+        let citationsHtml = '';
+        if (data.sources && data.sources.length > 0) {
+            citationsHtml = `
+                <div class="mt-3 pt-2.5 border-t border-paper/60 dark:border-dark-border/40 flex flex-wrap items-center gap-1.5 animate-fade-in">
+                    <span class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-wider mr-1">Sources:</span>
+                    ${data.sources.map(s => {
+                        const title = escapeHtml(s.document_title || s.source_title || 'Document');
+                        const pageNum = s.page_number || ((s.order || 0) + 1);
+                        const snippet = escapeHtml(s.text_snippet || s.chunk_snapshot || '');
+                        return `
+                            <div class="group/cit relative inline-block">
+                                <span class="inline-flex items-center gap-1 bg-surface-bright dark:bg-dark-bg text-on-surface-variant dark:text-dark-text-muted border border-paper dark:border-dark-border px-2 py-0.5 rounded-full text-xs cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                                    <span class="material-symbols-outlined text-[13px] text-secondary dark:text-dark-accent">description</span>
+                                    <span class="font-medium truncate max-w-[140px]">${title} (p.${pageNum})</span>
+                                </span>
+                                ${snippet ? `
+                                <div class="hidden group-hover/cit:block absolute bottom-full left-0 mb-2 w-64 p-2.5 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl z-50 text-[11px] dark:text-dark-text leading-relaxed pointer-events-none">
+                                    <p class="font-semibold text-secondary dark:text-dark-accent mb-1">${title}</p>
+                                    <p class="text-on-surface-variant dark:text-dark-text-muted italic line-clamp-4">"${snippet}"</p>
+                                </div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        let timingsHtml = '';
+        if (data.timings_ms) {
+            timingsHtml = `
+                <div class="flex items-center gap-2 text-[10px] text-on-surface-variant/70 dark:text-dark-text-muted/60 mt-2 animate-fade-in">
+                    <span>⏱️ Total: ${data.timings_ms.total_ms || 0}ms (Retrieval: ${data.timings_ms.retrieval_ms || 0}ms, LLM: ${data.timings_ms.llm_ms || 0}ms)</span>
+                    ${data.used_tokens ? `<span>• 🔤 ${data.used_tokens} tokens</span>` : ''}
+                </div>
+            `;
+        }
+
+        container.innerHTML = citationsHtml + timingsHtml;
+    }
+
+    function appendErrorMessage(loadingId, errorText) {
+        const container = document.getElementById('chat-messages-container');
+        const loadingEl = loadingId ? document.getElementById(loadingId) : null;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'flex gap-3 max-w-3xl animate-fade-in';
+        msgDiv.innerHTML = `
+            <div class="h-8 w-8 rounded-full bg-error/10 border border-error/20 flex items-center justify-center flex-shrink-0 text-error">
+                <span class="material-symbols-outlined text-[18px]">error</span>
+            </div>
+            <div class="flex-1 bg-error/5 border border-error/20 p-4 rounded-2xl rounded-tl-none text-error text-sm">
+                <p class="font-medium">Error generating response</p>
+                <p class="text-xs mt-1 opacity-90">${escapeHtml(errorText)}</p>
+            </div>
+        `;
+        if (loadingEl) {
+            loadingEl.replaceWith(msgDiv);
+        } else {
+            const spacer = document.getElementById('chat-bottom-spacer');
+            if (spacer) container.insertBefore(msgDiv, spacer);
+            else container.appendChild(msgDiv);
+        }
+        if (container) container.scrollTop = container.scrollHeight;
+    }
+
+    async function submitChatMessage() {
+        const input = document.getElementById('chat-input');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+
+        const notebookId = getNotebookIdFromUrl();
+        if (!notebookId) return;
+
+        const sendBtn = document.getElementById('send-btn');
+        const sourcesChip = document.getElementById('sources-chip');
+        if (sendBtn) sendBtn.disabled = true;
+
+        input.value = '';
+        input.style.height = '';
+        input.style.overflowY = 'hidden';
+        if (sendBtn) sendBtn.classList.add('hidden');
+        if (sourcesChip) sourcesChip.classList.remove('hidden');
+
+        // Determine parent_id for branching
+        const targetParentId = (branchParentId !== null) ? branchParentId : activeLastMessageId;
+
+        // Render user message bubble immediately
+        const userMsgEl = renderUserMessage(text, null, targetParentId);
+        const loadingId = appendLoadingIndicator();
+        const activeSourceIds = getSelectedSourceIds();
+        const chatContainer = document.getElementById('chat-messages-container');
+
+        let bubbleData = null;
+
+        try {
+            // 1. Initiate Streaming Fetch Request
+            const response = await fetch(`/notebooks/${notebookId}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: text,
+                    source_ids: activeSourceIds,
+                    mode: currentPromptMode,
+                    model: currentLlmModel,
+                    response_length: currentResponseLength,
+                    parent_id: targetParentId
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || 'Failed to get answer from AI');
+            }
+
+            // 2. Setup the AI Bubble for Streaming
+            bubbleData = initializeStreamingAiMessage(loadingId);
+            
+            // 3. Native ReadableStream parsing
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let accumulatedText = "";
+            let buffer = "";
+            let lastScrollTime = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop(); // Keep incomplete JSON in buffer
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+
+                    if (trimmedLine.startsWith('data: ')) {
+                        const dataStr = trimmedLine.slice(6).trim();
+                        if (dataStr === '[DONE]') continue; 
+                        
+                        try {
+                            const data = JSON.parse(dataStr);
+                            
+                            // A) Process user save event
+                            if (data.type === 'user_saved' && data.user_message_id && userMsgEl) {
+                                userMsgEl.setAttribute('data-message-id', data.user_message_id);
+                                if (data.parent_id) userMsgEl.setAttribute('data-parent-id', data.parent_id);
+                                const editBtn = userMsgEl.querySelector('button[onclick^="editUserPrompt"]');
+                                if (editBtn) {
+                                    editBtn.setAttribute('onclick', `editUserPrompt(${JSON.stringify(text)}, '${data.user_message_id}', '${data.parent_id || ''}')`);
+                                }
+                            }
+                            // B) Process text chunk
+                            else if (data.type === 'chunk' && data.content) {
+                                accumulatedText += data.content;
+                                bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText) + '<span class="inline-block w-1.5 h-4 ml-1 bg-secondary dark:bg-dark-accent rounded-sm animate-pulse align-middle" style="vertical-align: -2px;"></span>';
+                                
+                                const now = Date.now();
+                                if (now - lastScrollTime > 80) {
+                                    if (chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 200) {
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    }
+                                    lastScrollTime = now;
+                                }
+                            } 
+                            // C) Process final metadata payload
+                            else if (data.type === 'metadata') {
+                                if (accumulatedText) {
+                                    bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText);
+                                }
+                                if (data.message_id) {
+                                    bubbleData.element.setAttribute('data-message-id', data.message_id);
+                                    activeLastMessageId = data.message_id;
+                                }
+                                // Reset branching parent after successful completion
+                                branchParentId = null;
+
+                                renderMetadata(bubbleData.metadataContainer, data);
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }
+                            // D) Process error payload from server stream
+                            else if (data.type === 'error') {
+                                throw new Error(data.error || 'Stream error');
+                            }
+                        } catch (e) {
+                            if (e.message && e.message.includes('Stream error')) {
+                                throw e;
+                            }
+                            console.error("Error parsing stream event:", e);
+                        }
+                    }
+                }
+            }
+
+            // Final cleanup: remove trailing cursor
+            if (accumulatedText && bubbleData) {
+                bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText);
+            }
+        } catch (err) {
+            console.error('Chat error:', err);
+            appendErrorMessage(loadingId, err.message || 'Network error');
+        } finally {
+            if (sendBtn) sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    function openClearChatModal() {
+        const modal = document.getElementById('clear-chat-modal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeClearChatModal() {
+        const modal = document.getElementById('clear-chat-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function confirmClearChatHistory() {
+        const notebookId = getNotebookIdFromUrl();
+        if (!notebookId) return;
+
+        const btn = document.getElementById('btn-confirm-clear-chat');
+        const btnText = document.getElementById('clear-chat-btn-text');
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerText = "Clearing...";
+
+        try {
+            const res = await fetch(`/notebooks/${notebookId}/chat/history`, {
+                method: 'DELETE'
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Failed to clear chat history.');
+            }
+
+            activeLastMessageId = null;
+            branchParentId = null;
+
+            const container = document.getElementById('chat-messages-container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex gap-3 max-w-3xl animate-fade-in">
+                        <div class="h-8 w-8 rounded-full bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/30 flex items-center justify-center flex-shrink-0 text-secondary dark:text-dark-accent">
+                            <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                        </div>
+                        <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-4 rounded-2xl rounded-tl-none border border-paper/60 dark:border-dark-border/60">
+                            <p class="font-body-md dark:text-dark-text leading-relaxed">
+                                Hello! I'm ready to answer questions grounded in your selected documents. What would you like to explore?
+                            </p>
+                        </div>
+                    </div>
+                    <div id="chat-bottom-spacer" class="h-28 sm:h-36 w-full flex-shrink-0 pointer-events-none"></div>
+                `;
+            }
+            closeClearChatModal();
+        } catch (err) {
+            console.error('Error clearing chat history:', err);
+            alert(err.message || 'Error clearing chat history.');
+        } finally {
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.innerText = "Clear History";
+        }
+    }
+
+    // Modal background click dismiss handlers
+    const clearModalEl = document.getElementById('clear-chat-modal');
+    if (clearModalEl) {
+        clearModalEl.addEventListener('click', function(e) {
+            if (e.target === this) closeClearChatModal();
+        });
+    }
+    const configModalEl = document.getElementById('configure-chat-modal');
+    if (configModalEl) {
+        configModalEl.addEventListener('click', function(e) {
+            if (e.target === this) closeConfigureChatModal();
+        });
+    }
+
+    // Initialize chat history on document ready
+    document.addEventListener('DOMContentLoaded', () => {
+        loadChatHistory();
+    });
+    // Also trigger if DOM is already loaded
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        loadChatHistory();
+    }
+
+    const chatInput = document.getElementById('chat-input');
     if (chatInput) {
         chatInput.addEventListener('input', function() {
+            const sendBtn = document.getElementById('send-btn');
+            const sourcesChip = document.getElementById('sources-chip');
             if (this.value.trim().length > 0) {
-                sendBtn.classList.remove('hidden');
-                sourcesChip.classList.add('hidden');
+                if (sendBtn) sendBtn.classList.remove('hidden');
+                if (sourcesChip) sourcesChip.classList.add('hidden');
             } else {
-                sendBtn.classList.add('hidden');
-                sourcesChip.classList.remove('hidden');
+                if (sendBtn) sendBtn.classList.add('hidden');
+                if (sourcesChip) sourcesChip.classList.remove('hidden');
+            }
+            this.style.height = '';
+            if (this.value.length > 0) {
+                const targetHeight = Math.min(this.scrollHeight, 120);
+                this.style.height = targetHeight + 'px';
+                this.style.overflowY = this.scrollHeight > 120 ? 'auto' : 'hidden';
+            } else {
+                this.style.overflowY = 'hidden';
             }
         });
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitChatMessage();
+            }
+        });
+    }
 
-    // Polling logic for source processing status
+    // Polling logic for Celery source ingestion processing status
     function pollSourceStatus() {
         const spinners = document.querySelectorAll('.source-spinner');
         if (spinners.length === 0) return;
@@ -1136,16 +1691,15 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'completed' || data.status === 'failed') {
-                        // Remove spinner, show checkbox
                         const container = spinner.closest('.source-status-container');
-                        if(container) {
+                        if (container) {
                             spinner.remove();
                             const checkbox = container.querySelector('input[type="checkbox"]');
                             if (checkbox) {
                                 checkbox.classList.remove('hidden');
                                 checkbox.checked = true;
+                                updateSourcesCount();
                             }
-                            // Revert Remove / Cancel to Remove Source
                             const cancelSpan = labelEl.querySelector('.cancel-text');
                             if (cancelSpan) cancelSpan.innerText = "Remove Source";
                             const cancelIcon = labelEl.querySelector('button[onclick^="promptDelete"] .material-symbols-outlined');
@@ -1157,22 +1711,6 @@
         });
     }
 
-    // Start polling every 3 seconds
     setInterval(pollSourceStatus, 3000);
-
-    // Basic auto-resize for textarea
-        chatInput.addEventListener('input', function() {
-            this.style.height = '24px'; // Reset height to recalculate
-            this.style.height = (this.scrollHeight) + 'px';
-            
-            // Limit max height (e.g., 5 lines approx)
-            if(this.scrollHeight > 120) {
-                this.style.overflowY = 'auto';
-                this.style.height = '120px';
-            } else {
-                this.style.overflowY = 'hidden';
-            }
-        });
-    }
 </script>
 {% endblock %}
