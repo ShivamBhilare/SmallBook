@@ -10,8 +10,15 @@ from app.services.sources.source_service import get_notebook_sources
 from app.services.rag import (
     retrieve_multi,
     build_augmented_prompt,
-    stream_llm_response,
+    stream_resilient_llm_response,
     PromptMode
+)
+from app.services.llm import (
+    get_decrypted_user_key,
+    get_user_preferences,
+    check_daily_quota,
+    increment_daily_quota,
+    check_burst_limit,
 )
 from app.models.chat_models import ChatRequestSchema
 from app.services.chat import (
@@ -157,10 +164,40 @@ def send_chat_message(
                 length_setting=length_setting
             )
 
-            # 6. LLM Streaming Generation
+            # 6. Resolve User Credentials & LLM Resilience
+            user_id = str(user.id if hasattr(user, "id") else user.get("id"))
+            user_prefs = get_user_preferences(client, user_id)
+            model_name = payload.model or user_prefs.get("active_model") or "groq/llama-3.3-70b-versatile"
+            provider_name = infer_llm_provider(model_name)
+
+            # Check if user has personal BYOK key for this provider
+            primary_cred = get_decrypted_user_key(client, user_id, provider=provider_name)
+            primary_key = primary_cred.get("api_key") if primary_cred else None
+            primary_base = primary_cred.get("api_base") if primary_cred else None
+
+            # If user has no personal key, apply Free Tier rate limiting
+            if not primary_key:
+                if not check_burst_limit(user_id, max_per_minute=4):
+                    yield f"data: {json.dumps({'type': 'error', 'error': 'Rate limit: Please wait a moment before sending another message.'})}\n\n"
+                    return
+
+                allowed, used, remaining = check_daily_quota(user_id, limit=25, client=client)
+                if not allowed:
+                    yield f"data: {json.dumps({'type': 'error', 'error': 'Daily Free Tier limit reached (25/25 queries). Add your own free Groq or Gemini API key in Key Settings (top-right) for unlimited access.'})}\n\n"
+                    return
+
+                increment_daily_quota(user_id, limit=25, client=client)
+
+            # Resolve other user keys as potential backups
+            backup_creds = []
+            for p in ["groq", "google", "openai", "anthropic", "openrouter", "custom"]:
+                if p != provider_name:
+                    b_cred = get_decrypted_user_key(client, user_id, provider=p)
+                    if b_cred:
+                        backup_creds.append(b_cred)
+
+            # 7. LLM Streaming Generation
             t_llm = time.perf_counter()
-            model_name = payload.model or "gemini/gemini-2.5-flash"
-            
             if length_setting == "shorter":
                 max_tokens = 1500
             elif length_setting == "longer":
@@ -169,20 +206,34 @@ def send_chat_message(
                 max_tokens = 4096
 
             accumulated_tokens = []
-            for chunk in stream_llm_response(
+            actual_model_used = model_name
+
+            for event_type, event_data in stream_resilient_llm_response(
                 prompt=user_prompt,
                 system_instruction=system_instruction,
-                model=model_name,
+                requested_model=model_name,
+                user_primary_key=primary_key,
+                user_primary_base=primary_base,
+                user_backup_credentials=backup_creds,
+                fallback_enabled=user_prefs.get("fallback_enabled", True),
                 temperature=0.25,
                 max_tokens=max_tokens
             ):
-                accumulated_tokens.append(chunk)
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                if event_type == "chunk":
+                    accumulated_tokens.append(event_data)
+                    yield f"data: {json.dumps({'type': 'chunk', 'content': event_data})}\n\n"
+                elif event_type == "fallback_notice":
+                    actual_model_used = event_data.get("fallback_model", actual_model_used)
+                    yield f"data: {json.dumps({'type': 'fallback_notice', **event_data})}\n\n"
+                elif event_type == "used_model":
+                    actual_model_used = event_data
+                elif event_type == "error":
+                    yield f"data: {json.dumps({'type': 'error', 'error': event_data})}\n\n"
 
             llm_time_ms = (time.perf_counter() - t_llm) * 1000
             full_assistant_content = "".join(accumulated_tokens).strip()
 
-            # 7. Format Citation Objects
+            # 8. Format Citation Objects
             citations_for_db = []
             citations_for_ui = []
             for chunk in selected_chunks:
@@ -203,20 +254,20 @@ def send_chat_message(
                     "text_snippet": snippet
                 })
 
-            # 8. Persist Assistant Message to chat_messages
-            provider_name = infer_llm_provider(model_name)
+            # 9. Persist Assistant Message to chat_messages
+            actual_provider_name = infer_llm_provider(actual_model_used)
             assistant_msg_record = save_chat_message(
                 client=client,
                 notebook_id=notebook_id,
                 role="assistant",
                 content=full_assistant_content,
                 parent_id=user_msg_id,
-                llm_provider=provider_name,
-                llm_model=model_name
+                llm_provider=actual_provider_name,
+                llm_model=actual_model_used
             )
             assistant_msg_id = assistant_msg_record.get("id")
 
-            # 9. Persist Citations to citations table
+            # 10. Persist Citations to citations table
             if assistant_msg_id and citations_for_db:
                 try:
                     save_citations(assistant_msg_id, citations_for_db)

@@ -142,6 +142,11 @@
             </a>
             <!-- Mobile Actions -->
             <div class="flex lg:hidden items-center gap-2">
+                <!-- BYOK Key Icon Button (Mobile) -->
+                <button @click="window.dispatchEvent(new CustomEvent('open-byok-modal'))" title="LLM Keys & Models (Cmd+K)" class="relative h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">vpn_key</span>
+                    <span id="byok-header-status-dot-mobile" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-surface dark:ring-dark-panel" title="Free Tier Active"></span>
+                </button>
                 <button @click="window.dispatchEvent(new CustomEvent('open-library-modal'))" title="Sources Library" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                     <span class="material-symbols-outlined text-[20px]">library_books</span>
                 </button>
@@ -170,6 +175,11 @@
 
             <!-- Desktop Actions -->
             <div class="hidden lg:flex items-center gap-2 relative">
+                <!-- BYOK Key Icon Button (Desktop) -->
+                <button @click="window.dispatchEvent(new CustomEvent('open-byok-modal'))" title="LLM Keys & Model Preferences (Cmd+K / Ctrl+K)" class="relative h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">vpn_key</span>
+                    <span id="byok-header-status-dot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-surface dark:ring-dark-panel" title="Free Tier Active"></span>
+                </button>
                 <!-- Sources Library Icon Button (Desktop) -->
                 <button @click="window.dispatchEvent(new CustomEvent('open-library-modal'))" title="Sources Library" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                     <span class="material-symbols-outlined text-[20px]">library_books</span>
@@ -388,6 +398,420 @@
         </div>
     </div>
 
+    <!-- =========================================================================
+         BYOK (BRING YOUR OWN KEY) & MODEL PREFERENCES MODAL COMPONENT
+         ========================================================================= -->
+    <div x-data="byokModal()" 
+         @open-byok-modal.window="openModal($event.detail?.tab || 'providers')"
+         @keydown.window="handleGlobalKeydown($event)"
+         x-show="isOpen" 
+         x-cloak 
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" 
+         aria-labelledby="byok-modal-title" 
+         role="dialog" 
+         aria-modal="true">
+        
+        <!-- Backdrop -->
+        <div x-show="isOpen" 
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm" 
+             @click="closeModal()"></div>
+
+        <!-- Modal Container -->
+        <div x-show="isOpen"
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95" 
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+             x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
+             class="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border shadow-2xl overflow-hidden z-10">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-5 border-b border-paper dark:border-dark-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-bright/50 dark:bg-dark-bg/50">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/20 flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[22px]">vpn_key</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text" id="byok-modal-title">LLM Keys & Model Preferences</h2>
+                            <span class="text-[11px] font-medium bg-surface-variant dark:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted px-2 py-0.5 rounded-full">BYOK</span>
+                        </div>
+                        <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted text-xs sm:text-sm">
+                            Manage API keys (AES-256-GCM encrypted), custom endpoints, and top chat models.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Close Button -->
+                <button type="button" @click="closeModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors shrink-0">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+
+            <!-- Modal Tab Navigation -->
+            <div class="flex items-center gap-2 px-6 pt-3 border-b border-paper dark:border-dark-border bg-surface-container-lowest dark:bg-dark-panel">
+                <button type="button" 
+                        @click="activeTab = 'providers'" 
+                        :class="activeTab === 'providers' ? 'border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent font-semibold' : 'border-transparent text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text'" 
+                        class="pb-2.5 px-3 border-b-2 text-xs sm:text-sm flex items-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">key</span>
+                    Providers & API Keys
+                </button>
+                <button type="button" 
+                        @click="activeTab = 'models'" 
+                        :class="activeTab === 'models' ? 'border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent font-semibold' : 'border-transparent text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text'" 
+                        class="pb-2.5 px-3 border-b-2 text-xs sm:text-sm flex items-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">tune</span>
+                    Chat Models
+                    <span class="text-[11px] bg-secondary/10 dark:bg-dark-accent/20 text-secondary dark:text-dark-accent px-1.5 py-0.2 rounded-full" x-text="preferredModels.length + '/5'"></span>
+                </button>
+                <button type="button" 
+                        @click="activeTab = 'fallback'" 
+                        :class="activeTab === 'fallback' ? 'border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent font-semibold' : 'border-transparent text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text'" 
+                        class="pb-2.5 px-3 border-b-2 text-xs sm:text-sm flex items-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">bolt</span>
+                    Free Quota & Fallback
+                </button>
+            </div>
+
+            <!-- Global Status Alert Banner -->
+            <div x-show="statusMessage" x-transition class="mx-6 mt-4 p-3 rounded-xl text-xs flex items-center justify-between gap-2"
+                 :class="statusType === 'success' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]" x-text="statusType === 'success' ? 'check_circle' : 'error'"></span>
+                    <span x-text="statusMessage"></span>
+                </div>
+                <button type="button" @click="statusMessage = ''" class="opacity-60 hover:opacity-100">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                
+                <!-- Loading State -->
+                <div x-show="isLoading" class="py-12 flex flex-col items-center justify-center gap-3 text-on-surface-variant dark:text-dark-text-muted">
+                    <span class="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
+                    <p class="text-xs">Loading LLM configuration...</p>
+                </div>
+
+                <!-- TAB 1: PROVIDERS & API KEYS -->
+                <div x-show="!isLoading && activeTab === 'providers'" class="space-y-4">
+                    <div class="bg-surface-variant/30 dark:bg-dark-panel-hover/50 p-4 rounded-xl border border-paper dark:border-dark-border text-xs flex items-start gap-3">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px] shrink-0 mt-0.5">lock</span>
+                        <div>
+                            <p class="font-medium text-on-surface dark:text-dark-text">Zero-Knowledge API Key Storage</p>
+                            <p class="text-on-surface-variant dark:text-dark-text-muted mt-0.5">
+                                Your API keys are encrypted at rest using AES-256-GCM authenticated encryption and decrypted strictly in-memory during inference requests.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Provider Cards Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <template x-for="provider in catalog" :key="provider.id">
+                            <div class="p-4 rounded-xl bg-surface-bright dark:bg-dark-bg/80 border border-paper dark:border-dark-border hover:border-secondary/40 dark:hover:border-dark-accent/40 transition-all flex flex-col justify-between gap-3">
+                                
+                                <!-- Card Header -->
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="h-8 w-8 rounded-lg bg-surface-variant dark:bg-dark-panel flex items-center justify-center text-on-surface dark:text-dark-text">
+                                            <span class="material-symbols-outlined text-[18px]" x-text="provider.icon || 'smart_toy'"></span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-medium text-sm text-on-surface dark:text-dark-text" x-text="provider.name"></h3>
+                                            <span x-show="isProviderSaved(provider.id)" class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                Saved (<span x-text="'...' + getSavedKeyLast4(provider.id)"></span>)
+                                            </span>
+                                            <span x-show="!isProviderSaved(provider.id)" class="text-[11px] text-on-surface-variant dark:text-dark-text-muted">
+                                                Not configured
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Free Key 1-Click Link -->
+                                    <a x-show="provider.free_key_url" 
+                                       :href="provider.free_key_url" 
+                                       target="_blank" 
+                                       rel="noopener noreferrer" 
+                                       class="text-[11px] font-medium text-secondary dark:text-dark-accent hover:underline flex items-center gap-0.5"
+                                       title="Get free personal key">
+                                        <span x-text="provider.free_key_text || 'Get Free Key'"></span>
+                                        <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                    </a>
+                                </div>
+
+                                <!-- Inputs Section -->
+                                <div class="space-y-2 text-xs">
+                                    <!-- Custom Base URL (For Custom / Ollama) -->
+                                    <div x-show="provider.id === 'custom' || provider.id === 'openrouter'" class="space-y-1">
+                                        <label class="font-medium text-on-surface-variant dark:text-dark-text-muted">Base URL (Endpoint)</label>
+                                        <input type="text" 
+                                               x-model="keyInputs[provider.id].apiBase" 
+                                               :placeholder="provider.id === 'custom' ? 'http://localhost:11434/v1' : 'https://openrouter.ai/api/v1'" 
+                                               class="w-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg px-3 py-1.5 text-xs text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent">
+                                    </div>
+
+                                    <!-- Custom Model Name (For Custom) -->
+                                    <div x-show="provider.id === 'custom'" class="space-y-1">
+                                        <label class="font-medium text-on-surface-variant dark:text-dark-text-muted">Model Identifier</label>
+                                        <input type="text" 
+                                               x-model="keyInputs[provider.id].customModel" 
+                                               placeholder="ollama/llama3.2" 
+                                               class="w-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg px-3 py-1.5 text-xs text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent">
+                                    </div>
+
+                                    <!-- API Key Input -->
+                                    <div class="space-y-1">
+                                        <label class="font-medium text-on-surface-variant dark:text-dark-text-muted" x-text="provider.id === 'custom' ? 'API Key (Optional for local Ollama)' : 'API Key'"></label>
+                                        <div class="relative">
+                                            <input :type="keyInputs[provider.id].showKey ? 'text' : 'password'" 
+                                                   x-model="keyInputs[provider.id].rawKey" 
+                                                   :placeholder="isProviderSaved(provider.id) ? 'Enter new key to replace existing' : (provider.id === 'groq' ? 'gsk_...' : (provider.id === 'google' ? 'AIza...' : 'sk-...'))" 
+                                                   class="w-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg pl-3 pr-8 py-1.5 text-xs text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent">
+                                            <button type="button" 
+                                                    @click="keyInputs[provider.id].showKey = !keyInputs[provider.id].showKey" 
+                                                    class="absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text">
+                                                <span class="material-symbols-outlined text-[16px]" x-text="keyInputs[provider.id].showKey ? 'visibility_off' : 'visibility'"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Test Result Feedback Pill -->
+                                    <div x-show="keyInputs[provider.id].testResult" class="p-2 rounded-lg text-[11px] flex items-center gap-1.5"
+                                         :class="keyInputs[provider.id].testResult?.is_valid ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'">
+                                        <span class="material-symbols-outlined text-[15px]" x-text="keyInputs[provider.id].testResult?.is_valid ? 'check_circle' : 'cancel'"></span>
+                                        <span x-text="keyInputs[provider.id].testResult?.message"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Card Actions -->
+                                <div class="flex items-center justify-between pt-2 border-t border-paper/60 dark:border-dark-border/60">
+                                    <div>
+                                        <button x-show="isProviderSaved(provider.id)" 
+                                                type="button" 
+                                                @click="removeProviderKey(provider.id)" 
+                                                class="text-[11px] text-error dark:text-red-400 hover:underline">
+                                            Remove Key
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-2">
+                                        <!-- Test Key Button -->
+                                        <button type="button" 
+                                                @click="testProviderKey(provider.id)" 
+                                                :disabled="keyInputs[provider.id].testing || (!keyInputs[provider.id].rawKey && !isProviderSaved(provider.id))" 
+                                                class="px-2.5 py-1 rounded-lg border border-paper dark:border-dark-border text-[11px] font-medium text-on-surface-variant dark:text-dark-text-muted hover:border-secondary dark:hover:border-dark-accent hover:text-on-surface dark:hover:text-dark-text transition-colors disabled:opacity-40 flex items-center gap-1">
+                                            <span x-show="keyInputs[provider.id].testing" class="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
+                                            <span x-text="keyInputs[provider.id].testing ? 'Testing...' : 'Test Key'"></span>
+                                        </button>
+
+                                        <!-- Save Key Button -->
+                                        <button type="button" 
+                                                @click="saveProviderKey(provider.id)" 
+                                                :disabled="keyInputs[provider.id].testing || !keyInputs[provider.id].rawKey" 
+                                                class="bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg px-3 py-1 rounded-lg text-[11px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center gap-1">
+                                            Save Key
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- TAB 2: CHAT MODELS SELECTION (TOP 1-5) -->
+                <div x-show="!isLoading && activeTab === 'models'" class="space-y-4">
+                    
+                    <!-- System Fallback Models Card (Always Active, does not use user slots) -->
+                    <div class="bg-surface-variant/30 dark:bg-dark-panel-hover/50 p-4 rounded-xl border border-paper dark:border-dark-border space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[20px] text-secondary dark:text-dark-accent">shield</span>
+                                <div>
+                                    <h4 class="font-medium text-xs sm:text-sm text-on-surface dark:text-dark-text">System Fallback Models (Always Active)</h4>
+                                    <p class="text-[11px] text-on-surface-variant dark:text-dark-text-muted">
+                                        Developer-provided safety net. Automatically handles outages without taking up your chat dropdown slots.
+                                    </p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-secondary/10 dark:bg-dark-accent/20 text-secondary dark:text-dark-accent font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                                System Managed
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="p-2.5 rounded-lg bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border flex items-center justify-between">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[15px] text-secondary dark:text-dark-accent">bolt</span>
+                                        <p class="font-medium text-xs text-on-surface dark:text-dark-text truncate">Groq GPT-OSS 120B</p>
+                                    </div>
+                                    <p class="text-[10px] text-on-surface-variant dark:text-dark-text-muted">Primary Developer Key • Free</p>
+                                </div>
+                                <span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-2 py-0.5 rounded">Fallback #1</span>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border flex items-center justify-between">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[15px] text-secondary dark:text-dark-accent">auto_awesome</span>
+                                        <p class="font-medium text-xs text-on-surface dark:text-dark-text truncate">Gemini 2.5 Flash</p>
+                                    </div>
+                                    <p class="text-[10px] text-on-surface-variant dark:text-dark-text-muted">Secondary Developer Key • Free</p>
+                                </div>
+                                <span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-2 py-0.5 rounded">Fallback #2</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Chat Models Selection Header -->
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-surface-bright dark:bg-dark-bg/80 p-4 rounded-xl border border-paper dark:border-dark-border">
+                        <div>
+                            <p class="font-medium text-xs sm:text-sm text-on-surface dark:text-dark-text">Select Up to 5 Models for Chat Dropdown</p>
+                            <p class="text-xs text-on-surface-variant dark:text-dark-text-muted mt-0.5">
+                                Only your selected models will appear in your workspace chat selector. Click the star ⭐ icon on any selected model to set it as your primary default.
+                            </p>
+                        </div>
+                        <span class="text-xs font-semibold px-3 py-1 rounded-full shrink-0" 
+                              :class="preferredModels.length >= 1 && preferredModels.length <= 5 ? 'bg-secondary/10 dark:bg-dark-accent/20 text-secondary dark:text-dark-accent' : 'bg-red-500/10 text-red-500'">
+                            <span x-text="preferredModels.length"></span> of 5 selected
+                        </span>
+                    </div>
+
+                    <!-- Models List Grouped by Provider -->
+                    <div class="space-y-3">
+                        <template x-for="provider in catalog" :key="provider.id">
+                            <div class="border border-paper dark:border-dark-border rounded-xl p-3.5 bg-surface-bright dark:bg-dark-bg/60 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent" x-text="provider.icon"></span>
+                                        <h4 class="font-medium text-xs text-on-surface dark:text-dark-text" x-text="provider.name"></h4>
+                                    </div>
+                                    <span x-show="isProviderSaved(provider.id)" class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-2 py-0.5 rounded-full">Key Connected</span>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <template x-for="model in provider.models" :key="model.id">
+                                        <div class="p-2.5 rounded-lg border transition-all flex items-center justify-between gap-2"
+                                             :class="isModelSelected(model.id) ? 'bg-secondary/5 dark:bg-dark-accent/10 border-secondary dark:border-dark-accent' : 'bg-surface-container-lowest dark:bg-dark-panel border-paper dark:border-dark-border'">
+                                            
+                                            <!-- Checkbox & Label -->
+                                            <label class="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
+                                                <input type="checkbox" 
+                                                       :checked="isModelSelected(model.id)" 
+                                                       @change="toggleModelSelection(model)"
+                                                       class="rounded border-paper dark:border-dark-border text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent">
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="font-medium text-xs text-on-surface dark:text-dark-text truncate" x-text="model.name"></p>
+                                                    <p class="text-[10px] text-on-surface-variant dark:text-dark-text-muted truncate" x-text="model.id"></p>
+                                                </div>
+                                            </label>
+
+                                            <!-- Badges & Set Default Star -->
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                <span x-show="model.is_free" class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-1.5 py-0.5 rounded">Free</span>
+                                                
+                                                <button x-show="isModelSelected(model.id)" 
+                                                        type="button" 
+                                                        @click="setDefaultModel(model.id)" 
+                                                        :title="activeModel === model.id ? 'Current Default Chat Model' : 'Click to make Primary Default'" 
+                                                        class="h-6 w-6 rounded flex items-center justify-center transition-colors"
+                                                        :class="activeModel === model.id ? 'text-amber-500 bg-amber-500/10' : 'text-on-surface-variant dark:text-dark-text-muted hover:text-amber-500'">
+                                                    <span class="material-symbols-outlined text-[16px]" x-text="activeModel === model.id ? 'star' : 'star_border'"></span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Save Preferences Button -->
+                    <div class="flex justify-end pt-3">
+                        <button type="button" 
+                                @click="saveModelPreferences()" 
+                                :disabled="isSaving || preferredModels.length === 0" 
+                                class="bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg px-5 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5">
+                            <span x-show="isSaving" class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                            <span x-text="isSaving ? 'Saving...' : 'Save Model Preferences'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 3: FREE QUOTA & RESILIENCE -->
+                <div x-show="!isLoading && activeTab === 'fallback'" class="space-y-5">
+                    
+                    <!-- Daily Free Quota Card -->
+                    <div class="p-5 rounded-xl bg-surface-bright dark:bg-dark-bg/80 border border-paper dark:border-dark-border space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="h-8 w-8 rounded-lg bg-secondary/10 dark:bg-dark-accent/20 flex items-center justify-center text-secondary dark:text-dark-accent">
+                                    <span class="material-symbols-outlined text-[18px]">data_usage</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-sm text-on-surface dark:text-dark-text">Daily Developer Free Tier</h3>
+                                    <p class="text-xs text-on-surface-variant dark:text-dark-text-muted">High-speed Groq & Gemini models provided for trial and testing.</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-on-surface dark:text-dark-text" x-text="quota.used_today + ' / ' + quota.daily_limit + ' Queries Used'"></span>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-surface-container-high dark:bg-dark-panel rounded-full h-2.5 overflow-hidden">
+                            <div class="h-2.5 rounded-full transition-all duration-500" 
+                                 :class="quota.remaining_today > 5 ? 'bg-secondary dark:bg-dark-accent' : 'bg-red-500'" 
+                                 :style="'width: ' + Math.min(100, Math.round((quota.used_today / quota.daily_limit) * 100)) + '%'"></div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-on-surface-variant dark:text-dark-text-muted">
+                            <span class="flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[15px]">schedule</span>
+                                Resets automatically at 00:00 UTC
+                            </span>
+                            <span class="font-medium text-secondary dark:text-dark-accent" x-text="quota.remaining_today + ' free queries remaining today'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Automatic Fallback Settings -->
+                    <div class="p-5 rounded-xl bg-surface-bright dark:bg-dark-bg/80 border border-paper dark:border-dark-border space-y-3">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h4 class="font-medium text-sm text-on-surface dark:text-dark-text">Cascading Provider Fallback</h4>
+                                <p class="text-xs text-on-surface-variant dark:text-dark-text-muted mt-1 leading-relaxed">
+                                    If your primary selected model or API key hits a rate limit (429), quota issue, or temporary outage, SmallBook will automatically fail over to your backup keys or developer free tier and notify you via a friendly status badge without breaking the chat response.
+                                </p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                                <input type="checkbox" x-model="fallbackEnabled" class="sr-only peer">
+                                <div class="w-11 h-6 bg-surface-variant dark:bg-dark-panel peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-paper after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary dark:peer-checked:bg-dark-accent"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Save Preferences Button -->
+                    <div class="flex justify-end pt-2">
+                        <button type="button" 
+                                @click="saveModelPreferences()" 
+                                :disabled="isSaving" 
+                                class="bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg px-5 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5">
+                            <span x-show="isSaving" class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                            <span x-text="isSaving ? 'Saving...' : 'Save Settings'"></span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <script>
         function syncThemeUI() {
             const isDark = document.documentElement.classList.contains('dark');
@@ -434,6 +858,280 @@
         }
 
         document.addEventListener('alpine:init', () => {
+            // BYOK & LLM Preferences Alpine Component
+            Alpine.data('byokModal', () => ({
+                isOpen: false,
+                activeTab: 'providers',
+                isLoading: false,
+                isSaving: false,
+                catalog: [],
+                credentials: [],
+                keyInputs: {},
+                preferredModels: [],
+                activeModel: 'groq/llama-3.3-70b-versatile',
+                fallbackEnabled: true,
+                quota: {
+                    used_today: 0,
+                    daily_limit: 25,
+                    remaining_today: 25,
+                    is_allowed: true
+                },
+                statusMessage: '',
+                statusType: 'success',
+
+                init() {
+                    this.fetchInitialData();
+                },
+
+                handleGlobalKeydown(e) {
+                    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+                        e.preventDefault();
+                        this.openModal();
+                    }
+                },
+
+                openModal(tab = 'providers') {
+                    this.isOpen = true;
+                    this.activeTab = tab;
+                    this.statusMessage = '';
+                    this.fetchInitialData();
+                },
+
+                closeModal() {
+                    this.isOpen = false;
+                    this.statusMessage = '';
+                },
+
+                async fetchInitialData() {
+                    this.isLoading = true;
+                    try {
+                        const [catRes, keyRes, prefRes] = await Promise.all([
+                            fetch('/api/llm/catalog'),
+                            fetch('/api/llm/keys'),
+                            fetch('/api/llm/preferences')
+                        ]);
+
+                        if (catRes.ok) {
+                            const catData = await catRes.json();
+                            this.catalog = catData.catalog || [];
+                            this.catalog.forEach(p => {
+                                if (!this.keyInputs[p.id]) {
+                                    this.keyInputs[p.id] = {
+                                        rawKey: '',
+                                        apiBase: p.id === 'custom' ? 'http://localhost:11434/v1' : '',
+                                        customModel: p.id === 'custom' ? 'ollama/llama3.2' : '',
+                                        showKey: false,
+                                        testing: false,
+                                        testResult: null
+                                    };
+                                }
+                            });
+                        }
+
+                        if (keyRes.ok) {
+                            const keyData = await keyRes.json();
+                            this.credentials = keyData.credentials || [];
+                            this.updateHeaderStatusDot();
+                        }
+
+                        if (prefRes.ok) {
+                            const prefData = await prefRes.json();
+                            if (prefData.preferences) {
+                                this.activeModel = prefData.preferences.active_model || 'groq/llama-3.3-70b-versatile';
+                                this.preferredModels = prefData.preferences.preferred_models || [];
+                                this.fallbackEnabled = prefData.preferences.fallback_enabled ?? true;
+                            }
+                            if (prefData.quota) {
+                                this.quota = prefData.quota;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error loading LLM settings:', err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                isProviderSaved(providerId) {
+                    return this.credentials.some(c => c.provider === providerId && c.is_active);
+                },
+
+                getSavedKeyLast4(providerId) {
+                    const cred = this.credentials.find(c => c.provider === providerId);
+                    return cred ? cred.key_last4 : '';
+                },
+
+                async testProviderKey(providerId) {
+                    const input = this.keyInputs[providerId];
+                    if (!input) return;
+                    if (!input.rawKey && !this.isProviderSaved(providerId)) {
+                        input.testResult = { is_valid: false, message: 'Please enter an API key first.' };
+                        return;
+                    }
+
+                    input.testing = true;
+                    input.testResult = null;
+                    try {
+                        const res = await fetch('/api/llm/keys/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                provider: providerId,
+                                raw_key: input.rawKey || '',
+                                api_base: input.apiBase || null,
+                                model: input.customModel || null
+                            })
+                        });
+                        const data = await res.json();
+                        input.testResult = data;
+                    } catch (err) {
+                        input.testResult = { is_valid: false, message: 'Connection test failed: ' + err.message };
+                    } finally {
+                        input.testing = false;
+                    }
+                },
+
+                async saveProviderKey(providerId) {
+                    const input = this.keyInputs[providerId];
+                    if (!input || !input.rawKey) {
+                        alert('Please enter an API key.');
+                        return;
+                    }
+
+                    input.testing = true;
+                    try {
+                        const res = await fetch('/api/llm/keys', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                provider: providerId,
+                                raw_key: input.rawKey,
+                                api_base: input.apiBase || null,
+                                custom_model_name: input.customModel || null
+                            })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.detail || 'Failed to save key');
+                        }
+                        const data = await res.json();
+                        input.rawKey = '';
+                        input.testResult = data.validation;
+                        await this.fetchInitialData();
+                        this.showStatus('API Key saved and encrypted securely!', 'success');
+                    } catch (err) {
+                        this.showStatus(err.message, 'error');
+                    } finally {
+                        input.testing = false;
+                    }
+                },
+
+                async removeProviderKey(providerId) {
+                    if (!confirm(`Are you sure you want to remove the API key for ${providerId.toUpperCase()}?`)) return;
+                    try {
+                        const res = await fetch(`/api/llm/keys/${providerId}`, { method: 'DELETE' });
+                        if (!res.ok) throw new Error('Failed to delete key');
+                        await this.fetchInitialData();
+                        this.showStatus('API Key removed.', 'success');
+                    } catch (err) {
+                        this.showStatus(err.message, 'error');
+                    }
+                },
+
+                isModelSelected(modelId) {
+                    return this.preferredModels.some(m => (m.id || m) === modelId);
+                },
+
+                toggleModelSelection(model) {
+                    const exists = this.isModelSelected(model.id);
+                    if (exists) {
+                        if (this.preferredModels.length <= 1) {
+                            alert('You must keep at least 1 chat model selected.');
+                            return;
+                        }
+                        this.preferredModels = this.preferredModels.filter(m => (m.id || m) !== model.id);
+                        if (this.activeModel === model.id && this.preferredModels.length > 0) {
+                            this.activeModel = this.preferredModels[0].id || this.preferredModels[0];
+                        }
+                    } else {
+                        if (this.preferredModels.length >= 5) {
+                            alert('You can select a maximum of 5 chat models for your dropdown.');
+                            return;
+                        }
+                        this.preferredModels.push({
+                            id: model.id,
+                            name: model.name,
+                            provider: model.id.split('/')[0] || 'custom',
+                            badge: model.is_free ? 'Free' : 'BYOK',
+                            is_free: model.is_free || false
+                        });
+                        if (!this.activeModel || this.preferredModels.length === 1) {
+                            this.activeModel = model.id;
+                        }
+                    }
+                },
+
+                setDefaultModel(modelId) {
+                    this.activeModel = modelId;
+                },
+
+                async saveModelPreferences() {
+                    this.isSaving = true;
+                    try {
+                        const res = await fetch('/api/llm/preferences', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                active_model: this.activeModel,
+                                preferred_models: this.preferredModels,
+                                fallback_enabled: this.fallbackEnabled
+                            })
+                        });
+                        if (!res.ok) throw new Error('Failed to save preferences');
+                        this.showStatus('Model preferences updated successfully!', 'success');
+                        
+                        // Dispatch event to update dynamic chat dropdown in workspace
+                        window.dispatchEvent(new CustomEvent('llm-preferences-updated', {
+                            detail: {
+                                activeModel: this.activeModel,
+                                preferredModels: this.preferredModels
+                            }
+                        }));
+                    } catch (err) {
+                        this.showStatus(err.message, 'error');
+                    } finally {
+                        this.isSaving = false;
+                    }
+                },
+
+                showStatus(msg, type = 'success') {
+                    this.statusMessage = msg;
+                    this.statusType = type;
+                    setTimeout(() => {
+                        if (this.statusMessage === msg) this.statusMessage = '';
+                    }, 5000);
+                },
+
+                updateHeaderStatusDot() {
+                    const dots = [
+                        document.getElementById('byok-header-status-dot'),
+                        document.getElementById('byok-header-status-dot-mobile')
+                    ];
+                    const hasKeys = this.credentials.length > 0;
+                    dots.forEach(dot => {
+                        if (dot) {
+                            if (hasKeys) {
+                                dot.className = 'absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-surface dark:ring-dark-panel';
+                                dot.title = 'Personal BYOK Keys Active';
+                            } else {
+                                dot.className = 'absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-surface dark:ring-dark-panel';
+                                dot.title = 'Free Tier Active (25/day)';
+                            }
+                        }
+                    });
+                }
+            }));
+
             Alpine.data('sourcesLibraryModal', () => ({
                 isOpen: false,
                 isLoading: false,

@@ -10,6 +10,7 @@ from app.routers.auth import router as auth_router
 from app.routers.notebooks import router as notebooks_router
 from app.routers.sources import router as sources_router, global_sources_router
 from app.routers.chat import router as chat_router
+from app.routers.llm_settings import router as llm_settings_router
 from app.services.authentication.auth_service import get_optional_current_user
 
 app = FastAPI(title="SmallBook")
@@ -22,6 +23,7 @@ app.include_router(notebooks_router)
 app.include_router(sources_router)
 app.include_router(global_sources_router)
 app.include_router(chat_router)
+app.include_router(llm_settings_router)
 
 # --- GLOBAL 404 HANDLER ---
 @app.exception_handler(StarletteHTTPException)

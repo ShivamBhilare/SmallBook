@@ -42,30 +42,23 @@
             
             <!-- Right Actions -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
-                <!-- Custom Model Dropdown -->
+                <!-- Custom Model Dropdown (Populated Dynamically via User Preferences) -->
                 <div class="relative" id="model-dropdown-container">
                     <button type="button" onclick="toggleModelDropdown(event)" class="bg-transparent border-none text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-1.5 px-2.5 sm:px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
-                        <span id="selected-model-name">Pro</span>
+                        <span id="selected-model-name" class="max-w-[130px] truncate">Groq GPT-OSS 120B</span>
                         <span class="material-symbols-outlined text-[16px]">expand_more</span>
                     </button>
                     <!-- Dropdown Menu -->
-                    <div id="model-dropdown-menu" class="hidden absolute bottom-full right-0 mb-2 w-44 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl overflow-hidden z-50 py-1 text-xs">
-                        <button type="button" onclick="selectLlmModel('gemini/gemini-2.5-flash', 'Pro')" class="w-full text-left px-3.5 py-2 hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text flex items-center justify-between">
-                            <span class="font-medium">Pro (Gemini 2.5)</span>
-                            <span id="check-model-pro" class="material-symbols-outlined text-[14px] text-secondary dark:text-dark-accent">check</span>
-                        </button>
-                        <button type="button" onclick="selectLlmModel('gemini/gemini-2.0-flash-lite', 'Fast')" class="w-full text-left px-3.5 py-2 hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text flex items-center justify-between">
-                            <span class="font-medium">Fast (Gemini 2.0)</span>
-                            <span id="check-model-fast" class="hidden material-symbols-outlined text-[14px] text-secondary dark:text-dark-accent">check</span>
-                        </button>
-                        <button type="button" onclick="selectLlmModel('gpt-4o', 'GPT-4o')" class="w-full text-left px-3.5 py-2 hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text flex items-center justify-between">
-                            <span class="font-medium">GPT-4o</span>
-                            <span id="check-model-gpt4o" class="hidden material-symbols-outlined text-[14px] text-secondary dark:text-dark-accent">check</span>
-                        </button>
-                        <button type="button" onclick="selectLlmModel('claude-3-5-sonnet-20241022', 'Claude 3.5')" class="w-full text-left px-3.5 py-2 hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors dark:text-dark-text flex items-center justify-between">
-                            <span class="font-medium">Claude 3.5 Sonnet</span>
-                            <span id="check-model-claude" class="hidden material-symbols-outlined text-[14px] text-secondary dark:text-dark-accent">check</span>
-                        </button>
+                    <div id="model-dropdown-menu" class="hidden absolute bottom-full right-0 mb-2 w-56 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl overflow-hidden z-50 py-1 text-xs">
+                        <div id="model-dropdown-items" class="max-h-60 overflow-y-auto">
+                            <!-- Dynamic items rendered by renderChatModelDropdown() -->
+                        </div>
+                        <div class="border-t border-paper dark:border-dark-border mt-1 pt-1 px-1">
+                            <button type="button" onclick="toggleModelDropdown(event); window.dispatchEvent(new CustomEvent('open-byok-modal', { detail: { tab: 'models' } }))" class="w-full text-left px-3 py-1.5 rounded-lg text-secondary dark:text-dark-accent hover:bg-secondary/10 dark:hover:bg-dark-accent/10 transition-colors flex items-center gap-1.5 font-medium">
+                                <span class="material-symbols-outlined text-[15px]">tune</span>
+                                Configure Models...
+                            </button>
+                        </div>
                     </div>
                 </div>
 
