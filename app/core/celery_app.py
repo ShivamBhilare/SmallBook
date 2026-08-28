@@ -8,7 +8,10 @@ celery_app = Celery(
     "smallbook_worker",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["app.services.ingestion.celery_tasks"]
+    include=[
+        "app.services.ingestion.celery_tasks",
+        "app.services.study.celery_tasks"
+    ]
 )
 
 # Optional: Configure Celery settings (e.g., timezone, task serialization)
