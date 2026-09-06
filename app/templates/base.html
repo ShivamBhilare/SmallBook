@@ -596,12 +596,34 @@
                                 <!-- Card Actions -->
                                 <div class="flex items-center justify-between pt-2 border-t border-paper/60 dark:border-dark-border/60">
                                     <div>
-                                        <button x-show="isProviderSaved(provider.id)" 
-                                                type="button" 
-                                                @click="removeProviderKey(provider.id)" 
-                                                class="text-[11px] text-error dark:text-red-400 hover:underline">
-                                            Remove Key
-                                        </button>
+                                        <template x-if="isProviderSaved(provider.id)">
+                                            <div>
+                                                <!-- Normal Remove Key Button -->
+                                                <button x-show="confirmDeleteProviderId !== provider.id" 
+                                                        type="button" 
+                                                        @click="confirmDeleteProviderId = provider.id" 
+                                                        class="text-[11px] text-error dark:text-red-400 hover:underline inline-flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-[13px]">delete</span>
+                                                    <span>Remove</span>
+                                                </button>
+                                                
+                                                <!-- Inline Confirmation (No floating popup) -->
+                                                <div x-show="confirmDeleteProviderId === provider.id" 
+                                                     class="inline-flex items-center gap-1.5 bg-error/10 dark:bg-red-500/15 py-0.5 px-2 rounded-lg border border-error/20 animate-fade-in">
+                                                    <span class="text-[10px] font-semibold text-error dark:text-red-400">Delete key?</span>
+                                                    <button type="button" 
+                                                            @click="executeRemoveProviderKey(provider.id)" 
+                                                            class="px-1.5 py-0.5 rounded bg-error dark:bg-red-600 text-white text-[10px] font-medium hover:opacity-90 transition-opacity">
+                                                        Yes
+                                                    </button>
+                                                    <button type="button" 
+                                                            @click="confirmDeleteProviderId = null" 
+                                                            class="px-1.5 py-0.5 rounded border border-paper dark:border-dark-border text-on-surface dark:text-dark-text text-[10px] hover:bg-surface-variant/40 transition-colors">
+                                                        No
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
                                     
                                     <div class="flex items-center gap-2">
@@ -870,6 +892,7 @@
                 preferredModels: [],
                 activeModel: 'groq/llama-3.3-70b-versatile',
                 fallbackEnabled: true,
+                confirmDeleteProviderId: null,
                 quota: {
                     used_today: 0,
                     daily_limit: 25,
@@ -1026,13 +1049,14 @@
                     }
                 },
 
-                async removeProviderKey(providerId) {
-                    if (!confirm(`Are you sure you want to remove the API key for ${providerId.toUpperCase()}?`)) return;
+                async executeRemoveProviderKey(providerId) {
+                    if (!providerId) return;
+                    this.confirmDeleteProviderId = null;
                     try {
                         const res = await fetch(`/api/llm/keys/${providerId}`, { method: 'DELETE' });
                         if (!res.ok) throw new Error('Failed to delete key');
                         await this.fetchInitialData();
-                        this.showStatus('API Key removed.', 'success');
+                        this.showStatus('API Key removed successfully.', 'success');
                     } catch (err) {
                         this.showStatus(err.message, 'error');
                     }
@@ -1046,7 +1070,7 @@
                     const exists = this.isModelSelected(model.id);
                     if (exists) {
                         if (this.preferredModels.length <= 1) {
-                            alert('You must keep at least 1 chat model selected.');
+                            this.showStatus('You must keep at least 1 chat model selected.', 'error');
                             return;
                         }
                         this.preferredModels = this.preferredModels.filter(m => (m.id || m) !== model.id);
@@ -1055,13 +1079,13 @@
                         }
                     } else {
                         if (this.preferredModels.length >= 5) {
-                            alert('You can select a maximum of 5 chat models for your dropdown.');
+                            this.showStatus('You can select a maximum of 5 chat models for your dropdown.', 'error');
                             return;
                         }
                         this.preferredModels.push({
                             id: model.id,
                             name: model.name,
-                            provider: model.id.split('/')[0] || 'custom',
+                            provider: model.provider || 'custom',
                             badge: model.is_free ? 'Free' : 'BYOK',
                             is_free: model.is_free || false
                         });

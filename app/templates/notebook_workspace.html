@@ -1044,8 +1044,13 @@
 
         try {
             const pathSegments = window.location.pathname.split('/');
-            const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
-            const res = await fetch(`/notebooks/${notebookId}/sources/library`);
+            const wsIdx = pathSegments.indexOf('workspace');
+            const notebookId = wsIdx !== -1 ? pathSegments[wsIdx + 1] : '';
+            
+            let res = await fetch(notebookId ? `/notebooks/${notebookId}/sources/library` : '/api/sources/all');
+            if (!res.ok) {
+                res = await fetch('/api/sources/all');
+            }
             
             if (!res.ok) throw new Error('Failed to fetch library sources');
             const data = await res.json();
@@ -1963,13 +1968,24 @@
         const loadingEl = loadingId ? document.getElementById(loadingId) : null;
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex gap-3 max-w-3xl animate-fade-in';
+        
+        const isKeyIssue = /api key|missing.*key|authentication|unauthorized|provider key/i.test(errorText);
+
         msgDiv.innerHTML = `
-            <div class="h-8 w-8 rounded-full bg-error/10 border border-error/20 flex items-center justify-center flex-shrink-0 text-error">
-                <span class="material-symbols-outlined text-[18px]">error</span>
+            <div class="h-8 w-8 rounded-full ${isKeyIssue ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-error/10 border-error/20 text-error'} border flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-[18px]">${isKeyIssue ? 'key' : 'error'}</span>
             </div>
-            <div class="flex-1 bg-error/5 border border-error/20 p-4 rounded-2xl rounded-tl-none text-error text-sm">
-                <p class="font-medium">Error generating response</p>
-                <p class="text-xs mt-1 opacity-90">${escapeHtml(errorText)}</p>
+            <div class="flex-1 ${isKeyIssue ? 'bg-amber-500/5 border-amber-500/25 text-on-surface dark:text-dark-text' : 'bg-error/5 border-error/20 text-error'} border p-4 rounded-2xl rounded-tl-none text-sm shadow-xs">
+                <p class="font-semibold text-xs ${isKeyIssue ? 'text-amber-700 dark:text-amber-400' : 'text-error'}">${isKeyIssue ? 'API Key Required' : 'Error generating response'}</p>
+                <p class="text-xs mt-1 leading-relaxed text-on-surface-variant dark:text-dark-text-muted">${escapeHtml(errorText)}</p>
+                ${isKeyIssue ? `
+                    <div class="mt-3 flex items-center gap-2">
+                        <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-byok-modal', { detail: { tab: 'providers' } }))" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
+                            <span class="material-symbols-outlined text-[15px]">key</span>
+                            <span>Open Key Settings</span>
+                        </button>
+                    </div>
+                ` : ''}
             </div>
         `;
         if (loadingEl) {

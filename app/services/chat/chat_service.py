@@ -12,18 +12,33 @@ def infer_llm_provider(model_name: Optional[str]) -> Optional[str]:
         return None
     
     m = model_name.lower().strip()
-    if m.startswith("gemini") or "gemini" in m or m.startswith("google"):
-        return "google"
-    elif m.startswith("gpt") or "openai" in m:
-        return "openai"
-    elif m.startswith("claude") or "anthropic" in m:
-        return "anthropic"
-    elif m.startswith("groq") or "llama" in m or "mixtral" in m:
+    
+    # 1. Prefix-based routing (handles models like 'groq/openai/gpt-oss-120b' correctly)
+    if m.startswith("groq/") or m.startswith("groq"):
         return "groq"
-    elif m.startswith("ollama"):
-        return "ollama"
+    elif m.startswith("gemini/") or m.startswith("gemini") or m.startswith("google"):
+        return "google"
+    elif m.startswith("openrouter/") or m.startswith("openrouter"):
+        return "openrouter"
+    elif m.startswith("anthropic/") or m.startswith("claude"):
+        return "anthropic"
+    elif m.startswith("ollama/"):
+        return "custom"
+    elif m.startswith("openai/") or m.startswith("gpt") or m.startswith("o1") or m.startswith("o3"):
+        return "openai"
+    
+    # 2. Substring matching for un-prefixed models
+    if "groq" in m or "llama" in m or "mixtral" in m:
+        return "groq"
+    elif "gemini" in m or "google" in m:
+        return "google"
+    elif "claude" in m or "anthropic" in m:
+        return "anthropic"
+    elif "gpt" in m or "openai" in m:
+        return "openai"
     elif "/" in m:
         return m.split("/")[0]
+        
     return "custom"
 
 

@@ -35,6 +35,18 @@ async def upload_source(
     
     return result
 
+@router.get("/library", response_model=dict)
+def get_library_sources(
+    notebook_id: str,
+    user = Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """
+    Fetches all PDF sources uploaded by the authenticated user across all notebooks for linking.
+    """
+    sources = source_service.get_all_user_sources(client, user.id)
+    return {"sources": sources}
+
 @router.post("/link", response_model=dict)
 def link_existing_sources(
     notebook_id: str,

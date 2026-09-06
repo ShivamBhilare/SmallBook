@@ -22,6 +22,7 @@ from app.services.llm.free_tier import (
     get_developer_gemini_key,
     get_developer_groq_key
 )
+from app.services.chat.chat_service import infer_llm_provider
 
 logger = logging.getLogger(__name__)
 
@@ -194,15 +195,8 @@ def _get_llm_candidates(
         })
 
     # Priority 2: If user configured a specific model with their own key
-    if requested and "gemini" not in requested:
-        provider = "groq"
-        if "openai" in requested:
-            provider = "openai"
-        elif "anthropic" in requested or "claude" in requested:
-            provider = "anthropic"
-        elif "openrouter" in requested:
-            provider = "openrouter"
-
+    if requested:
+        provider = infer_llm_provider(requested) or "groq"
         user_key_data = get_decrypted_user_key(supabase, user_id, provider)
         if user_key_data and user_key_data.get("api_key"):
             candidates.append({
@@ -220,6 +214,16 @@ def _get_llm_candidates(
             "api_key": dev_groq,
             "api_base": None,
             "label": "Groq GPT-OSS 120B (Developer Key)"
+        })
+
+    # Default fallback candidate if no developer or user keys exist in environment
+    if not candidates:
+        default_model = requested or "gemini/gemini-2.5-flash"
+        candidates.append({
+            "model": default_model,
+            "api_key": None,
+            "api_base": None,
+            "label": default_model
         })
 
     return candidates

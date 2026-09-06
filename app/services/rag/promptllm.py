@@ -253,4 +253,15 @@ def stream_resilient_llm_response(
                 return
 
     # If all candidates failed
-    yield ("error", f"All LLM candidate providers failed. Last error: {str(last_error)}")
+    err_str = str(last_error) if last_error else "Unknown error"
+    if "Missing" in err_str and "API key" in err_str or "API_KEY" in err_str:
+        clean_msg = "No active API key configured for this model. Please add your free Groq or Gemini API key in Key Settings (top-right) to continue chatting."
+    elif "401" in err_str or "AuthenticationError" in err_str or "invalid_api_key" in err_str:
+        clean_msg = "API key authentication failed. Please check your API key in Key Settings."
+    elif "429" in err_str or "RateLimit" in err_str:
+        clean_msg = "Rate limit reached. Please wait a few moments or add a backup provider key in Key Settings."
+    else:
+        clean_first_line = err_str.splitlines()[0] if err_str else "Provider unavailable."
+        clean_msg = f"Unable to reach the AI model: {clean_first_line}"
+
+    yield ("error", clean_msg)
