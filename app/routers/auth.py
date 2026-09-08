@@ -15,6 +15,7 @@ from app.services.authentication.auth_service import (
     sign_up_user,
     sign_out_user,
     send_password_reset,
+    resend_verification_email,
     update_user_password,
     login_required,
     get_optional_current_user,
@@ -103,11 +104,11 @@ async def post_update_password(
         )
 
 @router.get("/verify-email", response_class=HTMLResponse)
-async def read_verify_email(request: Request):
+async def read_verify_email(request: Request, email: Optional[str] = None):
     return templates.TemplateResponse(
         request=request, 
         name="verify_email.html", 
-        context={"title": "Verify Email"}
+        context={"title": "Verify Email", "email": email or ""}
     )
 
 # ==========================================
@@ -196,6 +197,20 @@ async def api_forgot_password(data: ForgotPasswordSchema, client: Client = Depen
         return {
             "status": "success",
             "message": "If an account exists with that email, a password reset link has been sent."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/api/resend-verification")
+async def api_resend_verification(data: ForgotPasswordSchema, client: Client = Depends(get_supabase_client)):
+    """Resends signup email verification link."""
+    try:
+        if not data.email:
+            raise HTTPException(status_code=400, detail="Email is required.")
+        resend_verification_email(client=client, email=data.email)
+        return {
+            "status": "success",
+            "message": "Verification link has been resent. Please check your inbox."
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

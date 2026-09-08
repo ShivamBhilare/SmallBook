@@ -18,7 +18,8 @@ def generate_study_tool_task(
     source_id: str,
     tool_type: str,
     custom_prompt: str = None,
-    requested_model: str = None
+    requested_model: str = None,
+    num_items: int = None
 ):
     """
     Asynchronous Celery background worker task for generating flashcards or quizzes.
@@ -32,6 +33,7 @@ def generate_study_tool_task(
                 user_id=user_id,
                 source_id=source_id,
                 custom_prompt=custom_prompt,
+                num_items=num_items,
                 requested_model=requested_model
             )
             saved_set = save_generated_flashcard_set(
@@ -51,6 +53,7 @@ def generate_study_tool_task(
                 user_id=user_id,
                 source_id=source_id,
                 custom_prompt=custom_prompt,
+                num_items=num_items,
                 requested_model=requested_model
             )
             saved_quiz = save_generated_quiz(

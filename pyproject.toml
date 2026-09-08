@@ -39,3 +39,7 @@ torchaudio = [{ index = "pytorch-cu124" }]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+filterwarnings = [
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    "ignore:.*starlette.testclient.*:DeprecationWarning"
+]

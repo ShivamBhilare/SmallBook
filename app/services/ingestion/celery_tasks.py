@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Optional
 from datetime import datetime, timezone
 from celery import shared_task
 from app.services.authentication.auth_service import get_service_role_client
@@ -8,7 +9,7 @@ from app.services.ingestion.chunker import HierarchicalChunker
 from app.services.ingestion.qdrant_db import QdrantManager
 
 @shared_task(name="process_pdf_task", bind=True)
-def process_pdf_task(self, source_id: str, user_id: str):
+def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
     """The asynchronous background task for PDF RAG ingestion."""
     supabase = get_service_role_client()
     tmp_pdf_path = None
@@ -54,7 +55,8 @@ def process_pdf_task(self, source_id: str, user_id: str):
         # Linking chunks to the user's source document
         parents, children = chunker.chunk_document(md_text, notebook_id="pending", document_id=source_id)
 
-        # 6. Save Parent Chunks to Supabase
+        # 6. Save Parent Chunks to Supabase in Batches (prevent PostgREST payload limits)
+        CHUNK_BATCH_SIZE = 250
         if parents:
             parent_records = [
                 {
@@ -65,7 +67,9 @@ def process_pdf_task(self, source_id: str, user_id: str):
                 }
                 for p in parents
             ]
-            supabase.table("document_chunks").insert(parent_records).execute()
+            for i in range(0, len(parent_records), CHUNK_BATCH_SIZE):
+                batch = parent_records[i : i + CHUNK_BATCH_SIZE]
+                supabase.table("document_chunks").insert(batch).execute()
 
         # 7. Embed & Upload Child Chunks to Qdrant
         if children:

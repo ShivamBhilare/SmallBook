@@ -18,9 +18,9 @@ async def upload_source(
     Endpoint to upload a PDF source to a specific notebook.
     Verifies auth, checks for duplicates, pushes to Supabase Storage in background, and triggers Celery.
     """
-    # 1. RLS verifies notebook ownership implicitly during DB insertion, but we can double check here
-    # to prevent people uploading to notebooks they don't own.
-    notebook_check = client.table("notebooks").select("id").eq("id", notebook_id).execute()
+    # 1. RLS verifies notebook ownership implicitly during DB insertion, but we double check here
+    # to prevent users uploading to notebooks they don't own.
+    notebook_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
     if not notebook_check.data:
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
 
@@ -44,6 +44,9 @@ def get_library_sources(
     """
     Fetches all PDF sources uploaded by the authenticated user across all notebooks for linking.
     """
+    notebook_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
+    if not notebook_check.data:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
     sources = source_service.get_all_user_sources(client, user.id)
     return {"sources": sources}
 
@@ -75,6 +78,10 @@ def rename_source(
     """
     Renames a source document.
     """
+    nb_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
+    if not nb_check.data:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+
     updated_source = source_service.rename_source(client, user.id, source_id, payload.filename)
     return {"status": "success", "source": updated_source}
 
@@ -88,6 +95,14 @@ def get_source_status(
     """
     Retrieves the background processing status for a source.
     """
+    nb_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
+    if not nb_check.data:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+
+    src_check = client.table("sources").select("id").eq("id", source_id).eq("user_id", user.id).execute()
+    if not src_check.data:
+        raise HTTPException(status_code=404, detail="Source not found or access denied.")
+
     job_res = client.table("ingestion_jobs").select("*").eq("source_id", source_id).execute()
     if not job_res.data:
         raise HTTPException(status_code=404, detail="Status not found for this source.")
@@ -108,6 +123,10 @@ def remove_source(
     mode='notebook': Unlinks source from this notebook.
     mode='library': Permanently deletes source from everywhere (storage bucket + DB).
     """
+    nb_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
+    if not nb_check.data:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+
     if mode == "library":
         source_service.delete_source_permanently(client, user.id, source_id, background_tasks)
     else:

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.study_models import NoteCreateRequest, NoteUpdateRequest, NoteResponse
 from app.services.study.note_service import (
@@ -29,8 +29,8 @@ def test_note_models_validation():
         user_id=u_id,
         title="Key Summary",
         content="# Main Points",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
     assert resp.id == note_id
     assert resp.title == "Key Summary"

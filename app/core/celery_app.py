@@ -36,5 +36,3 @@ def preload_models(**kwargs):
         get_embedding_model()
     except Exception as e:
         print(f"Warning: Preloading embedding model failed: {e}")
-
-from app.services.ingestion.celery_tasks import process_pdf_task

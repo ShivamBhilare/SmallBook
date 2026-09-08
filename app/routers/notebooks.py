@@ -1,4 +1,3 @@
-from typing import List
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -7,7 +6,7 @@ from postgrest.exceptions import APIError
 from app.services.authentication.auth_service import login_required, get_optional_current_user, get_supabase_client
 from app.services.notebooks import notebook_service
 from app.services.notebooks.notebook_service import DatabaseError
-from app.models.notebook_models import NotebookCreateSchema, NotebookUpdateSchema, NotebookResponseSchema
+from app.models.notebook_models import NotebookCreateSchema, NotebookUpdateSchema
 
 # Prefix means all routes here start with /notebooks
 router = APIRouter(prefix="/notebooks", tags=["Notebooks"])
@@ -37,8 +36,8 @@ async def read_workspace(request: Request, notebook_id: str, user=Depends(get_op
         
     client = get_supabase_client(request)
     try:
-        # Pass 'request' to automatically trigger RLS policy
-        response = client.table("notebooks").select("id, title").eq("id", notebook_id).execute()
+        # Pass 'request' to automatically trigger RLS policy, and explicitly filter user_id for defense in depth
+        response = client.table("notebooks").select("id, title").eq("id", notebook_id).eq("user_id", user.id).execute()
     except APIError:
         raise HTTPException(status_code=404, detail="Notebook not found")
     

@@ -1,13 +1,8 @@
 import logging
 from typing import List, Dict, Any, Optional
 from supabase import Client
-from postgrest.exceptions import APIError
 
-from app.models.study_models import (
-    FlashcardSetGenerateSchema,
-    FlashcardSetResponse,
-    FlashcardResponse
-)
+from app.models.study_models import FlashcardSetGenerateSchema
 
 logger = logging.getLogger(__name__)
 

@@ -187,3 +187,178 @@ def test_quiz_grading_logic():
         assert result.percentage == 50.0
         assert result.results[0].is_correct is True
         assert result.results[1].is_correct is False
+
+
+def test_generate_quiz_service_num_items():
+    mock_supabase = MagicMock()
+    mock_supabase.table().select().eq().execute.side_effect = [
+        MagicMock(data=[{"id": "s1", "original_filename": "Physics.pdf"}]),
+        MagicMock(data=[
+            {"id": "c1", "chunk_index": 0, "chunk_text": "Force equals mass times acceleration."}
+        ]),
+        MagicMock(data=[])
+    ]
+
+    mock_llm_response = MagicMock()
+    mock_llm_response.choices = [
+        MagicMock(
+            message=MagicMock(
+                content=json.dumps({
+                    "title": "Physics Quiz",
+                    "questions": [
+                        {
+                            "question_text": "What is Newton's Second Law?",
+                            "options": [
+                                {"key": "A", "text": "F = ma"},
+                                {"key": "B", "text": "E = mc^2"},
+                                {"key": "C", "text": "P = IV"},
+                                {"key": "D", "text": "V = IR"}
+                            ],
+                            "correct_answer": "A",
+                            "explanation": "F = ma relates force, mass, and acceleration.",
+                            "source_chunk_id": "c1"
+                        }
+                    ]
+                })
+            )
+        )
+    ]
+
+    with patch("app.services.study.generator.completion", return_value=mock_llm_response) as mock_comp:
+        title, quiz = generate_quiz(
+            supabase=mock_supabase,
+            user_id="u1",
+            source_id="s1",
+            num_items=7
+        )
+        assert title == "Physics.pdf"
+        assert len(quiz.questions) == 1
+        call_kwargs = mock_comp.call_args[1]
+        msgs = call_kwargs["messages"]
+        assert "7 questions" in msgs[0]["content"]
+        assert "7 questions" in msgs[1]["content"]
+
+
+def test_generate_study_tool_endpoint_validations():
+    from app.routers.study import generate_study_tool
+    from fastapi import HTTPException
+
+    mock_client = MagicMock()
+    mock_user = MagicMock()
+    mock_user.id = str(uuid4())
+    notebook_id = str(uuid4())
+    source_id = str(uuid4())
+    mock_bg = MagicMock()
+
+    req = StudyGenerateRequest(source_id=source_id, tool_type="flashcards", num_items=5)
+
+    # 1. Source not owned by user -> 404
+    def side_effect_source_not_owned(table_name):
+        mock_t = MagicMock()
+        if table_name == "notebooks":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[{"id": notebook_id}])
+        elif table_name == "sources":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[])  # Source not found/not owned
+        return mock_t
+
+    mock_client.table.side_effect = side_effect_source_not_owned
+    with pytest.raises(HTTPException) as exc_404:
+        generate_study_tool(notebook_id=notebook_id, payload=req, background_tasks=mock_bg, user=mock_user, client=mock_client)
+    assert exc_404.value.status_code == 404
+
+    # 2. Source not linked to notebook -> 400
+    def side_effect_source_not_linked(table_name):
+        mock_t = MagicMock()
+        if table_name == "notebooks":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[{"id": notebook_id}])
+        elif table_name == "sources":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[{"id": source_id}])  # Owned
+        elif table_name == "notebook_sources":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[])  # Not linked
+        return mock_t
+
+    mock_client.table.side_effect = side_effect_source_not_linked
+    with pytest.raises(HTTPException) as exc_400:
+        generate_study_tool(notebook_id=notebook_id, payload=req, background_tasks=mock_bg, user=mock_user, client=mock_client)
+    assert exc_400.value.status_code == 400
+
+    # 3. Source owned and linked -> 202 queued
+    def side_effect_valid(table_name):
+        mock_t = MagicMock()
+        if table_name == "notebooks":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[{"id": notebook_id}])
+        elif table_name == "sources":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[{"id": source_id}])
+        elif table_name == "notebook_sources":
+            mock_t.select().eq().eq().execute.return_value = MagicMock(data=[{"source_id": source_id}])
+        return mock_t
+
+    mock_client.table.side_effect = side_effect_valid
+    with patch("app.routers.study.check_and_set_cooldown", return_value=(True, 0)), \
+         patch("app.routers.study.acquire_study_lock", return_value=True):
+        res = generate_study_tool(notebook_id=notebook_id, payload=req, background_tasks=mock_bg, user=mock_user, client=mock_client)
+        assert res["status"] == "queued"
+        assert mock_bg.add_task.called
+        # Check num_items passed to background dispatcher
+        bg_call_kwargs = mock_bg.add_task.call_args[1]
+        assert bg_call_kwargs.get("num_items") == 5
+
+
+def test_get_notebook_study_items_artifacts_sorting():
+    from app.routers.study import get_notebook_study_items
+
+    mock_user = MagicMock()
+    mock_user.id = str(uuid4())
+    mock_client = MagicMock()
+    notebook_id = str(uuid4())
+
+    mock_notes = [
+        {
+            "id": "note-1",
+            "notebook_id": notebook_id,
+            "title": "Ancient History Note",
+            "content": "Notes content",
+            "created_at": "2026-09-01T10:00:00Z",
+            "updated_at": "2026-09-07T15:00:00Z"  # Most recently modified
+        }
+    ]
+    mock_flashcards = [
+        {
+            "id": "deck-1",
+            "notebook_id": notebook_id,
+            "title": "Biology Terms",
+            "cards_count": 10,
+            "created_at": "2026-09-05T12:00:00Z",
+            "updated_at": None
+        }
+    ]
+    mock_quizzes = [
+        {
+            "id": "quiz-1",
+            "notebook_id": notebook_id,
+            "title": "Calculus Quiz",
+            "questions_count": 5,
+            "created_at": "2026-09-06T09:00:00Z",
+            "updated_at": None
+        }
+    ]
+
+    with patch("app.routers.study.list_notebook_notes", return_value=mock_notes), \
+         patch("app.routers.study.list_notebook_flashcard_sets", return_value=mock_flashcards), \
+         patch("app.routers.study.list_notebook_quizzes", return_value=mock_quizzes):
+
+        res = get_notebook_study_items(notebook_id=notebook_id, user=mock_user, client=mock_client)
+
+        assert "artifacts" in res
+        assert len(res["artifacts"]) == 3
+
+        # Ordering should be: note-1 (modified Sep 7), quiz-1 (created Sep 6), deck-1 (created Sep 5)
+        assert res["artifacts"][0]["id"] == "note-1"
+        assert res["artifacts"][0]["type"] == "note"
+
+        assert res["artifacts"][1]["id"] == "quiz-1"
+        assert res["artifacts"][1]["type"] == "quiz"
+
+        assert res["artifacts"][2]["id"] == "deck-1"
+        assert res["artifacts"][2]["type"] == "flashcards"
+

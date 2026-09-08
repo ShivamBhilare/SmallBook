@@ -1,30 +1,21 @@
-import os
 import time
 import logging
 from typing import Tuple, Dict
-import redis
+
+from app.core.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
-
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 # In-memory fallbacks if Redis is temporarily offline in local dev
 _local_locks = set()
 _local_cooldowns: Dict[str, float] = {}
-
-def _get_redis_client():
-    try:
-        return redis.Redis.from_url(REDIS_URL, socket_timeout=2.0)
-    except Exception as e:
-        logger.warning(f"Failed to connect to Redis for study concurrency: {e}")
-        return None
 
 def acquire_study_lock(user_id: str, timeout_seconds: int = 180) -> bool:
     """
     Acquires an exclusive generation lock for the user to prevent parallel runs.
     Returns True if acquired, False if another generation is already in progress.
     """
-    client = _get_redis_client()
+    client = get_redis_client()
     lock_key = f"lock:study_gen:{user_id}"
     if client:
         try:
@@ -42,7 +33,7 @@ def release_study_lock(user_id: str) -> None:
     """
     Releases the study generation lock for the user.
     """
-    client = _get_redis_client()
+    client = get_redis_client()
     lock_key = f"lock:study_gen:{user_id}"
     if client:
         try:
@@ -61,7 +52,7 @@ def check_and_set_cooldown(user_id: str, tool_type: str, cooldown_seconds: int =
         (True, 0) if user can generate (cooldown set).
         (False, remaining_seconds) if blocked by active cooldown.
     """
-    client = _get_redis_client()
+    client = get_redis_client()
     cd_key = f"cooldown:study:{tool_type}:{user_id}"
     
     if client:
@@ -92,7 +83,7 @@ def check_and_set_cooldown(user_id: str, tool_type: str, cooldown_seconds: int =
 
 def clear_cooldown(user_id: str, tool_type: str) -> None:
     """Clears cooldown (e.g. on generation failure or test cleanup)."""
-    client = _get_redis_client()
+    client = get_redis_client()
     cd_key = f"cooldown:study:{tool_type}:{user_id}"
     if client:
         try:

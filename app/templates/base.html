@@ -890,7 +890,7 @@
                 credentials: [],
                 keyInputs: {},
                 preferredModels: [],
-                activeModel: 'groq/llama-3.3-70b-versatile',
+                activeModel: 'groq/openai/gpt-oss-120b',
                 fallbackEnabled: true,
                 confirmDeleteProviderId: null,
                 quota: {
@@ -960,7 +960,7 @@
                         if (prefRes.ok) {
                             const prefData = await prefRes.json();
                             if (prefData.preferences) {
-                                this.activeModel = prefData.preferences.active_model || 'groq/llama-3.3-70b-versatile';
+                                this.activeModel = prefData.preferences.active_model || 'groq/openai/gpt-oss-120b';
                                 this.preferredModels = prefData.preferences.preferred_models || [];
                                 this.fallbackEnabled = prefData.preferences.fallback_enabled ?? true;
                             }
@@ -1017,7 +1017,7 @@
                 async saveProviderKey(providerId) {
                     const input = this.keyInputs[providerId];
                     if (!input || !input.rawKey) {
-                        alert('Please enter an API key.');
+                        showAppAlert('Please enter an API key before saving.', { title: 'API Key Required', type: 'warning' });
                         return;
                     }
 
@@ -1247,12 +1247,258 @@
                         this.cancelDelete();
                     } catch (err) {
                         console.error('Error deleting source:', err);
-                        alert(err.message || 'Error deleting source');
+                        showAppAlert(err.message || 'Error deleting source', { title: 'Delete Failed', type: 'error' });
                         this.cancelDelete();
                     }
                 }
             }));
         });
+    </script>
+    
+    <!-- ========================================================================= -->
+    <!-- GLOBAL APP UI ALERT / CONFIRMATION MODAL POPUP                            -->
+    <!-- ========================================================================= -->
+    <div id="app-alert-modal" class="hidden fixed inset-0 z-[300] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-200" role="dialog" aria-modal="true" aria-labelledby="app-alert-title">
+        <div id="app-alert-card" class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-md custom-shadow flex flex-col overflow-hidden p-6 transform transition-all duration-200 scale-95 opacity-0">
+            <!-- Header: Icon Badge + Title + Close Button -->
+            <div class="flex items-start justify-between gap-3 mb-3.5">
+                <div class="flex items-center gap-3.5">
+                    <div id="app-alert-icon-container" class="h-11 w-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors border bg-amber-500/10 dark:bg-amber-400/10 border-amber-500/20 text-amber-600 dark:text-amber-400">
+                        <span id="app-alert-icon" class="material-symbols-outlined text-[24px]">hourglass_top</span>
+                    </div>
+                    <div>
+                        <h3 id="app-alert-title" class="text-base font-semibold text-on-surface dark:text-dark-text tracking-tight">Cooldown Active</h3>
+                        <p id="app-alert-subtitle" class="text-xs text-on-surface-variant dark:text-dark-text-muted hidden mt-0.5"></p>
+                    </div>
+                </div>
+                <button type="button" id="app-alert-close-btn" class="h-8 w-8 -mr-1.5 -mt-1 rounded-full flex items-center justify-center text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors" title="Close" aria-label="Close">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+
+            <!-- Body Message -->
+            <div class="mb-5">
+                <p id="app-alert-message" class="text-sm text-on-surface-variant dark:text-dark-text-muted leading-relaxed whitespace-pre-line break-words"></p>
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-paper/60 dark:border-dark-border/60">
+                <button type="button" id="app-alert-cancel-btn" class="hidden px-4 py-2 rounded-xl text-xs font-medium text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text hover:bg-surface-variant/40 dark:hover:bg-dark-panel-hover transition-colors">
+                    Cancel
+                </button>
+                <button type="button" id="app-alert-confirm-btn" class="px-5 py-2.5 rounded-xl text-xs font-semibold bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg hover:opacity-90 active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm">
+                    <span id="app-alert-confirm-text">Understood</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            let activeResolver = null;
+
+            const TYPE_CONFIG = {
+                warning: {
+                    box: 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500/25 dark:border-amber-400/25 text-amber-600 dark:text-amber-400',
+                    icon: 'hourglass_top',
+                    defaultTitle: 'Notice',
+                    btnText: 'Understood'
+                },
+                error: {
+                    box: 'bg-error/10 dark:bg-red-500/10 border-error/25 dark:border-red-500/25 text-error dark:text-red-400',
+                    icon: 'error',
+                    defaultTitle: 'Something Went Wrong',
+                    btnText: 'Dismiss'
+                },
+                success: {
+                    box: 'bg-emerald-500/10 dark:bg-emerald-400/10 border-emerald-500/25 dark:border-emerald-400/25 text-emerald-600 dark:text-emerald-400',
+                    icon: 'check_circle',
+                    defaultTitle: 'Success',
+                    btnText: 'Done'
+                },
+                info: {
+                    box: 'bg-blue-500/10 dark:bg-blue-400/10 border-blue-500/25 dark:border-blue-400/25 text-blue-600 dark:text-blue-400',
+                    icon: 'info',
+                    defaultTitle: 'Information',
+                    btnText: 'Got it'
+                }
+            };
+
+            function resolveProps(message, options = {}) {
+                const text = String(message ?? '');
+                const lower = text.toLowerCase();
+
+                let type = options.type;
+                if (!type) {
+                    if (lower.includes('cooldown') || lower.includes('wait ') || lower.includes('minute(s)')) {
+                        type = 'warning';
+                    } else if (lower.includes('error') || lower.includes('failed') || lower.includes('cannot') || lower.includes('could not') || lower.includes('denied') || lower.includes('invalid')) {
+                        type = 'error';
+                    } else if (lower.includes('success') || lower.includes('saved') || lower.includes('completed')) {
+                        type = 'success';
+                    } else {
+                        type = 'info';
+                    }
+                }
+
+                const config = TYPE_CONFIG[type] || TYPE_CONFIG.info;
+
+                let title = options.title;
+                if (!title) {
+                    if (lower.includes('cooldown')) {
+                        title = 'Cooldown Active';
+                    } else {
+                        title = config.defaultTitle;
+                    }
+                }
+
+                let icon = options.icon;
+                if (!icon) {
+                    if (lower.includes('cooldown')) {
+                        icon = 'hourglass_top';
+                    } else {
+                        icon = config.icon;
+                    }
+                }
+
+                let btnText = options.buttonText || (options.confirm ? 'Confirm' : config.btnText);
+
+                return { text, type, title, icon, btnText, subtitle: options.subtitle || null, confirm: !!options.confirm, cancelText: options.cancelText || 'Cancel' };
+            }
+
+            function displayModal(props, resolve) {
+                activeResolver = resolve;
+                const modal = document.getElementById('app-alert-modal');
+                const card = document.getElementById('app-alert-card');
+                if (!modal || !card) {
+                    resolve(true);
+                    return;
+                }
+
+                const titleEl = document.getElementById('app-alert-title');
+                const subtitleEl = document.getElementById('app-alert-subtitle');
+                const msgEl = document.getElementById('app-alert-message');
+                const iconEl = document.getElementById('app-alert-icon');
+                const iconBox = document.getElementById('app-alert-icon-container');
+                const confirmBtn = document.getElementById('app-alert-confirm-btn');
+                const confirmText = document.getElementById('app-alert-confirm-text');
+                const cancelBtn = document.getElementById('app-alert-cancel-btn');
+
+                if (titleEl) titleEl.textContent = props.title;
+                if (subtitleEl) {
+                    if (props.subtitle) {
+                        subtitleEl.textContent = props.subtitle;
+                        subtitleEl.classList.remove('hidden');
+                    } else {
+                        subtitleEl.classList.add('hidden');
+                    }
+                }
+                if (msgEl) msgEl.textContent = props.text;
+                if (iconEl) iconEl.textContent = props.icon;
+
+                if (iconBox) {
+                    const cfg = TYPE_CONFIG[props.type] || TYPE_CONFIG.info;
+                    iconBox.className = 'h-11 w-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors border ' + cfg.box;
+                }
+
+                if (confirmText) confirmText.textContent = props.btnText;
+
+                if (cancelBtn) {
+                    if (props.confirm) {
+                        cancelBtn.classList.remove('hidden');
+                        cancelBtn.textContent = props.cancelText;
+                    } else {
+                        cancelBtn.classList.add('hidden');
+                    }
+                }
+
+                // Show modal & trigger scale-in
+                modal.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    card.classList.remove('scale-95', 'opacity-0');
+                    card.classList.add('scale-100', 'opacity-100');
+                });
+
+                if (confirmBtn) {
+                    setTimeout(() => confirmBtn.focus(), 60);
+                }
+            }
+
+            function closeAppAlert(result = true) {
+                const modal = document.getElementById('app-alert-modal');
+                const card = document.getElementById('app-alert-card');
+                if (!modal) return;
+                if (card) {
+                    card.classList.remove('scale-100', 'opacity-100');
+                    card.classList.add('scale-95', 'opacity-0');
+                }
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    if (activeResolver) {
+                        const cb = activeResolver;
+                        activeResolver = null;
+                        cb(result);
+                    }
+                }, 160);
+            }
+
+            window.showAppAlert = function(message, options = {}) {
+                return new Promise((resolve) => {
+                    const props = resolveProps(message, options);
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => displayModal(props, resolve), { once: true });
+                    } else {
+                        displayModal(props, resolve);
+                    }
+                });
+            };
+
+            window.showAppConfirm = function(message, options = {}) {
+                return window.showAppAlert(message, { ...options, confirm: true });
+            };
+
+            window.closeAppAlert = closeAppAlert;
+
+            // Global override of browser alert: All alerts seamlessly become native in-app UI modals!
+            window.alert = function(message) {
+                window.showAppAlert(message);
+            };
+
+            function initAlertEvents() {
+                const confirmBtn = document.getElementById('app-alert-confirm-btn');
+                const cancelBtn = document.getElementById('app-alert-cancel-btn');
+                const closeBtn = document.getElementById('app-alert-close-btn');
+                const modal = document.getElementById('app-alert-modal');
+
+                if (confirmBtn) confirmBtn.addEventListener('click', () => closeAppAlert(true));
+                if (cancelBtn) cancelBtn.addEventListener('click', () => closeAppAlert(false));
+                if (closeBtn) closeBtn.addEventListener('click', () => closeAppAlert(false));
+                if (modal) {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) closeAppAlert(false);
+                    });
+                }
+
+                document.addEventListener('keydown', (e) => {
+                    if (!modal || modal.classList.contains('hidden')) return;
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        closeAppAlert(false);
+                    } else if (e.key === 'Enter' && !e.shiftKey) {
+                        if (document.activeElement !== cancelBtn) {
+                            e.preventDefault();
+                            closeAppAlert(true);
+                        }
+                    }
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initAlertEvents);
+            } else {
+                initAlertEvents();
+            }
+        })();
     </script>
     
     <!-- Block for any view-specific scripts -->

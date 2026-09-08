@@ -9,6 +9,7 @@ class ParentChunk:
     document_id: str
     text: str
     order: int
+    score: Optional[float] = 1.0
 
 @dataclass
 class ChildChunk:

@@ -1,4 +1,3 @@
-import os
 import re
 import json
 import logging
@@ -184,17 +183,7 @@ def _get_llm_candidates(
     
     candidates: List[Dict[str, Any]] = []
 
-    # Priority 1: Free Developer Gemini 2.5 Flash (1M token context window)
-    dev_gemini = get_developer_gemini_key()
-    if dev_gemini:
-        candidates.append({
-            "model": "gemini/gemini-2.5-flash",
-            "api_key": dev_gemini,
-            "api_base": None,
-            "label": "Google Gemini 2.5 Flash (Developer Key)"
-        })
-
-    # Priority 2: If user configured a specific model with their own key
+    # Priority 1: If user configured a specific model with their own BYOK key
     if requested:
         provider = infer_llm_provider(requested) or "groq"
         user_key_data = get_decrypted_user_key(supabase, user_id, provider)
@@ -205,6 +194,16 @@ def _get_llm_candidates(
                 "api_base": user_key_data.get("api_base"),
                 "label": f"User Key ({requested})"
             })
+
+    # Priority 2: Free Developer Gemini 2.5 Flash (1M token context window)
+    dev_gemini = get_developer_gemini_key()
+    if dev_gemini:
+        candidates.append({
+            "model": "gemini/gemini-2.5-flash",
+            "api_key": dev_gemini,
+            "api_base": None,
+            "label": "Google Gemini 2.5 Flash (Developer Key)"
+        })
 
     # Priority 3: Developer Groq GPT-OSS 120B (with chunk budgeting)
     dev_groq = get_developer_groq_key()
@@ -256,15 +255,17 @@ def generate_flashcards(
     if custom_prompt and custom_prompt.strip():
         custom_section = f"\nUSER CUSTOM FOCUS / INSTRUCTIONS:\n\"{custom_prompt.strip()}\"\n"
 
-    system_instruction = """You are an expert educator like NotebookLM. 
-Your task is to analyze the complete provided document and generate a comprehensive, high-yield set of study flashcards covering all key concepts, definitions, formulas, principles, and critical facts across every section of the document.
+    target_count = num_items if (num_items and num_items > 0) else 10
+
+    system_instruction = f"""You are an expert educator like NotebookLM. 
+Your task is to analyze the complete provided document and generate a high-yield set of study flashcards covering all key concepts, definitions, formulas, principles, and critical facts across every section of the document.
 
 CRITICAL RULES:
 1. Every card MUST be strictly grounded in the provided text. Never hallucinate outside facts.
 2. For each card, specify the supporting chunk UUID in the 'source_chunk_id' field.
 3. Keep the 'front_text' concise and test-oriented (e.g. concept, question, term).
 4. Keep the 'back_text' clear, thorough, and informative.
-5. Generate as many cards as needed to thoroughly cover the document without missing important topics.
+5. Generate approximately {target_count} cards to thoroughly cover the document without missing important topics.
 6. Return ONLY a valid JSON object matching the requested schema with a deck 'title' and 'cards' array."""
 
     candidates = _get_llm_candidates(supabase, user_id, requested_model)
@@ -285,7 +286,7 @@ CRITICAL RULES:
                 for idx, c in enumerate(sampled_chunks)
             )
 
-        user_prompt = f"""Generate a comprehensive set of study flashcards for the document '{source_title}'.
+        user_prompt = f"""Generate a comprehensive set of approximately {target_count} study flashcards for the document '{source_title}'.
 
 {custom_section}
 
@@ -363,15 +364,17 @@ def generate_quiz(
     if custom_prompt and custom_prompt.strip():
         custom_section = f"\nUSER CUSTOM FOCUS / INSTRUCTIONS:\n\"{custom_prompt.strip()}\"\n"
 
-    system_instruction = """You are an expert examiner like NotebookLM. 
-Your task is to analyze the complete provided document and generate a comprehensive multiple choice practice quiz (MCQs) testing all major sections, key concepts, and core facts across the document.
+    target_count = num_items if (num_items and num_items > 0) else 10
+
+    system_instruction = f"""You are an expert examiner like NotebookLM. 
+Your task is to analyze the complete provided document and generate a multiple choice practice quiz (MCQs) testing major sections, key concepts, and core facts across the document.
 
 CRITICAL RULES:
 1. Every question MUST be strictly grounded in the provided text. Do not invent external facts.
 2. Provide 4 distinct options ('A', 'B', 'C', 'D') with exactly one unambiguously correct answer.
 3. In 'explanation', clearly explain why the correct answer is right and why distractors are wrong, citing the context.
 4. For each question, link the supporting chunk UUID in 'source_chunk_id'.
-5. Generate as many questions as needed to thoroughly test understanding across all sections of the document.
+5. Generate approximately {target_count} questions to thoroughly test understanding across all sections of the document.
 6. Return ONLY a valid JSON object matching the requested schema."""
 
     candidates = _get_llm_candidates(supabase, user_id, requested_model)
@@ -392,7 +395,7 @@ CRITICAL RULES:
                 for idx, c in enumerate(sampled_chunks)
             )
 
-        user_prompt = f"""Generate a comprehensive practice quiz for the document '{source_title}'.
+        user_prompt = f"""Generate a comprehensive practice quiz of approximately {target_count} questions for the document '{source_title}'.
 
 {custom_section}
 

@@ -1,5 +1,3 @@
-import os
-import json
 from typing import Optional, Generator, List, Dict, Any, Tuple
 import litellm
 from litellm import completion
@@ -16,7 +14,7 @@ litellm.suppress_debug_info = True
 def generate_llm_response(
     prompt: str,
     system_instruction: str = "You are a helpful, strictly constrained AI assistant.",
-    model: str = "groq/llama-3.3-70b-versatile",
+    model: str = "groq/openai/gpt-oss-120b",
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
     temperature: float = 0.2,
@@ -54,7 +52,7 @@ def generate_llm_response(
 def stream_llm_response(
     prompt: str,
     system_instruction: str = "You are a helpful, strictly constrained AI assistant.",
-    model: str = "groq/llama-3.3-70b-versatile",
+    model: str = "groq/openai/gpt-oss-120b",
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
     temperature: float = 0.2,

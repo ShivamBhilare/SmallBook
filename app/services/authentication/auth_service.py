@@ -10,10 +10,10 @@ load_dotenv()
 
 # 1. Credentials Verification
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("Supabase credentials are not set in the environment variables.")
+    raise ValueError("Supabase credentials (SUPABASE_URL and SUPABASE_KEY or SUPABASE_ANON_KEY) are not set in the environment variables.")
 
 # 2. Security scheme definition
 security = HTTPBearer(auto_error=False)
@@ -84,6 +84,10 @@ def send_password_reset(client: Client, email: str, redirect_to: Optional[str] =
     """Triggers a password reset email via Supabase Auth using per-request client."""
     options = {"redirectTo": redirect_to} if redirect_to else None
     return client.auth.reset_password_for_email(email, options=options)
+
+def resend_verification_email(client: Client, email: str):
+    """Resends signup verification email via Supabase Auth using per-request client."""
+    return client.auth.resend({"type": "signup", "email": email})
 
 def update_user_password(client: Client, access_token: str, new_password: str, refresh_token: str = ""):
     """Updates user password using recovery/session token on per-request client."""

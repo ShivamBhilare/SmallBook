@@ -1,5 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timezone
 from supabase import Client
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,8 @@ def update_note(
     if not update_payload:
         return get_note_by_id(supabase, note_id, user_id)
 
-    # Let postgres update timestamp
+    # Set explicit ISO updated_at timestamp
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
     res = (
         supabase.table("notes")
         .update(update_payload)

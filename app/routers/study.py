@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from supabase import Client
 
@@ -9,8 +9,7 @@ from app.models.study_models import (
     QuizAttemptSubmit,
     QuizAttemptResponse,
     NoteCreateRequest,
-    NoteUpdateRequest,
-    NoteResponse
+    NoteUpdateRequest
 )
 from app.services.study.concurrency import (
     acquire_study_lock,
@@ -48,13 +47,14 @@ def _dispatch_study_task(
     source_id: str,
     tool_type: str,
     custom_prompt: Optional[str],
-    requested_model: Optional[str]
+    requested_model: Optional[str],
+    num_items: Optional[int] = None
 ):
     """Dispatches generation task to Celery with fallback to direct execution."""
     try:
         from app.services.study.celery_tasks import generate_study_tool_task
         generate_study_tool_task.apply_async(
-            args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model],
+            args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model, num_items],
             connect_timeout=5,
             retry=True
         )
@@ -63,7 +63,7 @@ def _dispatch_study_task(
         try:
             from app.services.study.celery_tasks import generate_study_tool_task
             generate_study_tool_task.apply(
-                args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model]
+                args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model, num_items]
             )
         except Exception as direct_err:
             logger.exception(f"Direct background study task failed: {direct_err}")
@@ -84,9 +84,10 @@ def generate_study_tool(
     """
     Asynchronously generates a Flashcard deck or Quiz for a selected source document.
     Enforces:
-      1. 30-minute cooldown (1 flashcard and 1 quiz per 30 minutes per user).
-      2. Active generation lock.
-      3. Non-blocking asynchronous Celery execution.
+      1. Notebook and source ownership & linkage.
+      2. 30-minute cooldown (1 flashcard and 1 quiz per 30 minutes per user).
+      3. Active generation lock.
+      4. Non-blocking asynchronous Celery execution.
     """
     user_id = str(user.id)
     
@@ -95,7 +96,16 @@ def generate_study_tool(
     if not nb_check.data:
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
 
-    # 2. Check 30-minute cooldown per user per tool type (1800s)
+    # 2. Verify source access and that source is attached to this notebook
+    source_check = client.table("sources").select("id").eq("id", payload.source_id).eq("user_id", user_id).execute()
+    if not source_check.data:
+        raise HTTPException(status_code=404, detail="Source document not found or access denied.")
+
+    link_check = client.table("notebook_sources").select("source_id").eq("notebook_id", notebook_id).eq("source_id", payload.source_id).execute()
+    if not link_check.data:
+        raise HTTPException(status_code=400, detail="Source document is not linked to this notebook.")
+
+    # 3. Check 30-minute cooldown per user per tool type (1800s)
     can_generate, remaining_seconds = check_and_set_cooldown(user_id, payload.tool_type, cooldown_seconds=1800)
     if not can_generate:
         rem_mins = max(1, round(remaining_seconds / 60))
@@ -104,7 +114,7 @@ def generate_study_tool(
             detail=f"Cooldown active: You can generate 1 {payload.tool_type} every 30 minutes. Please wait {rem_mins} more minute(s)."
         )
 
-    # 3. Acquire active generation lock
+    # 4. Acquire active generation lock
     if not acquire_study_lock(user_id, timeout_seconds=180):
         # Clear the cooldown we just set so user can try after current run finishes
         clear_cooldown(user_id, payload.tool_type)
@@ -113,7 +123,7 @@ def generate_study_tool(
             detail="A study tool is already being generated in the background. Please wait for it to complete."
         )
 
-    # 4. Handoff to background Celery worker
+    # 5. Handoff to background Celery worker
     background_tasks.add_task(
         _dispatch_study_task,
         notebook_id=notebook_id,
@@ -121,7 +131,8 @@ def generate_study_tool(
         source_id=payload.source_id,
         tool_type=payload.tool_type,
         custom_prompt=payload.custom_prompt,
-        requested_model=payload.model
+        requested_model=payload.model,
+        num_items=payload.num_items
     )
 
     return {
@@ -145,10 +156,50 @@ def get_notebook_study_items(
     flashcard_sets = list_notebook_flashcard_sets(client, notebook_id, user_id)
     quizzes = list_notebook_quizzes(client, notebook_id, user_id)
 
+    # Build unified artifacts list sorted by date of creation/modification (descending)
+    artifacts = []
+    for n in notes:
+        artifacts.append({
+            "type": "note",
+            "id": n["id"],
+            "title": n.get("title") or "Untitled Note",
+            "created_at": n.get("created_at"),
+            "updated_at": n.get("updated_at"),
+            "content": n.get("content", ""),
+            "raw": n
+        })
+    for f in flashcard_sets:
+        artifacts.append({
+            "type": "flashcards",
+            "id": f["id"],
+            "title": f.get("title") or "Flashcards",
+            "cards_count": f.get("cards_count", 0),
+            "created_at": f.get("created_at"),
+            "updated_at": f.get("updated_at"),
+            "raw": f
+        })
+    for q in quizzes:
+        artifacts.append({
+            "type": "quiz",
+            "id": q["id"],
+            "title": q.get("title") or "Practice Quiz",
+            "questions_count": q.get("questions_count", 0),
+            "created_at": q.get("created_at"),
+            "updated_at": q.get("updated_at"),
+            "raw": q
+        })
+
+    # Sort descending by modification date, falling back to creation date
+    artifacts.sort(
+        key=lambda a: a.get("updated_at") or a.get("created_at") or "",
+        reverse=True
+    )
+
     return {
         "notes": notes,
         "flashcard_sets": flashcard_sets,
-        "quizzes": quizzes
+        "quizzes": quizzes,
+        "artifacts": artifacts
     }
 
 

@@ -1,6 +1,6 @@
 import json
 import time
-from typing import List, Optional
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from supabase import Client
@@ -41,7 +41,7 @@ def get_notebook_chat_history(
     Retrieves the persistent conversation history for a notebook,
     including linked citations and branch references.
     """
-    nb_res = client.table("notebooks").select("id").eq("id", notebook_id).execute()
+    nb_res = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
     if not nb_res.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -61,7 +61,7 @@ def clear_notebook_chat_history(
     """
     Clears all messages and attached citations for the given notebook.
     """
-    nb_res = client.table("notebooks").select("id").eq("id", notebook_id).execute()
+    nb_res = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
     if not nb_res.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -98,7 +98,7 @@ def send_chat_message(
         )
 
     # 1. Verify Notebook Access
-    nb_res = client.table("notebooks").select("id").eq("id", notebook_id).execute()
+    nb_res = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
     if not nb_res.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -167,7 +167,7 @@ def send_chat_message(
             # 6. Resolve User Credentials & LLM Resilience
             user_id = str(user.id if hasattr(user, "id") else user.get("id"))
             user_prefs = get_user_preferences(client, user_id)
-            model_name = payload.model or user_prefs.get("active_model") or "groq/llama-3.3-70b-versatile"
+            model_name = payload.model or user_prefs.get("active_model") or "groq/openai/gpt-oss-120b"
             provider_name = infer_llm_provider(model_name)
 
             # Check if user has personal BYOK key for this provider
@@ -181,12 +181,12 @@ def send_chat_message(
                     yield f"data: {json.dumps({'type': 'error', 'error': 'Rate limit: Please wait a moment before sending another message.'})}\n\n"
                     return
 
-                allowed, used, remaining = check_daily_quota(user_id, limit=25, client=client)
+                allowed, used, remaining = check_daily_quota(user_id, limit=25)
                 if not allowed:
                     yield f"data: {json.dumps({'type': 'error', 'error': 'Daily Free Tier limit reached (25/25 queries). Add your own free Groq or Gemini API key in Key Settings (top-right) for unlimited access.'})}\n\n"
                     return
 
-                increment_daily_quota(user_id, limit=25, client=client)
+                increment_daily_quota(user_id, limit=25)
 
             # Resolve other user keys as potential backups
             backup_creds = []
@@ -251,28 +251,32 @@ def send_chat_message(
                     "document_id": chunk.document_id,
                     "document_title": doc_title,
                     "order": getattr(chunk, "order", 0),
-                    "text_snippet": snippet
+                    "text_snippet": snippet,
+                    "score": float(getattr(chunk, "score", 1.0))
                 })
 
-            # 9. Persist Assistant Message to chat_messages
+            # 9. Persist Assistant Message to chat_messages (only if content was generated)
+            assistant_msg_id = None
             actual_provider_name = infer_llm_provider(actual_model_used)
-            assistant_msg_record = save_chat_message(
-                client=client,
-                notebook_id=notebook_id,
-                role="assistant",
-                content=full_assistant_content,
-                parent_id=user_msg_id,
-                llm_provider=actual_provider_name,
-                llm_model=actual_model_used
-            )
-            assistant_msg_id = assistant_msg_record.get("id")
 
-            # 10. Persist Citations to citations table
-            if assistant_msg_id and citations_for_db:
-                try:
-                    save_citations(assistant_msg_id, citations_for_db)
-                except Exception as cit_save_err:
-                    print(f"Failed to persist citations: {cit_save_err}")
+            if full_assistant_content:
+                assistant_msg_record = save_chat_message(
+                    client=client,
+                    notebook_id=notebook_id,
+                    role="assistant",
+                    content=full_assistant_content,
+                    parent_id=user_msg_id,
+                    llm_provider=actual_provider_name,
+                    llm_model=actual_model_used
+                )
+                assistant_msg_id = assistant_msg_record.get("id")
+
+                # 10. Persist Citations to citations table
+                if assistant_msg_id and citations_for_db:
+                    try:
+                        save_citations(assistant_msg_id, citations_for_db)
+                    except Exception as cit_save_err:
+                        print(f"Failed to persist citations: {cit_save_err}")
 
             timings = {
                 "retrieval_ms": round(retrieval_time_ms, 2),

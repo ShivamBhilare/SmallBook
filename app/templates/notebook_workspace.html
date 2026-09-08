@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension/lib/index.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
 
@@ -562,9 +563,18 @@
                 <div class="px-md flex-1 flex flex-col">
                     <div class="flex items-center justify-between mb-sm hide-on-collapse">
                         <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest">Artifacts</h3>
-                        <button onclick="loadNotebookStudyTools()" title="Refresh study tools" class="h-6 w-6 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent transition-colors">
-                            <span class="material-symbols-outlined text-[16px]">refresh</span>
-                        </button>
+                        <div class="flex items-center gap-1.5">
+                            <div class="relative">
+                                <select id="artifact-sort-select" onchange="changeArtifactSort(this.value)" title="Sort artifacts" class="text-[10px] bg-transparent text-on-surface-variant dark:text-dark-text-muted border border-paper dark:border-dark-border rounded-md px-1.5 py-0.5 outline-none cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors font-medium">
+                                    <option value="modified_desc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Recently Modified</option>
+                                    <option value="created_desc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Date Created</option>
+                                    <option value="title_asc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Alphabetical (A-Z)</option>
+                                </select>
+                            </div>
+                            <button onclick="loadNotebookStudyTools()" title="Refresh study tools" class="h-6 w-6 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Study Tools Container -->
@@ -927,8 +937,28 @@
     if (window.marked && window.markedKatex) {
         marked.use(markedKatex({
             throwOnError: false,
-            output: 'htmlAndMathml'
+            output: 'htmlAndMathml',
+            nonStandard: true
         }));
+    }
+
+    // Function to safely run KaTeX auto-render on DOM elements as fallback
+    function renderMathSafely(element) {
+        if (window.renderMathInElement && element) {
+            try {
+                renderMathInElement(element, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true }
+                    ],
+                    throwOnError: false
+                });
+            } catch (e) {
+                console.error("KaTeX auto-render error:", e);
+            }
+        }
     }
 
     // Escape HTML Helper Function (CRITICAL FOR UI SECURITY)
@@ -943,22 +973,58 @@
     }
 
     /**
+     * Normalizes various mathematical delimiter formats into standard KaTeX/Marked delimiters ($$ and $).
+     * Prevents Marked from escaping LaTeX backslashes (e.g. \[ or \() into plain brackets.
+     */
+    function normalizeMathDelimiters(text) {
+        if (!text) return '';
+        let processed = text;
+
+        // 1. Explicit LaTeX display math: \[ ... \] -> \n\n$$\n...\n$$\n\n
+        processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, formula) => {
+            return '\n\n$$\n' + formula.trim() + '\n$$\n\n';
+        });
+
+        // 2. Explicit LaTeX inline math: \( ... \) -> $...$
+        processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, formula) => {
+            return '$' + formula.trim() + '$';
+        });
+
+        // 3. Standalone bracketed display math on separate lines:
+        // Matches [ ... \macro ... ] or lines with LaTeX commands
+        processed = processed.replace(/(?:^|\n)\s*\[\s*([\s\S]*?\\(?:frac|sum|prod|int|sqrt|boxed|mid|cap|cup|displaystyle|mathbf|math|alpha|beta|gamma|theta|sigma|mu|times|cdot|approx|equiv|le|ge|neq|quad|qquad|text|dots)[\s\S]*?)\s*\]\s*(?=\n|$)/g, (match, formula) => {
+            return '\n\n$$\n' + formula.trim() + '\n$$\n\n';
+        });
+
+        // 4. Standalone bracketed lines containing equality relations:
+        // E.g. [ P(A\mid B)P(B) = P(B\mid A)P(A). ]
+        processed = processed.replace(/(?:^|\n)\s*\[\s*([^\[\]\n]*?=[^\[\]\n]*?)\s*\]\s*(?=\n|$)/g, (match, formula) => {
+            return '\n\n$$\n' + formula.trim() + '\n$$\n\n';
+        });
+
+        return processed;
+    }
+
+    /**
      * Professional Markdown and Math Parser
      * Replaces the old regex-based formatMarkdownText function.
      */
     function formatMarkdownText(text) {
         if (!text) return '';
         
-        // 1. Parse markdown (including math via KaTeX extension)
+        // 1. Normalize math delimiters so Marked & KaTeX detect them properly
+        const normalizedText = normalizeMathDelimiters(text);
+
+        // 2. Parse markdown (including math via KaTeX extension)
         let rawHtml = '';
         try {
-            rawHtml = marked.parse(text);
+            rawHtml = marked.parse(normalizedText);
         } catch (e) {
             console.error("Markdown parsing error:", e);
             rawHtml = escapeHtml(text); // Fallback
         }
         
-        // 2. Sanitize HTML
+        // 3. Sanitize HTML
         const cleanHtml = DOMPurify.sanitize(rawHtml, {
             ADD_TAGS: [
                 'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 
@@ -1043,9 +1109,7 @@
         });
 
         try {
-            const pathSegments = window.location.pathname.split('/');
-            const wsIdx = pathSegments.indexOf('workspace');
-            const notebookId = wsIdx !== -1 ? pathSegments[wsIdx + 1] : '';
+            const notebookId = getNotebookIdFromUrl();
             
             let res = await fetch(notebookId ? `/notebooks/${notebookId}/sources/library` : '/api/sources/all');
             if (!res.ok) {
@@ -1141,7 +1205,7 @@
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
 
         if (!notebookId) {
-            alert('Notebook ID not found.');
+            showAppAlert('Notebook ID not found.', { title: 'Navigation Error', type: 'error' });
             return;
         }
 
@@ -1208,7 +1272,7 @@
             updateSourcesCount();
         } catch (err) {
             console.error(err);
-            alert(err.message || 'Error linking sources.');
+            showAppAlert(err.message || 'Error linking sources.', { title: 'Linking Failed', type: 'error' });
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -1248,7 +1312,10 @@
     async function uploadFiles(files) {
         const pathSegments = window.location.pathname.split('/');
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
-        if (!notebookId) { alert('Notebook ID not found.'); return; }
+        if (!notebookId) {
+            showAppAlert('Notebook ID not found.', { title: 'Upload Error', type: 'error' });
+            return;
+        }
 
         isUploading = true;
         document.getElementById('drop-zone-content').classList.add('opacity-0', 'pointer-events-none');
@@ -1258,7 +1325,10 @@
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             if (file.type !== 'application/pdf') {
-                alert(`File "${file.name}" is not a PDF.`);
+                showAppAlert(`File "${file.name}" is not a PDF. Only PDF files are supported.`, {
+                    title: 'Invalid File Type',
+                    type: 'warning'
+                });
                 continue;
             }
 
@@ -1313,7 +1383,7 @@
                 }
                 successCount++;
             } catch (error) {
-                alert(`Error uploading ${file.name}: \n${error.message}`);
+                showAppAlert(`Error uploading ${file.name}:\n${error.message}`, { title: 'Upload Failed', type: 'error' });
             }
         }
         isUploading = false;
@@ -1352,7 +1422,10 @@
         if (!currentRenameSourceId) return;
         const input = document.getElementById('rename-input');
         const newName = input ? input.value.trim() : '';
-        if (!newName) { alert('Filename cannot be empty.'); return; }
+        if (!newName) {
+            showAppAlert('Filename cannot be empty.', { title: 'Input Required', type: 'warning' });
+            return;
+        }
 
         const pathSegments = window.location.pathname.split('/');
         const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
@@ -1377,7 +1450,7 @@
             }
             closeRenameModal();
         } catch (error) {
-            alert(`Error renaming source: ${error.message}`);
+            showAppAlert(`Error renaming source: ${error.message}`, { title: 'Rename Failed', type: 'error' });
         }
     }
 
@@ -1409,7 +1482,7 @@
             updateSourcesCount();
             closeDeleteModal();
         } catch (error) {
-            alert(`Error removing source: ${error.message}`);
+            showAppAlert(`Error removing source: ${error.message}`, { title: 'Remove Failed', type: 'error' });
         }
     }
 
@@ -1790,6 +1863,8 @@
         const spacer = document.getElementById('chat-bottom-spacer');
         if (spacer) container.insertBefore(msgDiv, spacer);
         else container.appendChild(msgDiv);
+        const textContent = msgDiv.querySelector('.ai-text-content');
+        if (textContent) renderMathSafely(textContent);
         return msgDiv;
     }
 
@@ -2051,12 +2126,53 @@
             // 2. Setup the AI Bubble for Streaming
             bubbleData = initializeStreamingAiMessage(loadingId);
             
-            // 3. Native ReadableStream parsing
+            // 3. Native ReadableStream parsing with throttled RAF rendering
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
             let accumulatedText = "";
             let buffer = "";
-            let lastScrollTime = 0;
+
+            let renderPending = false;
+            let lastRenderTime = 0;
+            const RENDER_INTERVAL_MS = 40;
+            let renderTimer = null;
+
+            function renderStreamingChunk() {
+                if (!bubbleData || !bubbleData.textContainer) return;
+                bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText) + '<span class="inline-block w-1.5 h-4 ml-1 bg-secondary dark:bg-dark-accent rounded-sm animate-pulse align-middle" style="vertical-align: -2px;"></span>';
+                
+                // Keep scrolled to bottom if user is near the bottom
+                const isNearBottom = (chatContainer.scrollHeight - chatContainer.scrollTop) <= (chatContainer.clientHeight + 250);
+                if (isNearBottom) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            }
+
+            function requestStreamingRender() {
+                if (renderPending) return;
+                const now = Date.now();
+                const elapsed = now - lastRenderTime;
+
+                if (elapsed >= RENDER_INTERVAL_MS) {
+                    renderPending = true;
+                    requestAnimationFrame(() => {
+                        renderStreamingChunk();
+                        lastRenderTime = Date.now();
+                        renderPending = false;
+                    });
+                } else {
+                    renderPending = true;
+                    if (renderTimer) clearTimeout(renderTimer);
+                    renderTimer = setTimeout(() => {
+                        requestAnimationFrame(() => {
+                            renderStreamingChunk();
+                            lastRenderTime = Date.now();
+                            renderPending = false;
+                            renderTimer = null;
+                        });
+                    }, RENDER_INTERVAL_MS - elapsed);
+                }
+            }
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -2089,15 +2205,7 @@
                             // B) Process text chunk
                             else if (data.type === 'chunk' && data.content) {
                                 accumulatedText += data.content;
-                                bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText) + '<span class="inline-block w-1.5 h-4 ml-1 bg-secondary dark:bg-dark-accent rounded-sm animate-pulse align-middle" style="vertical-align: -2px;"></span>';
-                                
-                                const now = Date.now();
-                                if (now - lastScrollTime > 80) {
-                                    if (chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 200) {
-                                        chatContainer.scrollTop = chatContainer.scrollHeight;
-                                    }
-                                    lastScrollTime = now;
-                                }
+                                requestStreamingRender();
                             }
                             // B.2) Process fallback notice event
                             else if (data.type === 'fallback_notice') {
@@ -2113,8 +2221,15 @@
                             } 
                             // C) Process final metadata payload
                             else if (data.type === 'metadata') {
+                                if (renderTimer) {
+                                    clearTimeout(renderTimer);
+                                    renderTimer = null;
+                                }
+                                renderPending = false;
+
                                 if (accumulatedText) {
                                     bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText);
+                                    renderMathSafely(bubbleData.textContainer);
                                 } else if (!bubbleData.textContainer.querySelector('.text-error')) {
                                     bubbleData.textContainer.innerHTML = '<span class="text-xs text-on-surface-variant dark:text-dark-text-muted italic">No response generated.</span>';
                                 }
@@ -2149,6 +2264,7 @@
             // Final cleanup: remove trailing cursor
             if (accumulatedText && bubbleData) {
                 bubbleData.textContainer.innerHTML = formatMarkdownText(accumulatedText);
+                renderMathSafely(bubbleData.textContainer);
             }
         } catch (err) {
             console.error('Chat error:', err);
@@ -2210,7 +2326,7 @@
             closeClearChatModal();
         } catch (err) {
             console.error('Error clearing chat history:', err);
-            alert(err.message || 'Error clearing chat history.');
+            showAppAlert(err.message || 'Error clearing chat history.', { title: 'Action Failed', type: 'error' });
         } finally {
             if (btn) btn.disabled = false;
             if (btnText) btnText.innerText = "Clear History";
@@ -2329,15 +2445,6 @@
     let userQuizAnswers = {};
     let isQuizSubmitted = false;
 
-    function getNotebookIdFromUrl() {
-        const pathSegments = window.location.pathname.split('/');
-        const wsIdx = pathSegments.indexOf('workspace');
-        if (wsIdx !== -1 && pathSegments[wsIdx + 1]) {
-            return pathSegments[wsIdx + 1];
-        }
-        return '{{ notebook_id }}';
-    }
-
     function openStudyModal(toolType = 'flashcards') {
         setStudyType(toolType);
         populateStudySourcesList();
@@ -2415,7 +2522,11 @@
     async function submitGenerateStudyTool() {
         const selectedRadio = document.querySelector('input[name="study_source_selection"]:checked');
         if (!selectedRadio) {
-            alert('Please select a source document first.');
+            showAppAlert('Please select a source document first to generate study tools.', {
+                title: 'Document Required',
+                type: 'info',
+                icon: 'description'
+            });
             return;
         }
 
@@ -2443,7 +2554,8 @@
                 body: JSON.stringify({
                     source_id: sourceId,
                     tool_type: toolType,
-                    custom_prompt: customPrompt || null
+                    custom_prompt: customPrompt || null,
+                    num_items: activeStudyCount || 10
                 })
             });
 
@@ -2451,7 +2563,12 @@
                 const errData = await response.json().catch(() => ({}));
                 delete pendingStudyGenerations[genKey];
                 renderStudyTools(cachedStudyToolsData);
-                alert(errData.detail || "Cooldown active: Please wait before generating another set.");
+                showAppAlert(errData.detail || "Cooldown active: Please wait before generating another set.", {
+                    title: "Cooldown Active",
+                    type: "warning",
+                    icon: "hourglass_top",
+                    buttonText: "Understood"
+                });
                 return;
             }
 
@@ -2459,7 +2576,10 @@
                 const errData = await response.json().catch(() => ({}));
                 delete pendingStudyGenerations[genKey];
                 renderStudyTools(cachedStudyToolsData);
-                alert(errData.detail || "Generation failed to start.");
+                showAppAlert(errData.detail || "Generation failed to start.", {
+                    title: "Generation Failed",
+                    type: "error"
+                });
                 return;
             }
 
@@ -2470,7 +2590,10 @@
             console.error("Study generation dispatch error:", error);
             delete pendingStudyGenerations[genKey];
             renderStudyTools(cachedStudyToolsData);
-            alert(`Error: ${error.message || 'Generation failed to start.'}`);
+            showAppAlert(error.message || 'Generation failed to start.', {
+                title: "Generation Error",
+                type: "error"
+            });
         }
     }
 
@@ -2551,7 +2674,12 @@
                 }
             }
 
-            cachedStudyToolsData = { notes: notes, flashcard_sets: flashcardSets, quizzes: quizzes };
+            cachedStudyToolsData = {
+                notes: notes,
+                flashcard_sets: flashcardSets,
+                quizzes: quizzes,
+                artifacts: data.artifacts || []
+            };
             renderStudyTools(cachedStudyToolsData);
 
         } catch (e) {
@@ -2559,16 +2687,61 @@
         }
     }
 
+    let currentArtifactSort = 'modified_desc';
+
+    function changeArtifactSort(newSort) {
+        currentArtifactSort = newSort;
+        if (cachedStudyToolsData) {
+            renderStudyTools(cachedStudyToolsData);
+        }
+    }
+
     function renderStudyTools(data) {
         const container = document.getElementById('study-tools-container');
         if (!container) return;
 
+        data = data || {};
         const notes = data.notes || [];
         const flashcardSets = data.flashcard_sets || [];
         const quizzes = data.quizzes || [];
         const hasPending = Object.keys(pendingStudyGenerations).length > 0;
 
-        if (notes.length === 0 && flashcardSets.length === 0 && quizzes.length === 0 && !hasPending) {
+        // Build unified artifacts array
+        let artifacts = [];
+        notes.forEach(n => {
+            artifacts.push({
+                type: 'note',
+                id: n.id,
+                title: n.title || 'Untitled Note',
+                created_at: n.created_at,
+                updated_at: n.updated_at,
+                raw: n
+            });
+        });
+        flashcardSets.forEach(deck => {
+            artifacts.push({
+                type: 'flashcards',
+                id: deck.id,
+                title: deck.title || 'Flashcards',
+                cards_count: deck.cards_count || 0,
+                created_at: deck.created_at,
+                updated_at: deck.updated_at,
+                raw: deck
+            });
+        });
+        quizzes.forEach(quiz => {
+            artifacts.push({
+                type: 'quiz',
+                id: quiz.id,
+                title: quiz.title || 'Practice Quiz',
+                questions_count: quiz.questions_count || 0,
+                created_at: quiz.created_at,
+                updated_at: quiz.updated_at,
+                raw: quiz
+            });
+        });
+
+        if (artifacts.length === 0 && !hasPending) {
             container.innerHTML = `
                 <div class="text-center py-6 text-xs text-on-surface-variant dark:text-dark-text-muted flex flex-col items-center gap-2">
                     <span class="material-symbols-outlined text-[28px] text-on-surface-variant/40">school</span>
@@ -2577,6 +2750,22 @@
                 </div>`;
             return;
         }
+
+        // Sort artifacts according to currentArtifactSort
+        artifacts.sort((a, b) => {
+            if (currentArtifactSort === 'created_desc') {
+                const timeA = new Date(a.created_at || a.updated_at || 0).getTime();
+                const timeB = new Date(b.created_at || b.updated_at || 0).getTime();
+                return timeB - timeA;
+            } else if (currentArtifactSort === 'title_asc') {
+                return (a.title || '').localeCompare(b.title || '');
+            } else {
+                // Default: 'modified_desc' (most recently modified/created first)
+                const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                return timeB - timeA;
+            }
+        });
 
         let html = '';
 
@@ -2597,88 +2786,78 @@
                 </div>`;
         }
 
-        // 2. Render Saved Notes
-        notes.forEach(note => {
-            html += `
-                <div id="note-item-${note.id}" onclick="handleStudyToolTileClick('note', '${note.id}', event)" class="study-tool-tile p-3 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl flex items-center justify-between hover:border-secondary dark:hover:border-dark-accent transition-colors group mb-2 cursor-pointer">
-                    <div class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
-                        <div id="note-item-icon-${note.id}" class="w-8 h-8 rounded-lg bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">sticky_note_2</span>
-                        </div>
-                        <div class="study-tool-content min-w-0 flex-1">
-                            <div class="text-xs font-semibold text-on-surface dark:text-dark-text truncate group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">${escapeHtml(note.title || 'Untitled Note')}</div>
-                            <div class="text-[10px] text-on-surface-variant dark:text-dark-text-muted flex items-center gap-1.5">
-                                <span>Note</span>
-                                <span>•</span>
-                                <span>${formatDateSnippet(note.updated_at || note.created_at)}</span>
+        // 2. Render Unified Sorted Artifacts
+        artifacts.forEach(art => {
+            if (art.type === 'note') {
+                html += `
+                    <div id="note-item-${art.id}" onclick="handleStudyToolTileClick('note', '${art.id}', event)" class="study-tool-tile p-3 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl flex items-center justify-between hover:border-secondary dark:hover:border-dark-accent transition-colors group mb-2 cursor-pointer">
+                        <div class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
+                            <div id="note-item-icon-${art.id}" class="w-8 h-8 rounded-lg bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">sticky_note_2</span>
+                            </div>
+                            <div class="study-tool-content min-w-0 flex-1">
+                                <div class="text-xs font-semibold text-on-surface dark:text-dark-text truncate group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">${escapeHtml(art.title)}</div>
+                                <div class="text-[10px] text-on-surface-variant dark:text-dark-text-muted">
+                                    <span>Note</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="study-tool-actions flex items-center gap-1 flex-shrink-0">
-                        <button type="button" onclick="handleStudyToolTileClick('note', '${note.id}', event)" title="Open Note" class="w-7 h-7 flex items-center justify-center rounded-full text-secondary dark:text-dark-accent hover:bg-secondary/15 dark:hover:bg-dark-accent/15 transition-colors flex-shrink-0 aspect-square">
-                            <span class="material-symbols-outlined text-[18px]">edit_note</span>
-                        </button>
-                        <button type="button" onclick="promptDeleteStudyTool('note', '${note.id}', '${escapeHtml(note.title || 'Untitled Note')}', event)" title="Delete Note" class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-full text-error dark:text-red-400 hover:bg-error/15 dark:hover:bg-red-400/15 transition-all flex-shrink-0 aspect-square">
-                            <span class="material-symbols-outlined text-[16px]">delete</span>
-                        </button>
-                    </div>
-                </div>`;
-        });
-
-        // 3. Render Completed Flashcard Decks
-        flashcardSets.forEach(deck => {
-            html += `
-                <div id="card-deck-${deck.id}" onclick="handleStudyToolTileClick('flashcards', '${deck.id}', event)" class="study-tool-tile p-3 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl flex items-center justify-between hover:border-secondary dark:hover:border-dark-accent transition-colors group mb-2 cursor-pointer">
-                    <div class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
-                        <div id="card-deck-icon-${deck.id}" class="w-8 h-8 rounded-lg bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">style</span>
+                        <div class="study-tool-actions flex items-center gap-1 flex-shrink-0">
+                            <button type="button" onclick="handleStudyToolTileClick('note', '${art.id}', event)" title="Open Note" class="w-7 h-7 flex items-center justify-center rounded-full text-secondary dark:text-dark-accent hover:bg-secondary/15 dark:hover:bg-dark-accent/15 transition-colors flex-shrink-0 aspect-square">
+                                <span class="material-symbols-outlined text-[18px]">edit_note</span>
+                            </button>
+                            <button type="button" onclick="promptDeleteStudyTool('note', '${art.id}', '${escapeHtml(art.title)}', event)" title="Delete Note" class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-full text-error dark:text-red-400 hover:bg-error/15 dark:hover:bg-red-400/15 transition-all flex-shrink-0 aspect-square">
+                                <span class="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
                         </div>
-                        <div class="study-tool-content min-w-0 flex-1">
-                            <div class="text-xs font-semibold text-on-surface dark:text-dark-text truncate group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">${escapeHtml(deck.title)}</div>
-                            <div class="text-[10px] text-on-surface-variant dark:text-dark-text-muted flex items-center gap-1.5">
-                                <span>${deck.cards_count || 0} cards</span>
-                                <span>•</span>
-                                <span>Flashcards</span>
+                    </div>`;
+            } else if (art.type === 'flashcards') {
+                html += `
+                    <div id="card-deck-${art.id}" onclick="handleStudyToolTileClick('flashcards', '${art.id}', event)" class="study-tool-tile p-3 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl flex items-center justify-between hover:border-secondary dark:hover:border-dark-accent transition-colors group mb-2 cursor-pointer">
+                        <div class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
+                            <div id="card-deck-icon-${art.id}" class="w-8 h-8 rounded-lg bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">style</span>
+                            </div>
+                            <div class="study-tool-content min-w-0 flex-1">
+                                <div class="text-xs font-semibold text-on-surface dark:text-dark-text truncate group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">${escapeHtml(art.title)}</div>
+                                <div class="text-[10px] text-on-surface-variant dark:text-dark-text-muted">
+                                    <span>${art.cards_count || 0} cards</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="study-tool-actions flex items-center gap-1 flex-shrink-0">
-                        <button type="button" onclick="handleStudyToolTileClick('flashcards', '${deck.id}', event)" title="Practice Deck" class="w-7 h-7 flex items-center justify-center rounded-full text-secondary dark:text-dark-accent hover:bg-secondary/15 dark:hover:bg-dark-accent/15 transition-colors flex-shrink-0 aspect-square">
-                            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-                        </button>
-                        <button type="button" onclick="promptDeleteStudyTool('flashcards', '${deck.id}', '${escapeHtml(deck.title)}', event)" title="Delete Deck" class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-full text-error dark:text-red-400 hover:bg-error/15 dark:hover:bg-red-400/15 transition-all flex-shrink-0 aspect-square">
-                            <span class="material-symbols-outlined text-[16px]">delete</span>
-                        </button>
-                    </div>
-                </div>`;
-        });
-
-        // 4. Render Quizzes
-        quizzes.forEach(quiz => {
-            html += `
-                <div id="quiz-item-${quiz.id}" onclick="handleStudyToolTileClick('quiz', '${quiz.id}', event)" class="study-tool-tile p-3 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl flex items-center justify-between hover:border-secondary dark:hover:border-dark-accent transition-colors group mb-2 cursor-pointer">
-                    <div class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
-                        <div id="quiz-item-icon-${quiz.id}" class="w-8 h-8 rounded-lg bg-green-500/10 dark:bg-green-400/10 flex items-center justify-center text-green-600 dark:text-green-400 flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">school</span>
+                        <div class="study-tool-actions flex items-center gap-1 flex-shrink-0">
+                            <button type="button" onclick="handleStudyToolTileClick('flashcards', '${art.id}', event)" title="Practice Deck" class="w-7 h-7 flex items-center justify-center rounded-full text-secondary dark:text-dark-accent hover:bg-secondary/15 dark:hover:bg-dark-accent/15 transition-colors flex-shrink-0 aspect-square">
+                                <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                            </button>
+                            <button type="button" onclick="promptDeleteStudyTool('flashcards', '${art.id}', '${escapeHtml(art.title)}', event)" title="Delete Deck" class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-full text-error dark:text-red-400 hover:bg-error/15 dark:hover:bg-red-400/15 transition-all flex-shrink-0 aspect-square">
+                                <span class="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
                         </div>
-                        <div class="study-tool-content min-w-0 flex-1">
-                            <div class="text-xs font-semibold text-on-surface dark:text-dark-text truncate group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">${escapeHtml(quiz.title)}</div>
-                            <div class="text-[10px] text-on-surface-variant dark:text-dark-text-muted flex items-center gap-1.5">
-                                <span>${quiz.questions_count || 0} questions</span>
-                                <span>•</span>
-                                <span>Quiz</span>
+                    </div>`;
+            } else if (art.type === 'quiz') {
+                html += `
+                    <div id="quiz-item-${art.id}" onclick="handleStudyToolTileClick('quiz', '${art.id}', event)" class="study-tool-tile p-3 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl flex items-center justify-between hover:border-secondary dark:hover:border-dark-accent transition-colors group mb-2 cursor-pointer">
+                        <div class="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
+                            <div id="quiz-item-icon-${art.id}" class="w-8 h-8 rounded-lg bg-green-500/10 dark:bg-green-400/10 flex items-center justify-center text-green-600 dark:text-green-400 flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">school</span>
+                            </div>
+                            <div class="study-tool-content min-w-0 flex-1">
+                                <div class="text-xs font-semibold text-on-surface dark:text-dark-text truncate group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">${escapeHtml(art.title)}</div>
+                                <div class="text-[10px] text-on-surface-variant dark:text-dark-text-muted">
+                                    <span>${art.questions_count || 0} questions</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="study-tool-actions flex items-center gap-1 flex-shrink-0">
-                        <button type="button" onclick="handleStudyToolTileClick('quiz', '${quiz.id}', event)" title="Take Quiz" class="w-7 h-7 flex items-center justify-center rounded-full text-green-600 dark:text-green-400 hover:bg-green-500/15 transition-colors flex-shrink-0 aspect-square">
-                            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-                        </button>
-                        <button type="button" onclick="promptDeleteStudyTool('quiz', '${quiz.id}', '${escapeHtml(quiz.title)}', event)" title="Delete Quiz" class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-full text-error dark:text-red-400 hover:bg-error/15 dark:hover:bg-red-400/15 transition-all flex-shrink-0 aspect-square">
-                            <span class="material-symbols-outlined text-[16px]">delete</span>
-                        </button>
-                    </div>
-                </div>`;
+                        <div class="study-tool-actions flex items-center gap-1 flex-shrink-0">
+                            <button type="button" onclick="handleStudyToolTileClick('quiz', '${art.id}', event)" title="Take Quiz" class="w-7 h-7 flex items-center justify-center rounded-full text-green-600 dark:text-green-400 hover:bg-green-500/15 transition-colors flex-shrink-0 aspect-square">
+                                <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                            </button>
+                            <button type="button" onclick="promptDeleteStudyTool('quiz', '${art.id}', '${escapeHtml(art.title)}', event)" title="Delete Quiz" class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-full text-error dark:text-red-400 hover:bg-error/15 dark:hover:bg-red-400/15 transition-all flex-shrink-0 aspect-square">
+                                <span class="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
+                        </div>
+                    </div>`;
+            }
         });
 
         container.innerHTML = html;
@@ -2881,7 +3060,7 @@
             const deck = await res.json();
 
             if (!deck.cards || deck.cards.length === 0) {
-                alert('This deck has no cards.');
+                showAppAlert('This deck has no cards.', { title: 'Empty Deck', type: 'info' });
                 closeStudioViewer();
                 return;
             }
@@ -2898,7 +3077,7 @@
             updateFlashcardUI();
         } catch (e) {
             console.error(e);
-            alert('Failed to open flashcard deck.');
+            showAppAlert('Failed to open flashcard deck.', { title: 'Flashcards Error', type: 'error' });
             closeStudioViewer();
         } finally {
             if (iconContainer && originalIconHtml) {
@@ -2957,8 +3136,16 @@
         document.getElementById('studio-fc-counter').innerText = `Card ${currentCardIndex + 1} of ${total}`;
         document.getElementById('studio-fc-progress').style.width = `${((currentCardIndex + 1) / total) * 100}%`;
 
-        document.getElementById('studio-fc-front').innerHTML = formatMarkdownText(card.front_text);
-        document.getElementById('studio-fc-back').innerHTML = formatMarkdownText(card.back_text);
+        const fcFront = document.getElementById('studio-fc-front');
+        const fcBack = document.getElementById('studio-fc-back');
+        if (fcFront) {
+            fcFront.innerHTML = formatMarkdownText(card.front_text);
+            renderMathSafely(fcFront);
+        }
+        if (fcBack) {
+            fcBack.innerHTML = formatMarkdownText(card.back_text);
+            renderMathSafely(fcBack);
+        }
 
         const citationEl = document.getElementById('studio-fc-citation');
         if (card.source_chunk_id) {
@@ -3042,7 +3229,7 @@
             const quiz = await res.json();
 
             if (!quiz.questions || quiz.questions.length === 0) {
-                alert('This quiz has no questions.');
+                showAppAlert('This quiz has no questions.', { title: 'Empty Quiz', type: 'info' });
                 closeStudioViewer();
                 return;
             }
@@ -3057,7 +3244,7 @@
             updateQuizQuestionUI();
         } catch (e) {
             console.error(e);
-            alert('Failed to open quiz player.');
+            showAppAlert('Failed to open quiz player.', { title: 'Quiz Error', type: 'error' });
             closeStudioViewer();
         } finally {
             if (iconContainer && originalIconHtml) {
@@ -3149,7 +3336,7 @@
             isQuizSubmitted = true;
             renderQuizResults(gradeResult);
         } catch (err) {
-            alert('Error grading quiz attempt.');
+            showAppAlert(err.message || 'Error grading quiz attempt.', { title: 'Grading Error', type: 'error' });
         }
     }
 
@@ -3316,7 +3503,7 @@
             renderNoteInViewer(note);
         } catch (err) {
             console.error(err);
-            alert('Failed to load note.');
+            showAppAlert('Failed to load note.', { title: 'Note Error', type: 'error' });
             closeStudioViewer();
         } finally {
             if (iconContainer && originalIconHtml) {
@@ -3346,10 +3533,16 @@
 
             if (titleEl) titleEl.innerText = note.title || 'Chat Note';
             if (dateEl) dateEl.innerText = formatDateSnippet(note.updated_at || note.created_at);
-            if (contentEl) contentEl.innerHTML = formatMarkdownText(note.content || '');
+            if (contentEl) {
+                contentEl.innerHTML = formatMarkdownText(note.content || '');
+                renderMathSafely(contentEl);
+            }
             
             const contentInput = document.getElementById('note-content-input');
-            if (contentInput) contentInput.innerHTML = formatMarkdownText(note.content || '');
+            if (contentInput) {
+                contentInput.innerHTML = formatMarkdownText(note.content || '');
+                renderMathSafely(contentInput);
+            }
         } else {
             // Editable WYSIWYG view with toolbar for manual notes
             if (readonlyView) readonlyView.classList.add('hidden');
@@ -3366,6 +3559,7 @@
                     contentInput.innerHTML = raw;
                 } else {
                     contentInput.innerHTML = formatMarkdownText(raw);
+                    renderMathSafely(contentInput);
                 }
             }
             if (saveBtn) saveBtn.classList.add('hidden'); // Auto-save enabled
@@ -3456,7 +3650,7 @@
             loadNotebookStudyTools(false);
         } catch (err) {
             console.error("Save note error:", err);
-            if (!isAutoSave) alert("Could not save note.");
+            if (!isAutoSave) showAppAlert("Could not save note.", { title: 'Save Failed', type: 'error' });
             updateNoteStatus('Save failed', 'bg-error');
         } finally {
             if (!isAutoSave) {
@@ -3903,7 +4097,7 @@
             console.error("Save note error:", err);
             delete pendingStudyGenerations[genKey];
             renderStudyTools(cachedStudyToolsData);
-            alert("Could not save note to database.");
+            showAppAlert("Could not save note to database.", { title: 'Save Failed', type: 'error' });
         }
     }
 

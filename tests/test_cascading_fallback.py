@@ -13,7 +13,7 @@ def test_resilient_stream_primary_success():
         events = list(stream_resilient_llm_response(
             prompt="Hello",
             system_instruction="Test instruction",
-            requested_model="groq/llama-3.3-70b-versatile",
+            requested_model="groq/openai/gpt-oss-120b",
             user_primary_key="test_key",
             fallback_enabled=True
         ))

@@ -175,7 +175,8 @@ def retrieve(
                     notebook_id="current",
                     document_id=row["source_id"],
                     text=row["chunk_text"],
-                    order=row.get("chunk_index", 0)
+                    order=row.get("chunk_index", 0),
+                    score=float(parent_scores.get(row["id"], 1.0))
                 )
                 all_known_parents[chunk.id] = chunk
         except Exception as e:
@@ -183,7 +184,10 @@ def retrieve(
 
     for pid in selected_parent_ids:
         if pid in all_known_parents:
-            primary_parents.append(all_known_parents[pid])
+            p_chunk = all_known_parents[pid]
+            if pid in parent_scores:
+                p_chunk.score = float(parent_scores[pid])
+            primary_parents.append(p_chunk)
 
     if not primary_parents:
         return None
@@ -207,7 +211,8 @@ def retrieve(
                     notebook_id="current",
                     document_id=row["source_id"],
                     text=row["chunk_text"],
-                    order=row.get("chunk_index", 0)
+                    order=row.get("chunk_index", 0),
+                    score=float(parent_scores.get(row["id"], 0.8))
                 )
                 if n_chunk.id not in [p.id for p in primary_parents]:
                     neighbor_parents.append(n_chunk)

@@ -9,7 +9,6 @@ MAX_FILE_SIZE = 50 * 1024 * 1024
 STORAGE_BUCKET = "user-documents"
 
 def _async_storage_upload_and_trigger_celery(
-    client: Client,
     storage_path: str,
     file_bytes: bytes,
     source_id: str,
@@ -35,7 +34,7 @@ def _async_storage_upload_and_trigger_celery(
 
     # 2. Celery Handoff (Asynchronous Processing with Direct Fallback)
     try:
-        from app.core.celery_app import process_pdf_task
+        from app.services.ingestion.celery_tasks import process_pdf_task
         celery_task = process_pdf_task.apply_async(
             args=[source_id, user_id],
             connect_timeout=10,
@@ -50,7 +49,6 @@ def _async_storage_upload_and_trigger_celery(
     except Exception as e:
         print(f"⚠️ Warning: Redis/Celery connection failed ({e}). Falling back to direct background thread execution...")
         try:
-            from app.services.ingestion.celery_tasks import process_pdf_task
             process_pdf_task.apply(args=[source_id, user_id])
         except Exception as fallback_err:
             print(f"❌ Ingestion task execution failed during fallback: {fallback_err}")
@@ -144,7 +142,6 @@ def handle_source_upload(
     # Schedule heavy storage upload and Celery task dispatch in background
     background_tasks.add_task(
         _async_storage_upload_and_trigger_celery,
-        client=client,
         storage_path=storage_path,
         file_bytes=file_bytes,
         source_id=source_id,
@@ -202,7 +199,7 @@ def get_all_user_sources(client: Client, user_id: str) -> list[dict]:
         
         notebook_map = {}
         if notebook_ids:
-            nb_res = client.table("notebooks").select("id, title").in_("id", notebook_ids).execute()
+            nb_res = client.table("notebooks").select("id, title").eq("user_id", user_id).in_("id", notebook_ids).execute()
             for nb in (nb_res.data or []):
                 notebook_map[nb["id"]] = nb["title"]
 
@@ -275,7 +272,7 @@ def remove_source_from_notebook(client: Client, user_id: str, notebook_id: str, 
     Unlinks a source document from a specific notebook.
     """
     # 1. Verify notebook access
-    nb = client.table("notebooks").select("id").eq("id", notebook_id).execute()
+    nb = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
     if not nb.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notebook not found or access denied.")
 

@@ -67,7 +67,15 @@ def build_augmented_prompt(
             "CRITICAL: Ensure all points are fully developed and conclude cleanly. Never leave a thought or sentence unfinished."
         )
 
-    # 3. Base Modes Mapping
+    # 3. Mathematical Formula Steering
+    math_instruction = (
+        "MATHEMATICAL FORMULAS: Always format all mathematical, statistical, and algebraic equations using standard LaTeX syntax with dollar sign delimiters:\n"
+        "- For standalone/display equations on their own line, always enclose with double dollar signs: $$ <equation> $$\n"
+        "- For inline variables and short expressions within sentences, always enclose with single dollar signs: $ <formula> $\n"
+        "- NEVER output raw brackets like [ ... ] or \\( ... \\) / \\[ ... \\] for formulas. Always use $$ and $."
+    )
+
+    # 4. Base Modes Mapping
     if selected_mode == PromptMode.STRICT:
         system_instruction = f"""You are an expert pedagogical study assistant for a document intelligence workspace.
 Your task is to teach the user based STRICTLY on the provided source context. 
@@ -75,6 +83,8 @@ Organize answers logically using headings, bullet points, and plain-English expl
 Synthesize the information naturally to teach the concept—do NOT just copy-paste verbatim chunks.
 You are strictly forbidden from introducing outside facts, assumptions, or hallucinations.
 If the answer is not present in the context, your entire response must be exactly: 'No source found for this query.'
+
+{math_instruction}
 
 {length_instruction}"""
         user_prompt = f"Context:\n{context_text}\n\nUser Query: {query}\nAnswer:"
@@ -84,11 +94,15 @@ If the answer is not present in the context, your entire response must be exactl
 If the provided source context contains the answer, prioritize it and synthesize it pedagogically.
 If the context does not contain the full answer or if no context is found, explicitly state: '⚠️ Not found in your sources. Answering using general knowledge:' and then provide a comprehensive answer from your general knowledge.
 
+{math_instruction}
+
 {length_instruction}"""
         user_prompt = f"Context:\n{context_text}\n\nUser Query: {query}\nAnswer:"
 
     elif selected_mode == PromptMode.CONCISE:
         system_instruction = f"""You are an executive summary assistant. Distill the answer into high-impact bullet points based strictly on the provided context. Omit filler and unnecessary preamble.
+
+{math_instruction}
 
 CRITICAL: Keep the response extremely concise and clear."""
         user_prompt = f"Context:\n{context_text}\n\nUser Query: {query}\nKey Takeaways:"

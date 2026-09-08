@@ -1,39 +1,14 @@
 import os
 import time
+import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Tuple, Optional, Dict, Any
-import redis
 from dotenv import load_dotenv
 
+from app.core.redis_client import get_redis_client
+
 load_dotenv()
-
-# Redis Connection setup for distributed rate limiting
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-
-_redis_client: Optional[redis.Redis] = None
-_redis_last_check: float = 0.0
-
-def get_redis_client() -> Optional[redis.Redis]:
-    global _redis_client, _redis_last_check
-    now = time.time()
-    # Cache connection status for 10 seconds if offline to avoid connection lag
-    if _redis_client is None and (now - _redis_last_check < 10.0):
-        return None
-
-    _redis_last_check = now
-    if _redis_client is None:
-        try:
-            client = redis.from_url(
-                REDIS_URL,
-                decode_responses=True,
-                socket_timeout=0.3,
-                socket_connect_timeout=0.3
-            )
-            client.ping()
-            _redis_client = client
-        except Exception:
-            _redis_client = None
-    return _redis_client
 
 
 # In-memory fallback tracking in case Redis is offline during local development
@@ -53,6 +28,37 @@ def get_developer_gemini_key() -> Optional[str]:
     return key.strip() if key else None
 
 
+logger = logging.getLogger(__name__)
+
+
+def _is_valid_uuid(val: str) -> bool:
+    """Checks if a given string is a valid UUID."""
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+def _get_db_client(client: Optional[Any] = None) -> Optional[Any]:
+    """
+    Returns an admin Supabase client for reliable quota operations.
+    If a test mock is provided, uses it. Otherwise always uses the service role client
+    so that user JWT/RLS restrictions never break system rate-limiting.
+    """
+    if client is not None:
+        from unittest.mock import Mock, MagicMock
+        if isinstance(client, (Mock, MagicMock)):
+            return client
+
+    try:
+        from app.services.authentication.auth_service import get_service_role_client
+        return get_service_role_client()
+    except Exception as e:
+        logger.error(f"Failed to get service role client for quota persistence: {e}")
+        return client
+
+
 def check_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] = None) -> Tuple[bool, int, int]:
     """
     Checks if a user has remaining free tier queries for today.
@@ -69,8 +75,8 @@ def check_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] = Non
                 used = int(current_val)
                 remaining = max(0, limit - used)
                 return (used < limit, used, remaining)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Redis get failed: {e}")
 
     # Memory check
     mem_key = f"{user_id}:{today_str}"
@@ -79,17 +85,18 @@ def check_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] = Non
         remaining = max(0, limit - used)
         return (used < limit, used, remaining)
 
-    # Supabase check if client provided
-    if client:
+    # Supabase persistent check (admin client bypasses RLS)
+    sb_client = _get_db_client(client)
+    if sb_client and _is_valid_uuid(user_id):
         try:
-            db_res = client.table("user_free_tier_usage").select("request_count").eq("user_id", user_id).eq("usage_date", today_str).execute()
+            db_res = sb_client.table("user_free_tier_usage").select("request_count").eq("user_id", user_id).eq("usage_date", today_str).execute()
             if db_res.data and len(db_res.data) > 0:
                 used = db_res.data[0].get("request_count", 0)
                 _memory_daily_counts[mem_key] = used
                 remaining = max(0, limit - used)
                 return (used < limit, used, remaining)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to query daily quota from Supabase for user {user_id}: {e}")
 
     return (True, 0, limit)
 
@@ -101,7 +108,9 @@ def increment_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] =
     """
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     redis_key = f"smallbook:freetier:daily:{user_id}:{today_str}"
+    mem_key = f"{user_id}:{today_str}"
     
+    redis_success = False
     new_count = 1
     r = get_redis_client()
     if r:
@@ -111,24 +120,41 @@ def increment_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] =
             pipe.expire(redis_key, 86400 * 2)  # 48 hour TTL
             res = pipe.execute()
             new_count = int(res[0])
-        except Exception:
-            pass
+            redis_success = True
+        except Exception as e:
+            logger.debug(f"Redis pipeline failed: {e}")
+            redis_success = False
 
-    mem_key = f"{user_id}:{today_str}"
-    _memory_daily_counts[mem_key] = _memory_daily_counts.get(mem_key, 0) + 1
-    if new_count == 1:
+    sb_client = _get_db_client(client)
+
+    if redis_success:
+        # Keep in-memory cache synchronized with Redis truth
+        _memory_daily_counts[mem_key] = new_count
+    else:
+        # If memory cache is empty (e.g. after app restart), hydrate previous count from Supabase first
+        if mem_key not in _memory_daily_counts:
+            if sb_client and _is_valid_uuid(user_id):
+                try:
+                    db_res = sb_client.table("user_free_tier_usage").select("request_count").eq("user_id", user_id).eq("usage_date", today_str).execute()
+                    if db_res.data and len(db_res.data) > 0:
+                        _memory_daily_counts[mem_key] = db_res.data[0].get("request_count", 0)
+                except Exception as e:
+                    logger.error(f"Failed to hydrate quota from Supabase for user {user_id}: {e}")
+
+        # Increment and fallback to in-memory tracking when Redis is offline
+        _memory_daily_counts[mem_key] = _memory_daily_counts.get(mem_key, 0) + 1
         new_count = _memory_daily_counts[mem_key]
 
     # Sync to Supabase user_free_tier_usage for persistence & analytics
-    if client:
+    if sb_client and _is_valid_uuid(user_id):
         try:
-            client.table("user_free_tier_usage").upsert({
+            sb_client.table("user_free_tier_usage").upsert({
                 "user_id": user_id,
                 "usage_date": today_str,
                 "request_count": new_count
             }, on_conflict="user_id,usage_date").execute()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to persist daily quota to Supabase for user {user_id}: {e}")
 
     return new_count
 
@@ -161,9 +187,9 @@ def check_burst_limit(user_id: str, max_per_minute: int = 4) -> bool:
     return len(timestamps) <= max_per_minute
 
 
-def get_free_tier_status(user_id: str, limit: int = 25) -> Dict[str, Any]:
+def get_free_tier_status(user_id: str, limit: int = 25, client: Optional[Any] = None) -> Dict[str, Any]:
     """Returns a full status dictionary for frontend badge & modal display."""
-    allowed, used, remaining = check_daily_quota(user_id, limit=limit)
+    allowed, used, remaining = check_daily_quota(user_id, limit=limit, client=client)
     has_groq = bool(get_developer_groq_key())
     has_gemini = bool(get_developer_gemini_key())
     

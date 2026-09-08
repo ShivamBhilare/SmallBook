@@ -1,12 +1,9 @@
 import logging
 from typing import List, Dict, Any, Optional
 from supabase import Client
-from postgrest.exceptions import APIError
 
 from app.models.study_models import (
     QuizGenerateSchema,
-    QuizResponse,
-    QuizQuestionResponse,
     QuizAttemptSubmit,
     QuizAttemptResponse,
     QuestionResult

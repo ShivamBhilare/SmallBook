@@ -115,6 +115,9 @@
                         }, 500);
                     } else {
                         this.successMsg = data.message || 'Account created! Please check your email to confirm.';
+                        setTimeout(() => {
+                            window.location.href = `/auth/verify-email?email=${encodeURIComponent(this.email.trim())}`;
+                        }, 1200);
                     }
                 } catch (err) {
                     this.errorMsg = err.message;
