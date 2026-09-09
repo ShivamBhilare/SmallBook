@@ -80,52 +80,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-    function signUpForm() {
-        return {
-            fullname: '',
-            email: '',
-            password: '',
-            showPassword: false,
-            loading: false,
-            errorMsg: '',
-            successMsg: '',
-            async submitForm() {
-                this.errorMsg = '';
-                this.successMsg = '';
-                this.loading = true;
-                try {
-                    const res = await fetch('/auth/api/sign-up', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            email: this.email, 
-                            password: this.password,
-                            fullname: this.fullname 
-                        })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                        throw new Error(data.detail || 'Registration failed');
-                    }
-                    if (data.session) {
-                        this.successMsg = data.message || 'Account created! Redirecting...';
-                        setTimeout(() => {
-                            window.location.href = data.redirect_url || '/notebooks/dashboard';
-                        }, 500);
-                    } else {
-                        this.successMsg = data.message || 'Account created! Please check your email to confirm.';
-                        setTimeout(() => {
-                            window.location.href = `/auth/verify-email?email=${encodeURIComponent(this.email.trim())}`;
-                        }, 1200);
-                    }
-                } catch (err) {
-                    this.errorMsg = err.message;
-                } finally {
-                    this.loading = false;
-                }
-            }
-        }
-    }
-</script>
+<script src="/static/js/components/auth-forms.js"></script>
 {% endblock %}

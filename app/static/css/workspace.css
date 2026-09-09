@@ -1,0 +1,155 @@
+:root {
+    --left-panel-width: 300px;
+    --right-panel-width: 320px;
+}
+
+/* Mobile Tab Switching Logic */
+@media (max-width: 1023px) {
+    #panel-sources:not(.active-tab),
+    #panel-chat:not(.active-tab),
+    #panel-studio:not(.active-tab) {
+        display: none !important;
+    }
+    #panel-sources.active-tab,
+    #panel-chat.active-tab,
+    #panel-studio.active-tab {
+        display: flex !important;
+        width: 100% !important;
+    }
+}
+
+/* Modal Overlay Styling */
+#upload-modal {
+    backdrop-filter: blur(4px);
+}
+
+/* Collapsible Panel Styles */
+#panel-sources, #panel-studio {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.is-resizing #panel-sources, body.is-resizing #panel-studio {
+    transition: none !important;
+}
+aside.collapsed {
+    width: 72px !important;
+}
+aside.collapsed .hide-on-collapse {
+    display: none !important;
+}
+aside.collapsed .panel-header {
+    justify-content: center !important;
+}
+aside.collapsed .p-md, aside.collapsed .px-md {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+/* Left Panel Collapsed Adjustments */
+aside.collapsed #add-source-btn span:not(.material-symbols-outlined) { display: none; }
+aside.collapsed #add-source-btn { width: 40px; height: 40px; padding: 0; border-radius: 50%; margin: 0 auto; }
+aside.collapsed .pdf-item { justify-content: center; padding: 12px 0; background: transparent; }
+aside.collapsed .pdf-item-content { display: none; }
+
+/* Right Panel Collapsed Adjustments */
+aside.collapsed .features-grid { display: flex !important; flex-direction: column !important; gap: 16px !important; }
+aside.collapsed .feature-item { border-color: transparent !important; background: transparent !important; padding: 8px 0 !important; box-shadow: none !important; }
+aside.collapsed .feature-item-text { display: none !important; }
+aside.collapsed .note-card { border-color: transparent !important; background: transparent !important; padding: 8px 0 !important; justify-content: center; display: flex !important; box-shadow: none !important;}
+aside.collapsed .note-card-content { display: none !important; }
+aside.collapsed .note-card-icon { display: block !important; }
+.note-card-icon { display: none; }
+
+/* Study Tools Collapsed Adjustments */
+aside.collapsed #study-tools-container { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 12px !important; }
+aside.collapsed .study-tool-tile { border-color: transparent !important; background: transparent !important; padding: 8px 0 !important; justify-content: center !important; box-shadow: none !important; width: auto !important; }
+aside.collapsed .study-tool-content,
+aside.collapsed .study-tool-actions { display: none !important; }
+
+/* Markdown Styling Fallbacks */
+.prose ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.prose li { margin-bottom: 0.35rem; }
+.prose p { margin-bottom: 0.75rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h1, .prose h2, .prose h3, .prose h4 { font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; color: inherit; }
+.prose h3 { font-size: 1.1em; }
+.prose pre { background-color: #f4f4f0; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 0.75rem; margin-bottom: 0.75rem; border: 1px solid #e5e5e5; }
+.prose code { font-family: monospace; font-size: 0.85em; background-color: rgba(156, 67, 35, 0.1); color: #9c4323; padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
+.prose pre code { background-color: transparent; color: inherit; padding: 0; border-radius: 0; }
+.dark .prose pre { background-color: #18181b; border-color: #3f3f46; }
+.dark .prose code { background-color: rgba(229, 119, 84, 0.15); color: #E57754; }
+.dark .prose pre code { background-color: transparent; color: #f4f4f5; }
+.prose table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.9em; }
+.prose th, .prose td { border: 1px solid #c7c7c0; padding: 0.5rem 0.75rem; text-align: left; }
+.prose th { background-color: rgba(0,0,0,0.05); font-weight: 600; }
+.dark .prose th, .dark .prose td { border-color: #3f3f46; }
+.dark .prose th { background-color: rgba(255,255,255,0.05); }
+.prose strong { font-weight: 600; color: inherit; }
+
+/* Visual WYSIWYG Note Editor Placeholder & Styles */
+#note-content-input:empty:before {
+    content: attr(data-placeholder);
+    color: rgba(140, 140, 140, 0.6);
+    pointer-events: none;
+    display: block;
+}
+#note-content-input blockquote {
+    border-left: 3px solid #E57754;
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+    font-style: italic;
+    opacity: 0.9;
+}
+#note-content-input ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin: 0.4rem 0;
+}
+#note-content-input ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin: 0.4rem 0;
+}
+#note-content-input h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0.6rem 0 0.3rem 0;
+    line-height: 1.25;
+}
+#note-content-input h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0.5rem 0 0.25rem 0;
+    line-height: 1.3;
+}
+#note-content-input h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0.4rem 0 0.2rem 0;
+}
+
+/* 3D Flashcard Flip Styles */
+.flashcard-scene {
+    perspective: 1000px;
+}
+.flashcard-card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.flashcard-card.is-flipped {
+    transform: rotateY(180deg);
+}
+.flashcard-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: 1rem;
+}
+.flashcard-back {
+    transform: rotateY(180deg);
+}

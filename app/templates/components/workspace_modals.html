@@ -1,0 +1,312 @@
+<!-- Upload Modal Overlay (Hidden by default) -->
+<div id="upload-modal" class="hidden fixed inset-0 z-[100] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+    <!-- Modal Content -->
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-2xl custom-shadow flex flex-col overflow-hidden max-h-[85vh]">
+        <!-- Modal Header -->
+        <div class="p-6 pb-3 flex justify-between items-start border-b border-paper dark:border-dark-border">
+            <div class="w-full">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text">Add Documents</h2>
+                    <button onclick="closeUploadModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mt-1">Upload new PDFs or link existing files from your library</p>
+                
+                <!-- Navigation Tabs -->
+                <div class="flex items-center gap-1.5 sm:gap-2 mt-3 bg-surface-bright dark:bg-dark-bg p-1 rounded-xl border border-paper dark:border-dark-border">
+                    <button type="button" id="tab-btn-upload" onclick="switchUploadTab('upload')" class="flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 bg-surface-container-lowest dark:bg-dark-panel text-on-surface dark:text-dark-text shadow-sm">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">upload_file</span>
+                        <span>Upload from Device</span>
+                    </button>
+                    <button type="button" id="tab-btn-library" onclick="switchUploadTab('library')" class="flex-1 py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg font-label-md font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">library_books</span>
+                        <span>Link from Library</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab 1 View: Drag & Drop Zone -->
+        <div id="tab-content-upload" class="p-6">
+            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-8 sm:p-10 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer relative overflow-hidden" id="drop-zone">
+                
+                <!-- Default Drop Zone Content -->
+                <div id="drop-zone-content" class="w-full flex flex-col items-center transition-opacity duration-300">
+                    <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-2">drop your files</h3>
+                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-6">pdf documents only</p>
+                    
+                    <button type="button" class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-5 py-2 sm:px-6 sm:py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity text-xs sm:text-sm">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">upload</span>
+                        Upload files
+                    </button>
+                </div>
+                
+                <!-- Upload Progress Overlay (Hidden by default) -->
+                <div id="upload-progress" class="hidden absolute inset-0 bg-surface-bright/95 dark:bg-dark-panel-hover/95 backdrop-blur-sm flex flex-col items-center justify-center z-10 transition-opacity duration-300">
+                    <span id="upload-spinner" class="material-symbols-outlined animate-spin text-[40px] text-secondary dark:text-dark-accent mb-4">progress_activity</span>
+                    <span id="upload-success-icon" class="hidden material-symbols-outlined text-[40px] text-green-600 dark:text-green-400 mb-4">check_circle</span>
+                    <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-1" id="upload-title">Uploading...</h3>
+                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md" id="upload-subtitle">Please wait</p>
+                </div>
+
+                <!-- Hidden file input -->
+                <input type="file" id="file-input" class="hidden" accept=".pdf" multiple>
+            </div>
+        </div>
+
+        <!-- Tab 2 View: Source Library Checklist (Hidden by default) -->
+        <div id="tab-content-library" class="hidden flex-1 flex flex-col p-6 overflow-hidden">
+            <!-- Search & Checklist Header -->
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-dark-text-muted text-[18px]">search</span>
+                    <input type="text" id="library-checklist-search" oninput="filterLibraryChecklist()" placeholder="Search library sources..." class="w-full bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full pl-9 pr-4 py-1.5 text-sm text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent transition-colors">
+                </div>
+                <button type="button" onclick="selectAllLibraryChecklist()" class="text-xs font-semibold text-secondary dark:text-dark-accent hover:underline whitespace-nowrap">
+                    Select All Unlinked
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div id="library-checklist-loading" class="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-variant dark:text-dark-text-muted">
+                <span class="material-symbols-outlined animate-spin text-[32px] text-secondary dark:text-dark-accent">progress_activity</span>
+                <p class="text-sm font-medium">Loading library sources...</p>
+            </div>
+
+            <!-- Empty Checklist State -->
+            <div id="library-checklist-empty" class="hidden flex-col items-center justify-center py-12 text-center text-on-surface-variant dark:text-dark-text-muted">
+                <span class="material-symbols-outlined text-[36px] mb-2 text-on-surface-variant/50">folder_open</span>
+                <p class="text-sm font-medium">No uploaded sources in library yet.</p>
+            </div>
+
+            <!-- Sources Checklist Scrollable Container -->
+            <div id="library-checklist-container" class="hidden flex-1 overflow-y-auto max-h-[280px] space-y-2 pr-1">
+                <!-- Checklist Items dynamically populated -->
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="mt-4 pt-3 border-t border-paper dark:border-dark-border flex items-center justify-between">
+                <span id="library-selected-count" class="text-xs font-medium text-on-surface-variant dark:text-dark-text-muted">0 sources selected</span>
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button type="button" onclick="closeUploadModal()" class="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" id="btn-submit-link-sources" onclick="submitLinkSources()" disabled class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-3.5 sm:px-4 py-1.5 flex items-center gap-1.5 sm:gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs sm:text-sm">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">add_link</span>
+                        <span>Link Sources</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Source Modal Overlay (Hidden by default) -->
+<div id="delete-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+        <div class="flex justify-between items-start">
+            <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Remove Source</h3>
+            <button onclick="closeDeleteModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+        
+        <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted">
+            Remove <span id="delete-modal-filename" class="font-semibold text-on-surface dark:text-dark-text truncate inline-block max-w-[240px] align-bottom"></span>?
+        </p>
+
+        <div class="flex flex-col gap-2.5 mt-2">
+            <!-- Active / Primary button: Remove from Notebook -->
+            <button id="btn-delete-notebook" onclick="confirmDeleteSource('notebook')" class="w-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:opacity-90 transition-opacity font-medium">
+                <span class="material-symbols-outlined text-[18px]">bookmark_remove</span>
+                <span>Remove from Notebook</span>
+            </button>
+            
+            <!-- Secondary button: Delete from Library -->
+            <button id="btn-delete-library" onclick="confirmDeleteSource('library')" class="w-full border border-error/50 text-error dark:border-red-400/50 dark:text-red-400 font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:bg-error/10 dark:hover:bg-red-400/10 transition-colors font-medium">
+                <span class="material-symbols-outlined text-[18px]">delete_forever</span>
+                <span>Delete from Library</span>
+            </button>
+
+            <!-- Cancel button -->
+            <button onclick="closeDeleteModal()" class="w-full py-1.5 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Source Modal Overlay (Hidden by default) -->
+<div id="rename-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+        <div class="flex justify-between items-start">
+            <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Rename Source</h3>
+            <button onclick="closeRenameModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="rename-input" class="text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">Document Name</label>
+            <input type="text" id="rename-input" onkeydown="if(event.key==='Enter') confirmRenameSource()" class="w-full px-3.5 py-2.5 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl text-on-surface dark:text-dark-text focus:outline-none focus:border-secondary dark:focus:border-dark-accent text-sm" placeholder="Enter file name...">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 mt-2">
+            <button onclick="closeRenameModal()" class="px-4 py-2 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+                Cancel
+            </button>
+            <button onclick="confirmRenameSource()" class="bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md px-5 py-2 rounded-full hover:opacity-90 transition-opacity font-medium">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- STUDY TOOL GENERATOR MODAL (FLASHCARDS & QUIZZES)                         -->
+<!-- ========================================================================= -->
+<div id="study-generator-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-md custom-shadow flex flex-col overflow-hidden max-h-[90vh]">
+        <!-- Header -->
+        <div class="p-4 sm:p-5 pb-3 border-b border-paper dark:border-dark-border flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent flex-shrink-0">
+                    <span id="study-gen-icon" class="material-symbols-outlined text-[20px]">style</span>
+                </div>
+                <div>
+                    <h2 id="study-gen-title" class="text-sm font-bold text-on-surface dark:text-dark-text leading-tight">Create Flashcards</h2>
+                    <p id="study-gen-subtitle" class="text-[11px] text-on-surface-variant dark:text-dark-text-muted">Generate study material from your document</p>
+                </div>
+            </div>
+            <button onclick="closeStudyModal()" class="w-7 h-7 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all aspect-square">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5">
+            <!-- Single Source Selection -->
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-[11px] font-semibold uppercase text-on-surface-variant dark:text-dark-text-muted tracking-wider">Select Source Document</label>
+                    <span class="text-[10px] text-secondary dark:text-dark-accent font-medium">1 document</span>
+                </div>
+                <div id="study-sources-radio-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- Custom Focus Instructions -->
+            <div>
+                <label class="block text-[11px] font-semibold uppercase text-on-surface-variant dark:text-dark-text-muted tracking-wider mb-1.5">Custom Focus (Optional)</label>
+                <textarea id="study-custom-prompt" rows="2" placeholder="e.g. Focus on key definitions and principles..." class="w-full text-xs rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg p-2.5 text-on-surface dark:text-dark-text placeholder-on-surface-variant/50 dark:placeholder-dark-text-muted/50 focus:outline-none focus:border-secondary dark:focus:border-dark-accent transition-colors"></textarea>
+            </div>
+
+            <!-- Full Document Info Badge -->
+            <div class="p-2.5 rounded-xl bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border flex items-center gap-2">
+                <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[16px] flex-shrink-0">auto_awesome</span>
+                <span class="text-[11px] text-on-surface-variant dark:text-dark-text-muted">Analyzes full document • 1 generation per 30 mins</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3.5 sm:p-4 border-t border-paper dark:border-dark-border flex items-center justify-between">
+            <span id="study-lock-hint" class="text-[11px] text-on-surface-variant dark:text-dark-text-muted">Free developer tier</span>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="closeStudyModal()" class="px-3.5 py-1.5 font-label-md text-xs text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+                    Cancel
+                </button>
+                <button type="button" id="btn-generate-study" onclick="submitGenerateStudyTool()" class="bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity font-medium flex items-center gap-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                    <span id="study-btn-spinner" class="hidden material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                    <span id="study-btn-text">Generate</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CUSTOM DELETE CONFIRMATION MODAL                                          -->
+<!-- ========================================================================= -->
+<div id="delete-study-tool-modal" class="hidden fixed inset-0 z-[130] bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow flex flex-col overflow-hidden p-5">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="h-10 w-10 rounded-full bg-error/10 dark:bg-red-500/10 flex items-center justify-center text-error dark:text-red-400 flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">delete</span>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-on-surface dark:text-dark-text" id="delete-study-modal-title">Delete Study Tool</h3>
+                <p class="text-[11px] text-on-surface-variant dark:text-dark-text-muted">This action cannot be undone.</p>
+            </div>
+        </div>
+        <p id="delete-study-modal-desc" class="text-xs text-on-surface-variant dark:text-dark-text-muted mb-4 leading-relaxed">
+            Are you sure you want to delete this item?
+        </p>
+        <div class="flex items-center justify-end gap-2">
+            <button type="button" onclick="closeDeleteStudyModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text hover:bg-surface-variant/40 dark:hover:bg-dark-panel-hover transition-colors">
+                Cancel
+            </button>
+            <button type="button" id="confirm-delete-study-btn" onclick="executeDeleteStudyTool()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-error text-white dark:bg-red-600 hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-sm">
+                <span>Delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+
+                <div id="note-link-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+                    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl p-4 w-full max-w-sm shadow-2xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">link</span> Insert Link
+                            </span>
+                            <button type="button" onclick="closeNoteLinkModal()" class="text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface">
+                                <span class="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-[11px] font-medium text-on-surface-variant dark:text-dark-text-muted mb-1">Text to display</label>
+                                <input type="text" id="note-link-text-input" placeholder="e.g. Reference Documentation" class="w-full px-3 py-1.5 text-xs rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-on-surface-variant dark:text-dark-text-muted mb-1">Link URL</label>
+                                <input type="url" id="note-link-url-input" onkeydown="if(event.key==='Enter')confirmInsertLink()" placeholder="https://example.com" class="w-full px-3 py-1.5 text-xs rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent">
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-end gap-2 pt-1">
+                            <button type="button" onclick="closeNoteLinkModal()" class="px-3 py-1 rounded-lg border border-paper dark:border-dark-border text-xs text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/40">Cancel</button>
+                            <button type="button" onclick="confirmInsertLink()" class="px-3.5 py-1 rounded-lg bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-semibold hover:opacity-90">Insert Link</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUSTOM IN-APP MATH FORMULA MODAL (NO BROWSER POPUPS) -->
+                <div id="note-math-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+                    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl p-4 w-full max-w-sm shadow-2xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">functions</span> Insert Math Formula
+                            </span>
+                            <button type="button" onclick="closeNoteMathModal()" class="text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface">
+                                <span class="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-on-surface-variant dark:text-dark-text-muted mb-1">Formula (e.g. E = mc^2, \frac{a}{b}, x^2 + y^2)</label>
+                            <input type="text" id="note-math-formula-input" oninput="updateNoteMathPreview()" onkeydown="if(event.key==='Enter')confirmInsertMath()" placeholder="e.g. E = mc^2" class="w-full px-3 py-1.5 text-xs rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg text-on-surface dark:text-dark-text outline-none focus:border-secondary dark:focus:border-dark-accent font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-on-surface-variant/70 dark:text-dark-text-muted mb-1">Live Formula Preview</label>
+                            <div id="note-math-preview" class="p-2.5 rounded-xl border border-paper dark:border-dark-border bg-surface-variant/40 dark:bg-dark-bg min-h-[38px] flex items-center justify-center text-xs text-on-surface dark:text-dark-text">
+                                <span class="text-on-surface-variant/50 text-[11px]">Type formula above...</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-end gap-2 pt-1">
+                            <button type="button" onclick="closeNoteMathModal()" class="px-3 py-1 rounded-lg border border-paper dark:border-dark-border text-xs text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/40">Cancel</button>
+                            <button type="button" onclick="confirmInsertMath()" class="px-3.5 py-1 rounded-lg bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-semibold hover:opacity-90">Insert Formula</button>
+                        </div>
+                    </div>
+                </div>
+

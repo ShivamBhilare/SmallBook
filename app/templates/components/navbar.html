@@ -1,0 +1,68 @@
+<!-- TopNavBar (Common across app) -->
+<nav x-data="{ userMenuOpen: false }" class="bg-surface dark:bg-dark-panel border-b border-paper dark:border-dark-border flex flex-col lg:flex-row justify-between items-center w-full px-4 lg:px-margin min-h-[64px] py-3 lg:py-0 z-50 flex-shrink-0 gap-3 lg:gap-0 sticky top-0">
+    <div class="flex items-center justify-between w-full lg:w-auto">
+        <a href="/" class="flex items-center gap-sm cursor-pointer">
+            <img alt="SmallBook Logo" class="h-8 w-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClev6H_G8bgxiebPRYEsGg5DJQbeRbRX1bIbaGmZ7bw9bDu5oqjKqVzDyUnSE8M_e1hNmNtlHNtX8FW44z0Ri3qO-9nf0l1S4ztQNmPXQbIr7pJJocaG0lwVpX4TtEFBgGTOBbo6EDEx4QuGOQPzw0D05jnkECQQPyyvXkAO4ZTaNsUnjgxqO9qii1BPtKMkBKSt5A5HQLHqhJ1sJsZG5usQEtEZMXCbVP6vivy0VtikjnWP51f7lVlg">
+            <span class="text-headline-md font-headline-md font-bold text-primary dark:text-dark-text tracking-tight">{{ notebook.title if notebook is defined and notebook else 'SmallBook' }}</span>
+        </a>
+        <!-- Mobile Actions -->
+        <div class="flex lg:hidden items-center gap-2">
+            <!-- BYOK Key Icon Button (Mobile) -->
+            <button @click="window.dispatchEvent(new CustomEvent('open-byok-modal'))" title="LLM Keys & Models (Cmd+K)" class="relative h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">vpn_key</span>
+                <span id="byok-header-status-dot-mobile" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-surface dark:ring-dark-panel" title="Free Tier Active"></span>
+            </button>
+            <button @click="window.dispatchEvent(new CustomEvent('open-library-modal'))" title="Sources Library" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">library_books</span>
+            </button>
+            <button onclick="toggleTheme()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+            </button>
+            <div class="relative">
+                <button @click="userMenuOpen = !userMenuOpen" class="h-8 w-8 rounded-full bg-surface-variant overflow-hidden border border-paper dark:border-dark-border flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">person</span>
+                </button>
+                <div x-show="userMenuOpen" @click.outside="userMenuOpen = false" x-transition class="absolute right-0 mt-2 w-48 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-lg py-1 z-50">
+                    <button @click="signOut()" class="w-full text-left px-4 py-2 text-body-sm text-error dark:text-error hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">logout</span>
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex items-center justify-start lg:justify-end gap-md w-full lg:w-auto">
+        <button @click="if(window.location.pathname === '/notebooks/dashboard' || window.location.pathname === '/') { window.dispatchEvent(new CustomEvent('open-create-modal')); } else { window.location.href = '/notebooks/dashboard?create=1'; }" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-5 py-1.5 font-label-md flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+            <span class="material-symbols-outlined text-[18px]">add</span>
+            Create Notebook
+        </button>
+
+        <!-- Desktop Actions -->
+        <div class="hidden lg:flex items-center gap-2 relative">
+            <!-- BYOK Key Icon Button (Desktop) -->
+            <button @click="window.dispatchEvent(new CustomEvent('open-byok-modal'))" title="LLM Keys & Model Preferences (Cmd+K / Ctrl+K)" class="relative h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">vpn_key</span>
+                <span id="byok-header-status-dot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-surface dark:ring-dark-panel" title="Free Tier Active"></span>
+            </button>
+            <!-- Sources Library Icon Button (Desktop) -->
+            <button @click="window.dispatchEvent(new CustomEvent('open-library-modal'))" title="Sources Library" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px]">library_books</span>
+            </button>
+            <button onclick="toggleTheme()" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+            </button>
+            <div class="relative">
+                <button @click="userMenuOpen = !userMenuOpen" class="h-9 w-9 rounded-full bg-surface-variant overflow-hidden border border-paper dark:border-dark-border flex items-center justify-center text-on-surface-variant dark:text-dark-text">
+                    <span class="material-symbols-outlined text-[20px]">person</span>
+                </button>
+                <div x-show="userMenuOpen" @click.outside="userMenuOpen = false" x-transition class="absolute right-0 mt-2 w-48 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-lg py-1 z-50">
+                    <button @click="signOut()" class="w-full text-left px-4 py-2 text-body-sm text-error hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover flex items-center gap-2 font-medium">
+                        <span class="material-symbols-outlined text-[18px]">logout</span>
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>

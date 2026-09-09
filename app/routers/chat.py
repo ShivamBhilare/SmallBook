@@ -253,6 +253,14 @@ def send_chat_message(
                     "score": float(getattr(chunk, "score", 1.0))
                 })
 
+            timings = {
+                "retrieval_ms": round(retrieval_time_ms, 2),
+                "llm_ms": round(llm_time_ms, 2),
+                "total_ms": round(retrieval_time_ms + llm_time_ms, 2),
+            }
+            if retrieval_result and "timings_ms" in retrieval_result:
+                timings["retrieval_breakdown"] = retrieval_result["timings_ms"]
+
             # 9. Persist Assistant Message to chat_messages (only if content was generated)
             assistant_msg_id = None
             actual_provider_name = infer_llm_provider(actual_model_used)
@@ -265,7 +273,11 @@ def send_chat_message(
                     content=full_assistant_content,
                     parent_id=user_msg_id,
                     llm_provider=actual_provider_name,
-                    llm_model=actual_model_used
+                    llm_model=actual_model_used,
+                    metadata={
+                        "timings_ms": timings,
+                        "used_tokens": used_tokens
+                    }
                 )
                 assistant_msg_id = assistant_msg_record.get("id")
 
@@ -275,14 +287,6 @@ def send_chat_message(
                         save_citations(assistant_msg_id, citations_for_db)
                     except Exception as cit_save_err:
                         print(f"Failed to persist citations: {cit_save_err}")
-
-            timings = {
-                "retrieval_ms": round(retrieval_time_ms, 2),
-                "llm_ms": round(llm_time_ms, 2),
-                "total_ms": round(retrieval_time_ms + llm_time_ms, 2),
-            }
-            if retrieval_result and "timings_ms" in retrieval_result:
-                timings["retrieval_breakdown"] = retrieval_result["timings_ms"]
 
             metadata_payload = {
                 "type": "metadata",

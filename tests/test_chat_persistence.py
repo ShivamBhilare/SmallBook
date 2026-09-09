@@ -115,3 +115,40 @@ async def test_chat_streaming_saves_assistant_message_when_content_generated():
         assert len(metadata_events) == 1
         meta_data = json.loads(metadata_events[0].replace("data: ", "").strip())
         assert meta_data["message_id"] == mock_asst_msg_id
+
+
+def test_chat_history_metadata_extraction():
+    from app.services.chat.chat_service import extract_message_metadata, get_chat_history
+
+    raw_text = "Here is the response.\n\n<!--smallbook-meta:{\"timings_ms\": {\"total_ms\": 123.4, \"retrieval_ms\": 23.4, \"llm_ms\": 100.0}, \"used_tokens\": 250}-->"
+    clean, meta = extract_message_metadata(raw_text)
+    assert clean == "Here is the response."
+    assert meta["timings_ms"]["total_ms"] == 123.4
+    assert meta["used_tokens"] == 250
+
+    # Test clean text without metadata
+    clean2, meta2 = extract_message_metadata("Plain answer without metadata")
+    assert clean2 == "Plain answer without metadata"
+    assert meta2 is None
+
+    # Test get_chat_history parsing
+    mock_client = MagicMock()
+    mock_client.table().select().eq().order().execute.return_value = MagicMock(
+        data=[
+            {
+                "id": "msg-1",
+                "notebook_id": "nb-1",
+                "role": "assistant",
+                "content": raw_text,
+                "created_at": "2026-09-09T00:00:00Z"
+            }
+        ]
+    )
+    mock_client.table().select().in_().order().execute.return_value = MagicMock(data=[])
+
+    history = get_chat_history(mock_client, "nb-1")
+    assert len(history) == 1
+    assert history[0]["content"] == "Here is the response."
+    assert history[0]["timings_ms"]["total_ms"] == 123.4
+    assert history[0]["used_tokens"] == 250
+

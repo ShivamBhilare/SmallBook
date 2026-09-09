@@ -11,9 +11,11 @@ from app.models.study_models import (
     NoteCreateRequest,
     NoteUpdateRequest
 )
+from app.core.redis_client import get_redis_client
 from app.services.study.concurrency import (
     acquire_study_lock,
     check_and_set_cooldown,
+    get_cooldown_remaining,
     clear_cooldown
 )
 from app.services.study.flashcard_service import (
@@ -49,28 +51,76 @@ def _dispatch_study_task(
     requested_model: Optional[str],
     num_items: Optional[int] = None
 ):
-    """Dispatches generation task to Celery with fallback to direct execution."""
-    try:
-        from app.services.study.celery_tasks import generate_study_tool_task
-        generate_study_tool_task.apply_async(
-            args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model, num_items],
-            connect_timeout=5,
-            retry=True
-        )
-    except Exception as e:
-        logger.warning(f"Celery dispatch failed ({e}). Executing directly in background worker thread...")
+    """Dispatches generation task to Celery with fast fallback to background thread."""
+    redis_client = get_redis_client()
+    if redis_client:
         try:
             from app.services.study.celery_tasks import generate_study_tool_task
+            generate_study_tool_task.apply_async(
+                args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model, num_items],
+                connect_timeout=2,
+                retry=False
+            )
+            return
+        except Exception as e:
+            logger.warning(f"Celery dispatch failed ({e}). Executing directly in background worker thread...")
+
+    # Detached daemon thread so it runs in background without blocking Celery retries or FastAPI worker
+    import threading
+    from app.services.study.celery_tasks import generate_study_tool_task
+
+    def _run_in_background():
+        try:
             generate_study_tool_task.apply(
                 args=[notebook_id, user_id, source_id, tool_type, custom_prompt, requested_model, num_items]
             )
         except Exception as direct_err:
             logger.exception(f"Direct background study task failed: {direct_err}")
 
+    thread = threading.Thread(target=_run_in_background, daemon=True)
+    thread.start()
+
 
 # ==============================================================================
 # GENERATION ENDPOINTS
 # ==============================================================================
+
+@router.get("/notebooks/{notebook_id}/study/cooldown")
+def get_study_cooldown_status(
+    notebook_id: str,
+    tool_type: Optional[str] = None,
+    user = Depends(login_required)
+):
+    """
+    Returns the remaining cooldown time for study tools (flashcards and quiz)
+    without mutating the cooldown timer. Allows UI to proactively show cooldown.
+    """
+    user_id = str(user.id)
+    rem_fc = get_cooldown_remaining(user_id, "flashcards")
+    rem_quiz = get_cooldown_remaining(user_id, "quiz")
+
+    if tool_type:
+        rem = rem_fc if tool_type == "flashcards" else rem_quiz
+        return {
+            "tool_type": tool_type,
+            "active": rem > 0,
+            "remaining_seconds": rem,
+            "remaining_minutes": max(1, round(rem / 60)) if rem > 0 else 0
+        }
+
+    return {
+        "flashcards": {
+            "active": rem_fc > 0,
+            "remaining_seconds": rem_fc,
+            "remaining_minutes": max(1, round(rem_fc / 60)) if rem_fc > 0 else 0
+        },
+        "quiz": {
+            "active": rem_quiz > 0,
+            "remaining_seconds": rem_quiz,
+            "remaining_minutes": max(1, round(rem_quiz / 60)) if rem_quiz > 0 else 0
+        }
+    }
+
 
 @router.post("/notebooks/{notebook_id}/study/generate", status_code=status.HTTP_202_ACCEPTED)
 def generate_study_tool(
@@ -83,19 +133,29 @@ def generate_study_tool(
     """
     Asynchronously generates a Flashcard deck or Quiz for a selected source document.
     Enforces:
-      1. Notebook and source ownership & linkage.
-      2. 30-minute cooldown (1 flashcard and 1 quiz per 30 minutes per user).
+      1. Immediate fast-path 30-minute cooldown check (zero database latency).
+      2. Notebook and source ownership & linkage.
       3. Active generation lock.
-      4. Non-blocking asynchronous Celery execution.
+      4. Non-blocking asynchronous worker execution.
     """
     user_id = str(user.id)
-    
-    # 1. Verify notebook access
+
+    # 1. IMMEDIATE FAST-PATH: Check 30-minute cooldown per user per tool type (1800s)
+    # Checked FIRST to return 429 in 0ms without waiting for 3 database queries!
+    rem = get_cooldown_remaining(user_id, payload.tool_type)
+    if rem > 0:
+        rem_mins = max(1, round(rem / 60))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Cooldown active: You can generate 1 {payload.tool_type} every 30 minutes. Please wait {rem_mins} more minute(s)."
+        )
+
+    # 2. Verify notebook access
     nb_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
     if not nb_check.data:
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
 
-    # 2. Verify source access and that source is attached to this notebook
+    # 3. Verify source access and that source is attached to this notebook
     source_check = client.table("sources").select("id").eq("id", payload.source_id).eq("user_id", user_id).execute()
     if not source_check.data:
         raise HTTPException(status_code=404, detail="Source document not found or access denied.")
@@ -104,7 +164,7 @@ def generate_study_tool(
     if not link_check.data:
         raise HTTPException(status_code=400, detail="Source document is not linked to this notebook.")
 
-    # 3. Check 30-minute cooldown per user per tool type (1800s)
+    # 4. Set cooldown atomically
     can_generate, remaining_seconds = check_and_set_cooldown(user_id, payload.tool_type, cooldown_seconds=1800)
     if not can_generate:
         rem_mins = max(1, round(remaining_seconds / 60))
@@ -113,7 +173,7 @@ def generate_study_tool(
             detail=f"Cooldown active: You can generate 1 {payload.tool_type} every 30 minutes. Please wait {rem_mins} more minute(s)."
         )
 
-    # 4. Acquire active generation lock
+    # 5. Acquire active generation lock
     if not acquire_study_lock(user_id, timeout_seconds=180):
         # Clear the cooldown we just set so user can try after current run finishes
         clear_cooldown(user_id, payload.tool_type)
@@ -122,7 +182,7 @@ def generate_study_tool(
             detail="A study tool is already being generated in the background. Please wait for it to complete."
         )
 
-    # 5. Handoff to background Celery worker
+    # 6. Handoff to background Celery / thread worker
     background_tasks.add_task(
         _dispatch_study_task,
         notebook_id=notebook_id,

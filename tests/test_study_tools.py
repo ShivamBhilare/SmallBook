@@ -76,13 +76,19 @@ def test_study_concurrency_lock():
 
 
 def test_study_cooldown():
-    from app.services.study.concurrency import check_and_set_cooldown, clear_cooldown
+    from app.services.study.concurrency import check_and_set_cooldown, get_cooldown_remaining, clear_cooldown
     user_id = f"cd-user-{uuid4()}"
     
+    # 0. Check remaining initially -> 0
+    assert get_cooldown_remaining(user_id, "flashcards") == 0
+
     # 1. First run -> can generate
     can_gen, rem = check_and_set_cooldown(user_id, "flashcards", cooldown_seconds=1800)
     assert can_gen is True
     assert rem == 0
+
+    # Remaining should now be positive without mutating
+    assert get_cooldown_remaining(user_id, "flashcards") > 0
 
     # 2. Second run within 30 mins -> blocked with remaining seconds
     can_gen_2, rem_2 = check_and_set_cooldown(user_id, "flashcards", cooldown_seconds=1800)
@@ -92,9 +98,37 @@ def test_study_cooldown():
     # 3. Quiz is tracked independently from flashcards
     can_gen_quiz, rem_quiz = check_and_set_cooldown(user_id, "quiz", cooldown_seconds=1800)
     assert can_gen_quiz is True
+    assert get_cooldown_remaining(user_id, "quiz") > 0
 
     clear_cooldown(user_id, "flashcards")
     clear_cooldown(user_id, "quiz")
+    assert get_cooldown_remaining(user_id, "flashcards") == 0
+    assert get_cooldown_remaining(user_id, "quiz") == 0
+
+
+def test_study_cooldown_endpoint():
+    from app.routers.study import get_study_cooldown_status
+    from app.services.study.concurrency import check_and_set_cooldown, clear_cooldown
+
+    user_id = f"endpoint-user-{uuid4()}"
+    mock_user = MagicMock()
+    mock_user.id = user_id
+
+    # Initially both idle
+    status_all = get_study_cooldown_status(notebook_id="nb-1", user=mock_user)
+    assert status_all["flashcards"]["active"] is False
+    assert status_all["quiz"]["active"] is False
+
+    # Trigger flashcard cooldown
+    check_and_set_cooldown(user_id, "flashcards", cooldown_seconds=1800)
+
+    status_fc = get_study_cooldown_status(notebook_id="nb-1", tool_type="flashcards", user=mock_user)
+    assert status_fc["active"] is True
+    assert status_fc["remaining_seconds"] > 0
+    assert status_fc["remaining_minutes"] >= 1
+
+    clear_cooldown(user_id, "flashcards")
+
 
 
 def test_generate_flashcards_service():

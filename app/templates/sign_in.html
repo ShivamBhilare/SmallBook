@@ -75,40 +75,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-    function signInForm() {
-        return {
-            email: '',
-            password: '',
-            showPassword: false,
-            loading: false,
-            errorMsg: '',
-            successMsg: '',
-            async submitForm() {
-                this.errorMsg = '';
-                this.successMsg = '';
-                this.loading = true;
-                try {
-                    const res = await fetch('/auth/api/sign-in', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: this.email, password: this.password })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                        throw new Error(data.detail || 'Sign in failed');
-                    }
-                    this.successMsg = 'Signed in successfully! Redirecting...';
-                    setTimeout(() => {
-                        window.location.href = data.redirect_url || '/notebooks/dashboard';
-                    }, 500);
-                } catch (err) {
-                    this.errorMsg = err.message;
-                } finally {
-                    this.loading = false;
-                }
-            }
-        }
-    }
-</script>
+<script src="/static/js/components/auth-forms.js"></script>
 {% endblock %}

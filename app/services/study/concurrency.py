@@ -102,6 +102,32 @@ def check_and_set_cooldown(user_id: str, tool_type: str, cooldown_seconds: int =
     return True, 0
 
 
+def get_cooldown_remaining(user_id: str, tool_type: str) -> int:
+    """
+    Returns the remaining cooldown seconds if active, or 0 if user is eligible to generate.
+    Does NOT mutate the cooldown timer.
+    """
+    client = get_redis_client()
+    cd_key = f"cooldown:study:{tool_type}:{user_id}"
+    
+    if client:
+        try:
+            ttl = client.ttl(cd_key)
+            if ttl is not None and ttl > 0:
+                return ttl
+            return 0
+        except Exception as e:
+            logger.warning(f"Redis error peeking cooldown {cd_key}: {e}. Checking in-memory.")
+
+    # In-memory fallback
+    now = time.time()
+    mem_key = f"{tool_type}:{user_id}"
+    expires_at = _local_cooldowns.get(mem_key, 0.0)
+    if now < expires_at:
+        return max(0, int(expires_at - now))
+    return 0
+
+
 def clear_cooldown(user_id: str, tool_type: str) -> None:
     """Clears cooldown (e.g. on generation failure or test cleanup)."""
     client = get_redis_client()
@@ -114,3 +140,4 @@ def clear_cooldown(user_id: str, tool_type: str) -> None:
     
     mem_key = f"{tool_type}:{user_id}"
     _local_cooldowns.pop(mem_key, None)
+

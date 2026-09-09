@@ -1,10 +1,36 @@
 import logging
-from typing import List, Optional, Dict, Any
+import json
+from typing import List, Optional, Dict, Any, Tuple
 from supabase import Client
 from postgrest.exceptions import APIError
 from app.services.authentication.auth_service import get_service_role_client
 
 logger = logging.getLogger(__name__)
+
+META_PREFIX = "<!--smallbook-meta:"
+META_SUFFIX = "-->"
+
+
+def extract_message_metadata(content: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+    """
+    Extracts embedded JSON metadata from message content, returning the clean content
+    and the parsed metadata dictionary (or None).
+    """
+    if not content or META_PREFIX not in content:
+        return content, None
+
+    start_idx = content.find(META_PREFIX)
+    end_idx = content.find(META_SUFFIX, start_idx)
+    if start_idx != -1 and end_idx != -1:
+        json_str = content[start_idx + len(META_PREFIX):end_idx]
+        clean_content = (content[:start_idx] + content[end_idx + len(META_SUFFIX):]).rstrip()
+        try:
+            meta = json.loads(json_str)
+            return clean_content, meta
+        except Exception:
+            return clean_content, None
+    return content, None
+
 
 def infer_llm_provider(model_name: Optional[str]) -> Optional[str]:
     """Infers the LLM provider name from the model identifier string."""
@@ -50,15 +76,25 @@ def save_chat_message(
     parent_id: Optional[str] = None,
     llm_provider: Optional[str] = None,
     llm_model: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Inserts a user or assistant message into the chat_messages table.
+    If metadata is provided (e.g. timings_ms, used_tokens), embeds it into content.
     Uses the provided client, falling back to the service role client if needed.
     """
+    stored_content = content
+    if metadata:
+        try:
+            meta_json = json.dumps(metadata)
+            stored_content = f"{content}\n\n{META_PREFIX}{meta_json}{META_SUFFIX}"
+        except Exception as e:
+            logger.warning(f"Failed to serialize chat message metadata: {e}")
+
     data: Dict[str, Any] = {
         "notebook_id": notebook_id,
         "role": role,
-        "content": content,
+        "content": stored_content,
         "is_summarized": False,
     }
     if parent_id:
@@ -170,9 +206,14 @@ def get_chat_history(client: Client, notebook_id: str) -> List[Dict[str, Any]]:
             except Exception as cit_err:
                 logger.warning(f"Error loading citations for notebook {notebook_id}: {cit_err}")
 
-        # Attach citations to messages
+        # Attach citations and metadata to messages
         for msg in messages:
             msg["citations"] = citations_by_msg.get(msg["id"], [])
+            clean_content, meta = extract_message_metadata(msg.get("content", ""))
+            msg["content"] = clean_content
+            if meta:
+                msg["timings_ms"] = meta.get("timings_ms")
+                msg["used_tokens"] = meta.get("used_tokens")
 
         return messages
     except APIError as e:

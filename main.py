@@ -5,6 +5,7 @@ load_dotenv()
 from fastapi import FastAPI, Depends, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.routers.auth import router as auth_router
 from app.routers.notebooks import router as notebooks_router
@@ -15,6 +16,8 @@ from app.routers.study import router as study_router
 from app.services.authentication.auth_service import get_optional_current_user
 
 app = FastAPI(title="SmallBook")
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
 

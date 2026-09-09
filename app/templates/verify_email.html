@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block content %}
-<main class="flex-1 flex items-center justify-center p-4" x-data="verifyEmailState()">
+<main class="flex-1 flex items-center justify-center p-4" x-data="verifyEmailState('{{ email|default("") }}')">
     <div class="w-full max-w-md bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl custom-shadow p-8 text-center relative">
         
         <div class="h-16 w-16 bg-surface-variant dark:bg-dark-panel-hover rounded-full flex items-center justify-center mx-auto mb-6">
@@ -68,41 +68,8 @@
 
     </div>
 </main>
+{% endblock %}
 
-<script>
-    function verifyEmailState() {
-        return {
-            email: new URLSearchParams(window.location.search).get('email') || '{{ email }}' || '',
-            loading: false,
-            successMsg: '',
-            errorMsg: '',
-            async resendVerification() {
-                if (!this.email || !this.email.includes('@')) {
-                    this.errorMsg = 'Please provide a valid email address.';
-                    this.successMsg = '';
-                    return;
-                }
-                this.loading = true;
-                this.errorMsg = '';
-                this.successMsg = '';
-                try {
-                    const res = await fetch('/auth/api/resend-verification', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: this.email.trim() })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                        throw new Error(data.detail || 'Failed to resend verification link.');
-                    }
-                    this.successMsg = data.message || 'Verification link has been resent!';
-                } catch (err) {
-                    this.errorMsg = err.message;
-                } finally {
-                    this.loading = false;
-                }
-            }
-        };
-    }
-</script>
+{% block extra_scripts %}
+<script src="/static/js/components/auth-forms.js"></script>
 {% endblock %}

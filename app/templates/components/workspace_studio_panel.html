@@ -1,0 +1,352 @@
+    <aside id="panel-studio" class="hidden lg:flex w-full lg:w-[var(--right-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+        
+        <!-- 1. STUDIO MAIN VIEW (Features + Artifacts List) -->
+        <div id="studio-main-view" class="flex-1 flex flex-col h-full overflow-hidden">
+            <!-- Studio Header -->
+            <div class="panel-header hidden lg:flex px-3 py-2 border-b border-paper dark:border-dark-border items-center justify-between flex-shrink-0">
+                <h2 class="font-label-md font-semibold dark:text-dark-text hide-on-collapse">Studio</h2>
+                <button onclick="togglePanel('right')" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+                    <span id="collapse-icon-right" class="material-symbols-outlined text-[20px]">keyboard_double_arrow_right</span>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto flex flex-col pb-md pt-2 lg:pt-0">
+                <!-- Studio Features -->
+                <div class="p-md hide-on-collapse">
+                    <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest mb-sm">Study Tools</h3>
+                </div>
+                <div class="px-md mb-sm">
+                    <div class="features-grid grid grid-cols-3 gap-sm">
+                        <div onclick="handleFeatureItemClick('flashcards')" title="Create Flashcards" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent group-hover:scale-110 transition-transform">style</span>
+                            <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Flashcards</span>
+                        </div>
+                        <div onclick="handleFeatureItemClick('quiz')" title="Create Quiz" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent group-hover:scale-110 transition-transform">school</span>
+                            <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Quiz</span>
+                        </div>
+                        <div onclick="handleFeatureItemClick('notes')" title="New Note & Scratchpad" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent group-hover:scale-110 transition-transform">edit_note</span>
+                            <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Notes</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Divider -->
+                <hr class="border-paper dark:border-dark-border mx-md my-sm hide-on-collapse">
+                
+                <!-- Study Artifacts (Decks, Quizzes & Notes) -->
+                <div class="px-md flex-1 flex flex-col">
+                    <div class="flex items-center justify-between mb-sm hide-on-collapse">
+                        <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest">Artifacts</h3>
+                        <div class="flex items-center gap-1.5">
+                            <div class="relative">
+                                <select id="artifact-sort-select" onchange="changeArtifactSort(this.value)" title="Sort artifacts" class="text-[10px] bg-transparent text-on-surface-variant dark:text-dark-text-muted border border-paper dark:border-dark-border rounded-md px-1.5 py-0.5 outline-none cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors font-medium">
+                                    <option value="modified_desc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Recently Modified</option>
+                                    <option value="created_desc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Date Created</option>
+                                    <option value="title_asc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Alphabetical (A-Z)</option>
+                                </select>
+                            </div>
+                            <button onclick="loadNotebookStudyTools()" title="Refresh study tools" class="h-6 w-6 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Study Tools Container -->
+                    <div id="study-tools-container" class="space-y-sm">
+                        <!-- Dynamic items -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. STUDIO ACTIVE VIEWER (IN-PANEL FLASHCARDS, QUIZ PLAYER & NOTES EDITOR) -->
+        <div id="studio-active-viewer" class="hidden flex-1 flex-col h-full overflow-hidden bg-surface-container-lowest dark:bg-dark-panel">
+            <!-- In-Panel Viewer Header with Breadcrumbs & Expand Toggle -->
+            <div class="px-3 py-2 border-b border-paper dark:border-dark-border flex items-center justify-between flex-shrink-0 bg-surface-bright/50 dark:bg-dark-bg/50">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <button type="button" onclick="closeStudioViewer()" class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent transition-colors py-0.5 px-1 rounded-md">
+                        <span>Studio</span>
+                    </button>
+                    <span class="text-on-surface-variant/40 dark:text-dark-text-muted/40 text-xs font-semibold">&gt;</span>
+                    <div class="flex items-center gap-1 min-w-0">
+                        <span id="studio-viewer-icon" class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent flex-shrink-0">style</span>
+                        <span id="studio-viewer-title" class="text-xs font-semibold text-on-surface dark:text-dark-text truncate max-w-[160px] sm:max-w-[200px]">Note</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                    <button type="button" id="studio-btn-expand" onclick="toggleStudioViewerWidth()" title="Expand / Shrink studio" class="h-7 w-7 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text hover:bg-surface-variant/80 transition-all">
+                        <span id="studio-expand-icon" class="material-symbols-outlined text-[17px]">open_in_full</span>
+                    </button>
+                    <button type="button" onclick="closeStudioViewer()" title="Close viewer" class="h-7 w-7 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text hover:bg-surface-variant/80 transition-all">
+                        <span class="material-symbols-outlined text-[17px]">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- In-Panel Flashcard Viewer Content -->
+            <div id="studio-fc-container" class="hidden flex-1 flex flex-col overflow-hidden p-3 sm:p-4 justify-between">
+                <!-- Progress & Counter -->
+                <div>
+                    <div class="flex items-center justify-between text-xs mb-2">
+                        <span id="studio-fc-counter" class="font-medium text-on-surface-variant dark:text-dark-text-muted text-[11px]">Card 1 / 10</span>
+                        <button type="button" onclick="shuffleCurrentDeck()" title="Shuffle cards" class="flex items-center gap-1 text-[11px] text-secondary dark:text-dark-accent font-medium hover:opacity-80 transition-opacity">
+                            <span class="material-symbols-outlined text-[14px]">shuffle</span> Shuffle
+                        </button>
+                    </div>
+                    <div class="w-full bg-surface-variant/60 dark:bg-dark-border h-1 rounded-full overflow-hidden mb-2">
+                        <div id="studio-fc-progress" class="bg-secondary dark:bg-dark-accent h-1 transition-all duration-300" style="width: 10%;"></div>
+                    </div>
+                </div>
+
+                <!-- 3D Card Scene -->
+                <div class="flashcard-scene flex-1 flex items-center justify-center min-h-[220px] my-2">
+                    <div id="studio-flashcard" class="flashcard-card cursor-pointer w-full h-full min-h-[210px] max-h-[300px]" onclick="flipFlashcard()">
+                        <!-- FRONT -->
+                        <div class="flashcard-face flashcard-front bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border p-4 sm:p-5 flex flex-col justify-between shadow-sm rounded-xl">
+                            <div class="flex items-center justify-between text-[11px] text-on-surface-variant dark:text-dark-text-muted font-medium">
+                                <span class="uppercase tracking-widest text-[10px]">Front / Question</span>
+                                <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">touch_app</span>
+                            </div>
+                            <div id="studio-fc-front" class="my-auto text-sm sm:text-base font-medium text-center text-on-surface dark:text-dark-text leading-relaxed select-none">
+                                Front question goes here...
+                            </div>
+                            <div class="text-center text-[10px] text-on-surface-variant/60 dark:text-dark-text-muted/60">
+                                Click or Spacebar to flip
+                            </div>
+                        </div>
+
+                        <!-- BACK -->
+                        <div class="flashcard-face flashcard-back bg-surface-bright dark:bg-dark-bg border-2 border-secondary/40 dark:border-dark-accent/40 p-4 sm:p-5 flex flex-col justify-between shadow-sm rounded-xl">
+                            <div class="flex items-center justify-between text-[11px] text-secondary dark:text-dark-accent font-medium">
+                                <span class="uppercase tracking-widest text-[10px]">Back / Answer</span>
+                                <span class="flex items-center gap-1 text-[10px]">
+                                    <span class="material-symbols-outlined text-[14px]">verified</span> Grounded
+                                </span>
+                            </div>
+                            <div id="studio-fc-back" class="my-auto text-xs sm:text-sm text-left text-on-surface dark:text-dark-text leading-relaxed max-h-40 overflow-y-auto pr-1 select-none">
+                                Back answer goes here...
+                            </div>
+                            <div id="studio-fc-citation" class="text-[10px] text-on-surface-variant dark:text-dark-text-muted truncate"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls Footer -->
+                <div class="pt-2 flex items-center justify-between border-t border-paper dark:border-dark-border flex-shrink-0">
+                    <button type="button" onclick="prevFlashcard()" id="studio-fc-btn-prev" class="px-3 py-1.5 rounded-full border border-paper dark:border-dark-border text-xs font-medium text-on-surface dark:text-dark-text hover:bg-surface-variant/50 flex items-center gap-1 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Prev
+                    </button>
+                    <button type="button" onclick="flipFlashcard()" class="px-3.5 py-1.5 rounded-full bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border text-xs font-medium text-on-surface dark:text-dark-text hover:border-secondary dark:hover:border-dark-accent flex items-center gap-1 transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">sync</span> Flip
+                    </button>
+                    <button type="button" onclick="nextFlashcard()" id="studio-fc-btn-next" class="px-3 py-1.5 rounded-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-medium hover:opacity-90 flex items-center gap-1 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
+                        Next <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- In-Panel Quiz Player Content -->
+            <div id="studio-quiz-container" class="hidden flex-1 flex flex-col overflow-hidden p-3 sm:p-4">
+                <!-- Question View -->
+                <div id="studio-quiz-question-view" class="flex-1 flex flex-col justify-between overflow-y-auto">
+                    <div>
+                        <div class="flex items-center justify-between text-xs mb-2">
+                            <span id="studio-quiz-counter" class="font-medium text-on-surface-variant dark:text-dark-text-muted text-[11px]">Question 1 of 5</span>
+                        </div>
+                        <div class="w-full bg-surface-variant/60 dark:bg-dark-border h-1 rounded-full overflow-hidden mb-3">
+                            <div id="studio-quiz-progress" class="bg-secondary dark:bg-dark-accent h-1 transition-all duration-300" style="width: 20%;"></div>
+                        </div>
+                        <h4 id="studio-quiz-q-text" class="text-xs sm:text-sm font-semibold text-on-surface dark:text-dark-text mb-3 leading-relaxed">
+                            Question prompt goes here?
+                        </h4>
+                        <div id="studio-quiz-options" class="space-y-2 mb-3">
+                            <!-- Options injected dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between border-t border-paper dark:border-dark-border flex-shrink-0">
+                        <button type="button" onclick="prevQuizQuestion()" id="studio-quiz-btn-prev" class="px-3 py-1.5 rounded-full border border-paper dark:border-dark-border text-xs font-medium text-on-surface dark:text-dark-text hover:bg-surface-variant/50 flex items-center gap-1 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined text-[16px]">arrow_back</span> Prev
+                        </button>
+                        <button type="button" onclick="nextQuizQuestion()" id="studio-quiz-btn-next" class="px-4 py-1.5 rounded-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-medium hover:opacity-90 flex items-center gap-1 transition-opacity">
+                            Next <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </button>
+                        <button type="button" onclick="submitQuiz()" id="studio-quiz-btn-submit" class="hidden px-4 py-1.5 rounded-full bg-green-600 hover:bg-green-700 text-white text-xs font-semibold flex items-center gap-1 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span> Finish
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results / Review View -->
+                <div id="studio-quiz-results-view" class="hidden flex-1 flex flex-col overflow-y-auto">
+                    <div class="text-center p-3 rounded-xl bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border mb-3">
+                        <span class="text-[10px] uppercase font-semibold text-on-surface-variant dark:text-dark-text-muted tracking-wider">Your Score</span>
+                        <div id="studio-quiz-score-percent" class="text-2xl font-bold text-secondary dark:text-dark-accent mt-0.5">80%</div>
+                        <div id="studio-quiz-score-detail" class="text-[11px] text-on-surface-variant dark:text-dark-text-muted mt-0.5">4 of 5 correct</div>
+                    </div>
+
+                    <div id="studio-quiz-review-list" class="space-y-2 flex-1 overflow-y-auto pr-1 mb-3">
+                        <!-- Review cards -->
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between border-t border-paper dark:border-dark-border flex-shrink-0">
+                        <button type="button" onclick="retakeCurrentQuiz()" class="px-3 py-1.5 rounded-full border border-paper dark:border-dark-border text-xs font-medium text-on-surface dark:text-dark-text hover:bg-surface-variant/50 flex items-center gap-1 transition-colors">
+                            <span class="material-symbols-outlined text-[16px]">restart_alt</span> Retake
+                        </button>
+                        <button type="button" onclick="closeStudioViewer()" class="px-4 py-1.5 rounded-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-semibold hover:opacity-90 transition-opacity">
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- In-Panel Notes Content -->
+            <div id="studio-notes-container" class="hidden flex-1 flex flex-col overflow-hidden p-3 sm:p-4">
+                
+                <!-- 1. MANUAL NOTE VIEW (Rich Editor with Formatting Toolbar Matching Screenshot) -->
+                <div id="manual-note-view" class="flex-1 flex flex-col overflow-hidden">
+                    <!-- Title Input + Delete Icon (Matches User Screenshot) -->
+                    <div class="flex items-center gap-2 mb-2.5 flex-shrink-0">
+                        <div class="flex-1 relative rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors shadow-xs">
+                            <input type="text" id="note-title-input" placeholder="Title" oninput="onNoteContentChanged()" class="w-full px-3.5 py-2 text-sm sm:text-base font-semibold text-on-surface dark:text-dark-text bg-transparent outline-none">
+                        </div>
+                        <button type="button" onclick="promptDeleteCurrentNote()" title="Delete note" class="w-9 h-9 flex items-center justify-center rounded-xl text-on-surface-variant dark:text-dark-text-muted hover:text-error dark:hover:text-red-400 hover:bg-error/10 dark:hover:bg-red-400/10 transition-colors flex-shrink-0 border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg aspect-square shadow-xs">
+                            <span class="material-symbols-outlined text-[19px]">delete</span>
+                        </button>
+                    </div>
+
+                    <!-- Rich Formatting Toolbar (Matches User Screenshot) -->
+                    <div id="note-formatting-toolbar" class="flex items-center gap-0.5 sm:gap-1 p-1 bg-surface-bright/70 dark:bg-dark-bg/70 border border-paper dark:border-dark-border rounded-xl mb-2.5 flex-shrink-0 flex-wrap shadow-xs">
+                        <button type="button" onclick="applyToolbarFormat('undo')" title="Undo (Ctrl+Z)" class="w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                            <span class="material-symbols-outlined text-[16px]">undo</span>
+                        </button>
+                        <button type="button" onclick="applyToolbarFormat('redo')" title="Redo (Ctrl+Y)" class="w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                            <span class="material-symbols-outlined text-[16px]">redo</span>
+                        </button>
+                        
+                        <div class="h-4 w-px bg-paper dark:bg-dark-border mx-0.5"></div>
+
+                        <!-- Style Dropdown (Normal, Headings, Lists) -->
+                        <div class="relative inline-block" id="note-style-dropdown-container">
+                            <button type="button" onclick="toggleStyleDropdown(event)" id="note-style-btn" class="h-7 px-2 flex items-center gap-1 rounded-lg text-xs font-medium text-on-surface dark:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                                <span id="note-current-style-label">Normal</span>
+                                <span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
+                            </button>
+                            <div id="note-style-menu" class="hidden absolute top-full left-0 mt-1 w-40 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl z-50 py-1 text-xs">
+                                <button type="button" onclick="selectStyleFormat('p', 'Normal')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover font-normal text-on-surface dark:text-dark-text">Normal</button>
+                                <button type="button" onclick="selectStyleFormat('h1', 'Heading 1')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover font-bold text-sm text-on-surface dark:text-dark-text">Heading 1</button>
+                                <button type="button" onclick="selectStyleFormat('h2', 'Heading 2')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover font-semibold text-xs text-on-surface dark:text-dark-text">Heading 2</button>
+                                <button type="button" onclick="selectStyleFormat('h3', 'Heading 3')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover font-semibold text-xs text-on-surface dark:text-dark-text">Heading 3</button>
+                                <div class="h-px bg-paper dark:bg-dark-border my-1"></div>
+                                <button type="button" onclick="selectStyleFormat('bullet', 'Bullet List')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px]">format_list_bulleted</span> Bullet List
+                                </button>
+                                <button type="button" onclick="selectStyleFormat('number', 'Numbered List')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px]">format_list_numbered</span> Numbered List
+                                </button>
+                                <button type="button" onclick="selectStyleFormat('quote', 'Quote')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px]">format_quote</span> Quote
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="h-4 w-px bg-paper dark:bg-dark-border mx-0.5"></div>
+
+                        <!-- Bold & Italic -->
+                        <button type="button" id="note-btn-bold" onclick="applyToolbarFormat('bold')" title="Bold (Ctrl+B)" class="w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold text-on-surface dark:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                            B
+                        </button>
+                        <button type="button" id="note-btn-italic" onclick="applyToolbarFormat('italic')" title="Italic (Ctrl+I)" class="w-7 h-7 flex items-center justify-center rounded-lg text-xs italic font-serif text-on-surface dark:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                            I
+                        </button>
+
+                        <div class="h-4 w-px bg-paper dark:bg-dark-border mx-0.5"></div>
+
+                        <!-- Link & Math -->
+                        <button type="button" id="note-btn-link" onclick="openNoteLinkModal()" title="Insert Link" class="w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                            <span class="material-symbols-outlined text-[16px]">link</span>
+                        </button>
+                        <button type="button" id="note-btn-math" onclick="openNoteMathModal()" title="Math KaTeX Formula" class="w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                            <span class="material-symbols-outlined text-[16px]">functions</span>
+                        </button>
+
+                        <div class="h-4 w-px bg-paper dark:bg-dark-border mx-0.5"></div>
+
+                        <!-- More actions -->
+                        <div class="relative inline-block">
+                            <button type="button" onclick="toggleMoreMenu(event)" title="More options" class="w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                                <span class="material-symbols-outlined text-[16px]">more_horiz</span>
+                            </button>
+                            <div id="note-more-menu" class="hidden absolute top-full right-0 mt-1 w-44 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl z-50 py-1 text-xs">
+                                <button type="button" onclick="applyToolbarFormat('codeblock')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover text-on-surface dark:text-dark-text flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[15px]">terminal</span> Code Block
+                                </button>
+                                <button type="button" onclick="applyToolbarFormat('task')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover text-on-surface dark:text-dark-text flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[15px]">check_box</span> Checkbox Task
+                                </button>
+                                <button type="button" onclick="applyToolbarFormat('hr')" class="w-full text-left px-3 py-1.5 hover:bg-surface-variant/60 dark:hover:bg-dark-panel-hover text-on-surface dark:text-dark-text flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[15px]">horizontal_rule</span> Horizontal Divider
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Note Content Area (Visual WYSIWYG Editor) -->
+                    <div class="flex-1 overflow-hidden flex flex-col relative rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg shadow-xs">
+                        <div id="note-content-input" contenteditable="true" data-placeholder="Start typing your note here..." onkeydown="handleNoteEditorKeydown(event)" oninput="onNoteContentChanged()" class="w-full h-full p-3.5 text-xs sm:text-sm font-normal text-on-surface dark:text-dark-text outline-none leading-relaxed overflow-y-auto font-sans prose dark:prose-invert max-w-none focus:ring-0"></div>
+                    </div>
+
+                    <!-- Manual Note Footer -->
+                    <div class="pt-2 flex items-center justify-between border-t border-paper dark:border-dark-border mt-2 flex-shrink-0">
+                        <span id="note-word-count" class="text-[11px] text-on-surface-variant dark:text-dark-text-muted font-medium">0 words</span>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="copyActiveNoteContent(this)" title="Copy note text" class="w-7 h-7 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 transition-all aspect-square">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <button type="button" id="note-btn-save" onclick="saveActiveNote()" class="hidden px-3.5 py-1 rounded-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg text-xs font-semibold hover:opacity-90 flex items-center gap-1 transition-opacity shadow-sm">
+                                <span id="note-save-icon" class="material-symbols-outlined text-[15px]">save</span>
+                                <span id="note-save-text">Save Note</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. READ-ONLY CHAT-SAVED NOTE VIEW (Non-editable, Formatted Markdown with KaTeX & Sources) -->
+                <div id="readonly-note-view" class="hidden flex-1 flex flex-col overflow-hidden">
+                    <!-- Read-only Header -->
+                    <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-paper dark:border-dark-border flex-shrink-0">
+                        <div class="min-w-0 pr-2">
+                            <h3 id="readonly-note-title" class="text-sm sm:text-base font-bold text-on-surface dark:text-dark-text truncate">Chat Note</h3>
+                            <div class="flex items-center gap-1.5 text-[10px] text-on-surface-variant dark:text-dark-text-muted mt-0.5">
+                                <span class="inline-flex items-center gap-1 text-secondary dark:text-dark-accent font-medium">
+                                    <span class="material-symbols-outlined text-[13px]">lock</span> Saved from Chat (Read-only)
+                                </span>
+                                <span>•</span>
+                                <span id="readonly-note-date">Recently</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <button type="button" onclick="copyActiveNoteContent(this)" title="Copy note text" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface hover:bg-surface-variant/80 dark:hover:bg-dark-panel transition-all">
+                                <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                            </button>
+                            <button type="button" onclick="promptDeleteCurrentNote()" title="Delete note" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant dark:text-dark-text-muted hover:text-error dark:hover:text-red-400 hover:bg-error/10 dark:hover:bg-red-400/10 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Rendered Rich Markdown Content -->
+                    <div class="flex-1 overflow-y-auto p-3.5 rounded-xl border border-paper dark:border-dark-border bg-surface-bright dark:bg-dark-bg">
+                        <div id="readonly-note-content" class="text-xs sm:text-sm text-on-surface dark:text-dark-text leading-relaxed prose dark:prose-invert max-w-none ai-text-content">
+                            <!-- Formatted Markdown Content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUSTOM IN-APP LINK INSERTION MODAL (NO BROWSER POPUPS) -->
+
+            </div>
+        </div>
+    </aside>
