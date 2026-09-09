@@ -1,13 +1,11 @@
-import pytest
 from unittest.mock import MagicMock
 from uuid import uuid4
 from datetime import datetime, timezone
 
-from app.models.study_models import NoteCreateRequest, NoteUpdateRequest, NoteResponse
+from app.models.study_models import NoteCreateRequest, NoteResponse
 from app.services.study.note_service import (
     create_note,
     list_notebook_notes,
-    get_note_by_id,
     update_note,
     delete_note
 )

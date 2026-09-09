@@ -1,12 +1,10 @@
 import pytest
-import os
 import base64
 from app.core.crypto import (
     encrypt_api_key,
     decrypt_api_key,
     mask_api_key,
     extract_key_last4,
-    get_master_encryption_key,
 )
 
 def test_crypto_roundtrip():

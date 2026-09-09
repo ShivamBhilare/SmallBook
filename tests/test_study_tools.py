@@ -6,12 +6,8 @@ import json
 from app.models.study_models import (
     StudyGenerateRequest,
     FlashcardSetGenerateSchema,
-    FlashcardItemSchema,
     QuizGenerateSchema,
-    QuizQuestionSchema,
-    QuizOptionSchema,
-    QuizAttemptSubmit,
-    QuizAttemptResponse
+    QuizAttemptSubmit
 )
 from app.services.study.concurrency import acquire_study_lock, release_study_lock
 from app.services.study.generator import generate_flashcards, generate_quiz

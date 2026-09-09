@@ -6,8 +6,27 @@ from app.core.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
 
+class ExpiringLockDict(dict):
+    """
+    Thread-safe in-memory lock store supporting TTL expiration
+    and set-like .discard() / .add() methods for backward compatibility.
+    """
+    def discard(self, key: str) -> None:
+        self.pop(key, None)
+
+    def add(self, key: str, timeout_seconds: int = 180) -> None:
+        self[key] = time.time() + timeout_seconds
+
+    def __contains__(self, key: object) -> bool:
+        if not super().__contains__(key):
+            return False
+        if time.time() >= self.get(key, 0.0):
+            self.pop(key, None)
+            return False
+        return True
+
 # In-memory fallbacks if Redis is temporarily offline in local dev
-_local_locks = set()
+_local_locks = ExpiringLockDict()
 _local_cooldowns: Dict[str, float] = {}
 
 def acquire_study_lock(user_id: str, timeout_seconds: int = 180) -> bool:
@@ -23,10 +42,12 @@ def acquire_study_lock(user_id: str, timeout_seconds: int = 180) -> bool:
         except Exception as e:
             logger.warning(f"Redis error setting lock {lock_key}: {e}. Falling back to in-memory lock.")
     
-    # In-memory fallback
-    if user_id in _local_locks:
+    # In-memory fallback with TTL
+    now = time.time()
+    expires_at = _local_locks.get(user_id, 0.0)
+    if now < expires_at:
         return False
-    _local_locks.add(user_id)
+    _local_locks[user_id] = now + timeout_seconds
     return True
 
 def release_study_lock(user_id: str) -> None:

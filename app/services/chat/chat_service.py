@@ -189,7 +189,7 @@ def clear_chat_history(client: Client, notebook_id: str) -> bool:
     Citations and dependencies are automatically removed via ON DELETE CASCADE.
     """
     try:
-        res = (
+        (
             client.table("chat_messages")
             .delete()
             .eq("notebook_id", notebook_id)

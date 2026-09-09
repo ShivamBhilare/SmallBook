@@ -28,7 +28,7 @@ def generate_study_tool_task(
     supabase = get_service_role_client()
     try:
         if tool_type == "flashcards":
-            source_title, deck_data = generate_flashcards(
+            _, deck_data = generate_flashcards(
                 supabase=supabase,
                 user_id=user_id,
                 source_id=source_id,
@@ -48,7 +48,7 @@ def generate_study_tool_task(
             return {"status": "completed", "tool_type": "flashcards", "id": saved_set.get("id")}
 
         elif tool_type == "quiz":
-            source_title, quiz_data = generate_quiz(
+            _, quiz_data = generate_quiz(
                 supabase=supabase,
                 user_id=user_id,
                 source_id=source_id,

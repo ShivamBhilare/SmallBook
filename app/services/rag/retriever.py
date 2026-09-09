@@ -1,11 +1,11 @@
 import re
 import time
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict
 import tiktoken
 from supabase import Client
 from sentence_transformers import CrossEncoder
 
-from app.models.ingestion_models import ParentChunk, ChildChunk
+from app.models.ingestion_models import ParentChunk
 from app.services.ingestion.config import (
     TOP_K_HYBRID,
     TOP_N_PARENTS,

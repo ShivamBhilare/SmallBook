@@ -58,7 +58,8 @@ def handle_source_upload(
     user_id: str, 
     notebook_id: str, 
     file: UploadFile,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    file_bytes: Optional[bytes] = None
 ) -> dict:
     """
     Handles file validation, hashing, DB tracking, and delegates heavy storage upload & Celery dispatch to BackgroundTask.
@@ -67,7 +68,8 @@ def handle_source_upload(
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are supported.")
     
-    file_bytes = file.file.read()
+    if file_bytes is None:
+        file_bytes = file.file.read()
     file_size = len(file_bytes)
     
     if file_size > MAX_FILE_SIZE:

@@ -34,7 +34,12 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
     if exc.status_code == 404:
         path = request.url.path
         accept_header = request.headers.get("accept", "")
-        if path.startswith("/api/") or "/api/" in path or "application/json" in accept_header:
+        if (
+            path.startswith("/api/")
+            or "/api/" in path
+            or "application/json" in accept_header
+            or request.method in ("POST", "PUT", "PATCH", "DELETE")
+        ):
             return JSONResponse(
                 status_code=404,
                 content={"detail": exc.detail or "Not Found"}

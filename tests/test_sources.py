@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-from app.services.sources.source_service import get_all_user_sources, link_sources_to_notebook
+from app.services.sources.source_service import get_all_user_sources
 from app.routers.sources import get_library_sources
 
 

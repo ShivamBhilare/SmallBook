@@ -1,6 +1,5 @@
 import json
 import time
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from supabase import Client
@@ -10,8 +9,7 @@ from app.services.sources.source_service import get_notebook_sources
 from app.services.rag import (
     retrieve_multi,
     build_augmented_prompt,
-    stream_resilient_llm_response,
-    PromptMode
+    stream_resilient_llm_response
 )
 from app.services.llm import (
     get_decrypted_user_key,
@@ -125,10 +123,10 @@ def send_chat_message(
     all_notebook_sources = get_notebook_sources(client, notebook_id)
     source_title_map = {s["id"]: s.get("original_filename", "Source Document") for s in all_notebook_sources}
 
-    if payload.source_ids and len(payload.source_ids) > 0:
-        target_source_ids = [sid for sid in payload.source_ids if sid in source_title_map]
-    else:
+    if payload.source_ids is None:
         target_source_ids = list(source_title_map.keys())
+    else:
+        target_source_ids = [sid for sid in payload.source_ids if sid in source_title_map]
 
     def event_stream():
         try:
@@ -181,7 +179,7 @@ def send_chat_message(
                     yield f"data: {json.dumps({'type': 'error', 'error': 'Rate limit: Please wait a moment before sending another message.'})}\n\n"
                     return
 
-                allowed, used, remaining = check_daily_quota(user_id, limit=25)
+                allowed, _, _ = check_daily_quota(user_id, limit=25)
                 if not allowed:
                     yield f"data: {json.dumps({'type': 'error', 'error': 'Daily Free Tier limit reached (25/25 queries). Add your own free Groq or Gemini API key in Key Settings (top-right) for unlimited access.'})}\n\n"
                     return

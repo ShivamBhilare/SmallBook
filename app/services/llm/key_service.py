@@ -1,4 +1,4 @@
-import os
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from supabase import Client
 import litellm
@@ -7,7 +7,6 @@ from litellm import completion
 from app.core.crypto import (
     encrypt_api_key,
     decrypt_api_key,
-    mask_api_key,
     extract_key_last4,
 )
 
@@ -205,8 +204,8 @@ def save_user_credential(
         "custom_model_name": custom_model_name.strip() if custom_model_name else None,
         "is_active": True,
         "is_valid": is_valid,
-        "last_validated_at": "now()",
-        "updated_at": "now()"
+        "last_validated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
     # Check if record already exists to update
@@ -217,9 +216,9 @@ def save_user_credential(
     existing = query.execute()
     if existing.data and len(existing.data) > 0:
         rec_id = existing.data[0]["id"]
-        res = client.table("user_llm_credentials").update(payload).eq("id", rec_id).execute()
+        client.table("user_llm_credentials").update(payload).eq("id", rec_id).execute()
     else:
-        res = client.table("user_llm_credentials").insert(payload).execute()
+        client.table("user_llm_credentials").insert(payload).execute()
         
     return {
         "provider": provider,
@@ -322,19 +321,19 @@ def save_user_preferences(
     fallback_enabled: bool = True
 ) -> Dict[str, Any]:
     """Saves user's preferred top 3-5 models and fallback configuration."""
-    # Ensure between 1 and 6 models are stored
-    capped_models = preferred_models[:6] if preferred_models else DEFAULT_PREFERRED_MODELS
+    # Ensure top 3-5 models are stored
+    capped_models = preferred_models[:5] if preferred_models else DEFAULT_PREFERRED_MODELS
     
     payload = {
         "user_id": user_id,
         "active_model": active_model,
         "preferred_models": capped_models,
         "fallback_enabled": fallback_enabled,
-        "updated_at": "now()"
+        "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
     try:
-        res = client.table("user_llm_preferences").upsert(payload).execute()
+        client.table("user_llm_preferences").upsert(payload).execute()
         return payload
     except Exception as e:
         print(f"Preferences save error: {e}")

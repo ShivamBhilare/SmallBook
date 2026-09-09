@@ -1,4 +1,3 @@
-import pytest
 from app.services.llm.free_tier import (
     check_daily_quota,
     increment_daily_quota,

@@ -25,12 +25,14 @@ async def upload_source(
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
 
     # 2. Handoff to service layer
+    file_bytes = await file.read()
     result = source_service.handle_source_upload(
         client=client, 
         user_id=user.id, 
         notebook_id=notebook_id, 
         file=file,
-        background_tasks=background_tasks
+        background_tasks=background_tasks,
+        file_bytes=file_bytes
     )
     
     return result

@@ -54,6 +54,8 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
         chunker = HierarchicalChunker()
         # Linking chunks to the user's source document
         parents, children = chunker.chunk_document(md_text, notebook_id="pending", document_id=source_id)
+        if not parents:
+            raise ValueError("No extractable text content found in document. Please verify the PDF contains selectable text.")
 
         # 6. Save Parent Chunks to Supabase in Batches (prevent PostgREST payload limits)
         CHUNK_BATCH_SIZE = 250

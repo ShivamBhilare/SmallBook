@@ -1,6 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, status, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from supabase import Client
 

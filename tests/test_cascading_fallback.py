@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from app.services.rag.promptllm import stream_resilient_llm_response
 

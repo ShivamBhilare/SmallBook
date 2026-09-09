@@ -13,7 +13,6 @@ from app.models.study_models import (
 )
 from app.services.study.concurrency import (
     acquire_study_lock,
-    release_study_lock,
     check_and_set_cooldown,
     clear_cooldown
 )
