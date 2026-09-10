@@ -2,7 +2,7 @@
 name = "smallbook"
 version = "0.1.0"
 description = "Add your description here"
-readme = "README.md"
+readme = "docs/README.md"
 requires-python = ">=3.13"
 dependencies = [
     "celery>=5.6.3",
@@ -12,7 +12,6 @@ dependencies = [
     "jinja2>=3.1.6",
     "litellm>=1.96.2",
     "numpy",
-    "psycopg2-binary>=2.9.10",
     "pymupdf4llm",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.32",
@@ -22,8 +21,6 @@ dependencies = [
     "supabase>=2.31.0",
     "tiktoken",
     "torch",
-    "torchaudio",
-    "torchvision",
     "uvicorn[standard]>=0.51.0",
 ]
 
@@ -34,12 +31,15 @@ explicit = true
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cu124" }]
-torchvision = [{ index = "pytorch-cu124" }]
-torchaudio = [{ index = "pytorch-cu124" }]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 filterwarnings = [
     "ignore::starlette.exceptions.StarletteDeprecationWarning",
     "ignore:.*starlette.testclient.*:DeprecationWarning"
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
 ]

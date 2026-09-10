@@ -30,6 +30,18 @@
             }
         }
     }
+    /**
+     * Extracts the active notebook UUID from the current window location path (/workspace/{notebook_id}).
+     */
+    function getNotebookIdFromUrl() {
+        const pathSegments = window.location.pathname.split('/');
+        const wsIndex = pathSegments.indexOf('workspace');
+        if (wsIndex !== -1 && pathSegments[wsIndex + 1]) {
+            return pathSegments[wsIndex + 1];
+        }
+        return '';
+    }
+    window.getNotebookIdFromUrl = getNotebookIdFromUrl;
 
     // Escape HTML Helper Function (CRITICAL FOR UI SECURITY)
     function escapeHtml(str) {
@@ -40,6 +52,36 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    }
+    window.escapeHtml = escapeHtml;
+    window.renderMathSafely = renderMathSafely;
+
+    /**
+     * Selected sources retrieval helpers (accessible by sources.js, chat.js, and study-tools.js)
+     */
+    function getSelectedSourceIds() {
+        const checked = document.querySelectorAll('.source-checkbox:checked');
+        return Array.from(checked).map(cb => cb.value).filter(Boolean);
+    }
+    window.getSelectedSourceIds = getSelectedSourceIds;
+
+    function updateSourcesCount() {
+        const checked = document.querySelectorAll('.source-checkbox:checked');
+        const countSpan = document.getElementById('sources-count');
+        if (countSpan) countSpan.innerText = checked.length;
+    }
+    window.updateSourcesCount = updateSourcesCount;
+
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.classList.contains('source-checkbox')) {
+            updateSourcesCount();
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateSourcesCount);
+    } else {
+        updateSourcesCount();
     }
 
     /**
@@ -199,4 +241,9 @@
         const panel = side === 'left' ? document.getElementById('panel-sources') : document.getElementById('panel-studio');
         if (panel.classList.contains('collapsed')) togglePanel(side);
     }
+
+    window.togglePanel = togglePanel;
+    window.openPanel = openPanel;
+    window.switchTab = switchTab;
+    window.formatMarkdownText = formatMarkdownText;
 

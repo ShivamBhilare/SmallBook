@@ -39,7 +39,7 @@
     </div>
 
     <!-- Center Panel: Chat (Included) -->
-    {% include 'chat_panel.html' %}
+    {% include 'components/chat_panel.html' %}
 
     <!-- Right Resizer -->
     <div id="resizer-right" class="hidden lg:flex w-2 cursor-col-resize flex-shrink-0 group items-center justify-center relative z-10 transition-colors">
@@ -54,11 +54,11 @@
 
 {% block extra_scripts %}
 <!-- Workspace JavaScript Modules -->
-<script src="/static/js/workspace/workspace-ui.js"></script>
-<script src="/static/js/workspace/sources.js"></script>
-<script src="/static/js/workspace/chat.js"></script>
-<script src="/static/js/workspace/study-tools.js"></script>
-<script src="/static/js/workspace/flashcards.js"></script>
-<script src="/static/js/workspace/quiz.js"></script>
-<script src="/static/js/workspace/notes.js"></script>
+<script src="/static/js/workspace/workspace-ui.js?v=1.0.1"></script>
+<script src="/static/js/workspace/sources.js?v=1.0.1"></script>
+<script src="/static/js/workspace/chat.js?v=1.0.1"></script>
+<script src="/static/js/workspace/study-tools.js?v=1.0.1"></script>
+<script src="/static/js/workspace/flashcards.js?v=1.0.1"></script>
+<script src="/static/js/workspace/quiz.js?v=1.0.1"></script>
+<script src="/static/js/workspace/notes.js?v=1.0.1"></script>
 {% endblock %}

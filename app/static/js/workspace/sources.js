@@ -198,8 +198,7 @@
     }
 
     async function submitLinkSources() {
-        const pathSegments = window.location.pathname.split('/');
-        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        const notebookId = getNotebookIdFromUrl();
 
         if (!notebookId) {
             showAppAlert('Notebook ID not found.', { title: 'Navigation Error', type: 'error' });
@@ -283,8 +282,7 @@
     });
 
     async function uploadFiles(files) {
-        const pathSegments = window.location.pathname.split('/');
-        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        const notebookId = getNotebookIdFromUrl();
         if (!notebookId) {
             showAppAlert('Notebook ID not found.', { title: 'Upload Error', type: 'error' });
             return;
@@ -372,8 +370,7 @@
             return;
         }
 
-        const pathSegments = window.location.pathname.split('/');
-        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        const notebookId = getNotebookIdFromUrl();
 
         try {
             const response = await fetch(`/notebooks/${notebookId}/sources/${currentRenameSourceId}/rename`, {
@@ -416,8 +413,7 @@
     async function confirmDeleteSource(mode) {
         if (!currentDeleteSourceId) return;
         const sourceId = currentDeleteSourceId;
-        const pathSegments = window.location.pathname.split('/');
-        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        const notebookId = getNotebookIdFromUrl();
         
         try {
             const response = await fetch(`/notebooks/${notebookId}/sources/${sourceId}?mode=${mode}`, { method: 'DELETE' });
@@ -472,8 +468,7 @@
         const spinners = document.querySelectorAll('.source-spinner');
         if (spinners.length === 0) return;
 
-        const pathSegments = window.location.pathname.split('/');
-        const notebookId = pathSegments[pathSegments.indexOf('workspace') + 1];
+        const notebookId = getNotebookIdFromUrl();
         if (!notebookId) return;
 
         spinners.forEach(spinner => {

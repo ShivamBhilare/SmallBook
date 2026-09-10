@@ -96,7 +96,7 @@ def test_study_cooldown():
     assert rem_2 > 0
 
     # 3. Quiz is tracked independently from flashcards
-    can_gen_quiz, rem_quiz = check_and_set_cooldown(user_id, "quiz", cooldown_seconds=1800)
+    can_gen_quiz, _ = check_and_set_cooldown(user_id, "quiz", cooldown_seconds=1800)
     assert can_gen_quiz is True
     assert get_cooldown_remaining(user_id, "quiz") > 0
 

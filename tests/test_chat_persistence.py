@@ -16,7 +16,6 @@ async def test_chat_streaming_does_not_save_empty_assistant_message_on_failure()
 
     # User message save returns ID
     mock_user_msg_id = str(uuid4())
-    mock_save_user = MagicMock(return_value={"id": mock_user_msg_id})
     mock_save_assistant = MagicMock()
     mock_save_cit = MagicMock()
 

@@ -63,7 +63,6 @@ def test_increment_daily_quota_redis_sync():
 
 def test_increment_daily_quota_offline_fallback():
     from unittest.mock import patch
-    from app.services.llm.free_tier import _memory_daily_counts
 
     test_user_id = "user_test_offline_999"
     with patch("app.services.llm.free_tier.get_redis_client", return_value=None):

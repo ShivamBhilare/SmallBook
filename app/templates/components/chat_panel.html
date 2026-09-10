@@ -63,7 +63,7 @@
                 </div>
 
                 <!-- Sources Count Chip (Shown when input is empty) -->
-                <div id="sources-chip" title="Selected sources used for retrieval" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover px-2.5 py-1 rounded-full transition-all">
+                <div id="sources-chip" title="Selected sources used for retrieval. Click to view sources." onclick="if(window.innerWidth < 1024) switchTab('sources'); else openPanel('left');" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover hover:bg-surface-variant/80 dark:hover:bg-dark-border/60 px-2.5 py-1 rounded-full cursor-pointer transition-all select-none">
                     <span class="material-symbols-outlined text-[15px] text-secondary dark:text-dark-accent">description</span>
                     <span id="sources-count" class="text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">0</span>
                 </div>

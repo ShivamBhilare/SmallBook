@@ -133,35 +133,14 @@
         }
     });
 
-    // Source count chips logic
-    function getSelectedSourceIds() {
-        const checked = document.querySelectorAll('.source-checkbox:checked');
-        return Array.from(checked).map(cb => cb.value).filter(Boolean);
-    }
-    function updateSourcesCount() {
-        const checked = document.querySelectorAll('.source-checkbox:checked');
-        const countSpan = document.getElementById('sources-count');
-        if (countSpan) countSpan.innerText = checked.length;
-    }
-    document.addEventListener('change', (e) => {
-        if (e.target && e.target.classList.contains('source-checkbox')) updateSourcesCount();
-    });
-    updateSourcesCount();
+    // Source count chips & active source ids logic are provided globally by workspace-ui.js
+
 
     /* -------------------------------------------------------------------------
        STREAMING RAG CHAT & PERSISTENCE LOGIC
     ------------------------------------------------------------------------- */
     let activeLastMessageId = null;  // Tracks the leaf/latest assistant message in active chain
     let branchParentId = null;       // Set when user edits a prior prompt to create a timeline split
-
-    function getNotebookIdFromUrl() {
-        const pathSegments = window.location.pathname.split('/');
-        const wsIndex = pathSegments.indexOf('workspace');
-        if (wsIndex !== -1 && pathSegments[wsIndex + 1]) {
-            return pathSegments[wsIndex + 1];
-        }
-        return '{{ notebook_id }}';
-    }
 
     function renderUserMessage(text, messageId, parentId, createdAt) {
         const container = document.getElementById('chat-messages-container');
@@ -714,60 +693,54 @@
         }
     }
 
-    // Modal background click dismiss handlers
-    const clearModalEl = document.getElementById('clear-chat-modal');
-    if (clearModalEl) {
-        clearModalEl.addEventListener('click', function(e) {
-            if (e.target === this) closeClearChatModal();
-        });
-    }
-    const configModalEl = document.getElementById('configure-chat-modal');
-    if (configModalEl) {
-        configModalEl.addEventListener('click', function(e) {
-            if (e.target === this) closeConfigureChatModal();
-        });
-    }
-
-    // Initialize chat history & model preferences on document ready (single execution guard)
-    function initChatWorkspace() {
-        loadChatHistory();
-        initChatModelPreferences();
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initChatWorkspace);
-    } else {
-        initChatWorkspace();
+    function initModalDismissListeners() {
+        const clearModalEl = document.getElementById('clear-chat-modal');
+        if (clearModalEl && !clearModalEl.dataset.dismissBound) {
+            clearModalEl.dataset.dismissBound = 'true';
+            clearModalEl.addEventListener('click', function(e) {
+                if (e.target === this) closeClearChatModal();
+            });
+        }
+        const configModalEl = document.getElementById('configure-chat-modal');
+        if (configModalEl && !configModalEl.dataset.dismissBound) {
+            configModalEl.dataset.dismissBound = 'true';
+            configModalEl.addEventListener('click', function(e) {
+                if (e.target === this) closeConfigureChatModal();
+            });
+        }
     }
 
-    const chatInput = document.getElementById('chat-input');
-    if (chatInput) {
-        chatInput.addEventListener('input', function() {
-            const sendBtn = document.getElementById('send-btn');
-            const sourcesChip = document.getElementById('sources-chip');
-            if (this.value.trim().length > 0) {
-                if (sendBtn) sendBtn.classList.remove('hidden');
-                if (sourcesChip) sourcesChip.classList.add('hidden');
-            } else {
-                if (sendBtn) sendBtn.classList.add('hidden');
-                if (sourcesChip) sourcesChip.classList.remove('hidden');
-            }
-            this.style.height = '';
-            if (this.value.length > 0) {
-                const targetHeight = Math.min(this.scrollHeight, 120);
-                this.style.height = targetHeight + 'px';
-                this.style.overflowY = this.scrollHeight > 120 ? 'auto' : 'hidden';
-            } else {
-                this.style.overflowY = 'hidden';
-            }
-        });
-        chatInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitChatMessage();
-            }
-        });
+    function initChatInputListeners() {
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput && !chatInput.dataset.listenersBound) {
+            chatInput.dataset.listenersBound = 'true';
+            chatInput.addEventListener('input', function() {
+                const sendBtn = document.getElementById('send-btn');
+                const sourcesChip = document.getElementById('sources-chip');
+                if (this.value.trim().length > 0) {
+                    if (sendBtn) sendBtn.classList.remove('hidden');
+                    if (sourcesChip) sourcesChip.classList.add('hidden');
+                } else {
+                    if (sendBtn) sendBtn.classList.add('hidden');
+                    if (sourcesChip) sourcesChip.classList.remove('hidden');
+                }
+                this.style.height = '';
+                if (this.value.length > 0) {
+                    const targetHeight = Math.min(this.scrollHeight, 120);
+                    this.style.height = targetHeight + 'px';
+                    this.style.overflowY = this.scrollHeight > 120 ? 'auto' : 'hidden';
+                } else {
+                    this.style.overflowY = 'hidden';
+                }
+            });
+            chatInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitChatMessage();
+                }
+            });
+        }
     }
-
 
     function copyMessageText(btn) {
         const msgBubble = btn.closest('.flex-1');
@@ -788,4 +761,35 @@
             console.error('Clipboard copy failed:', err);
         });
     }
+
+    // Initialize chat history, model preferences & DOM listeners (single execution guard)
+    function initChatWorkspace() {
+        initChatInputListeners();
+        initModalDismissListeners();
+        loadChatHistory();
+        initChatModelPreferences();
+        updateSourcesCount();
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initChatWorkspace);
+    } else {
+        initChatWorkspace();
+    }
+
+    // Export all chat and modal actions to window for robust inline onclick accessibility
+    window.openConfigureChatModal = openConfigureChatModal;
+    window.closeConfigureChatModal = closeConfigureChatModal;
+    window.saveChatConfiguration = saveChatConfiguration;
+    window.selectConfigMode = selectConfigMode;
+    window.selectConfigLength = selectConfigLength;
+    window.toggleModelDropdown = toggleModelDropdown;
+    window.selectLlmModel = selectLlmModel;
+    window.openClearChatModal = openClearChatModal;
+    window.closeClearChatModal = closeClearChatModal;
+    window.confirmClearChatHistory = confirmClearChatHistory;
+    window.submitChatMessage = submitChatMessage;
+    window.editUserPrompt = editUserPrompt;
+    window.copyMessageText = copyMessageText;
+
+
 
