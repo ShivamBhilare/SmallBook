@@ -161,15 +161,16 @@
         updateLibrarySelectedCount();
     }
 
-    function buildSourceItemHtml(sourceId, filename, isPending = false, nowIso = new Date().toISOString()) {
+    function buildSourceItemHtml(sourceId, filename, isPending = false, nowIso = new Date().toISOString(), isChecked = true) {
         const safeFilename = escapeHtml(filename);
+        const checkedAttr = isChecked ? 'checked' : '';
         const statusHtml = isPending
             ? `<svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">`
-            : `<input checked class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">`;
+            : `<input ${checkedAttr} class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">`;
 
         return `
             <label onclick="openPanel('left')" title="${safeFilename}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="${sourceId}" data-filename="${safeFilename}" data-created-at="${nowIso}">
@@ -501,4 +502,52 @@
     }
 
     setInterval(pollSourceStatus, 3000);
+ 
+    // Refresh Sources List on demand
+    async function refreshSourcesList() {
+        const notebookId = getNotebookIdFromUrl();
+        if (!notebookId) return;
 
+        const refreshIcon = document.getElementById('refresh-sources-icon');
+        if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+        try {
+            const res = await fetch(`/notebooks/${notebookId}/sources/list`);
+            if (!res.ok) throw new Error('Failed to fetch sources');
+            const data = await res.json();
+            const sources = data.sources || [];
+
+            const sourcesList = document.getElementById('sources-list');
+            if (!sourcesList) return;
+
+            // Preserve currently checked state of sources
+            const checkedSourceIds = new Set(
+                Array.from(document.querySelectorAll('.source-checkbox:checked')).map(cb => cb.value)
+            );
+            const hadSourcesBefore = document.querySelectorAll('.source-checkbox').length > 0;
+
+            sourcesList.innerHTML = '';
+            sources.forEach(source => {
+                const sourceId = source.id;
+                const filename = source.original_filename || 'Untitled Source';
+                const isPending = ['pending', 'processing', 'queued'].includes(source.ingestion_status);
+                const createdIso = source.created_at || new Date().toISOString();
+                const isChecked = hadSourcesBefore ? checkedSourceIds.has(sourceId) : true;
+                sourcesList.insertAdjacentHTML('beforeend', buildSourceItemHtml(sourceId, filename, isPending, createdIso, isChecked));
+            });
+
+            if (typeof updateSourcesCount === 'function') {
+                updateSourcesCount();
+            }
+            if (typeof populateStudySourcesList === 'function') {
+                populateStudySourcesList();
+            }
+        } catch (err) {
+            console.error('Error refreshing sources:', err);
+        } finally {
+            if (refreshIcon) {
+                setTimeout(() => refreshIcon.classList.remove('animate-spin'), 350);
+            }
+        }
+    }
+    window.refreshSourcesList = refreshSourcesList;

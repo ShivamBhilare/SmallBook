@@ -12,21 +12,26 @@
             </button>
         </div>
         <div class="px-md pb-sm flex justify-between items-center hide-on-collapse">
-            <div class="relative">
-                <button onclick="toggleSortMenu(event)" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
-                    <span class="material-symbols-outlined text-[18px]">sort</span>
-                </button>
-                <div id="sort-menu" class="hidden absolute left-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
-                    <button type="button" onclick="sortSources('az')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px]">sort_by_alpha</span> A-Z
+            <div class="flex items-center gap-1">
+                <div class="relative">
+                    <button onclick="toggleSortMenu(event)" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
+                        <span class="material-symbols-outlined text-[18px]">sort</span>
                     </button>
-                    <button type="button" onclick="sortSources('recent')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px]">schedule</span> Most Recent
-                    </button>
-                    <button type="button" onclick="sortSources('oldest')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px]">history</span> Oldest
-                    </button>
+                    <div id="sort-menu" class="hidden absolute left-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                        <button type="button" onclick="sortSources('az')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">sort_by_alpha</span> A-Z
+                        </button>
+                        <button type="button" onclick="sortSources('recent')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">schedule</span> Most Recent
+                        </button>
+                        <button type="button" onclick="sortSources('oldest')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">history</span> Oldest
+                        </button>
+                    </div>
                 </div>
+                <button id="refresh-sources-btn" onclick="refreshSourcesList()" title="Refresh sources" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                    <span id="refresh-sources-icon" class="material-symbols-outlined text-[18px]">refresh</span>
+                </button>
             </div>
             <button onclick="toggleSelectAllSources()" class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
         </div>

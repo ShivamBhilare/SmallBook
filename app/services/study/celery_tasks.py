@@ -1,5 +1,6 @@
 import logging
 from celery import shared_task
+from app.core.celery_app import celery_app
 
 from app.services.authentication.auth_service import get_service_role_client
 from app.services.study.concurrency import release_study_lock, clear_cooldown

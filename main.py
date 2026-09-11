@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv() 
 
 from fastapi import FastAPI, Depends, Request, status
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -14,6 +14,7 @@ from app.routers.chat import router as chat_router
 from app.routers.llm_settings import router as llm_settings_router
 from app.routers.study import router as study_router
 from app.services.authentication.auth_service import get_optional_current_user
+import app.core.celery_app  # Initialize Celery app and broker configuration
 
 app = FastAPI(title="SmallBook")
 
@@ -78,10 +79,30 @@ async def add_no_cache_headers(request: Request, call_next):
         response.headers["Expires"] = "0"
     return response
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root(request: Request, user = Depends(get_optional_current_user)):
-    """Root endpoint: redirects authenticated users to dashboard, unauthenticated users to sign-in."""
-    if user:
-        return RedirectResponse(url="/notebooks/dashboard", status_code=status.HTTP_303_SEE_OTHER)
-    return RedirectResponse(url="/auth/sign-in", status_code=status.HTTP_303_SEE_OTHER)
+    """Root endpoint: renders the landing page with options to register/sign-in or navigate to dashboard."""
+    return templates.TemplateResponse(
+        request=request,
+        name="landing.html",
+        context={
+            "request": request,
+            "user": user,
+            "title": "SmallBook - Grounded AI Research & Study Workspace"
+        }
+    )
+
+@app.get("/landing", response_class=HTMLResponse)
+async def landing(request: Request, user = Depends(get_optional_current_user)):
+    """Direct alias for the SmallBook landing page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="landing.html",
+        context={
+            "request": request,
+            "user": user,
+            "title": "SmallBook - Grounded AI Research & Study Workspace"
+        }
+    )
+
 

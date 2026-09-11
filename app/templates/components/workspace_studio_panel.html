@@ -47,8 +47,8 @@
                                     <option value="title_asc" class="bg-surface-bright dark:bg-dark-panel text-on-surface dark:text-dark-text">Alphabetical (A-Z)</option>
                                 </select>
                             </div>
-                            <button onclick="loadNotebookStudyTools()" title="Refresh study tools" class="h-6 w-6 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent transition-colors">
-                                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                            <button id="refresh-study-tools-btn" onclick="refreshStudyTools()" title="Refresh study tools" class="h-6 w-6 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                                <span id="refresh-study-tools-icon" class="material-symbols-outlined text-[16px]">refresh</span>
                             </button>
                         </div>
                     </div>

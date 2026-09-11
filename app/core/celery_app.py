@@ -1,5 +1,8 @@
 import os
+from dotenv import load_dotenv
 from celery import Celery
+
+load_dotenv()
 
 # Redis configuration for the Celery Broker and Backend
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -13,6 +16,7 @@ celery_app = Celery(
         "app.services.study.celery_tasks"
     ]
 )
+celery_app.set_default()
 
 # Optional: Configure Celery settings (e.g., timezone, task serialization)
 celery_app.conf.update(

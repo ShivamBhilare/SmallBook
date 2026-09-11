@@ -37,6 +37,22 @@ async def upload_source(
     
     return result
 
+@router.get("/list", response_model=dict)
+@router.get("", response_model=dict)
+def get_notebook_sources_endpoint(
+    notebook_id: str,
+    user = Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """
+    Fetches all source documents linked to this notebook.
+    """
+    notebook_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
+    if not notebook_check.data:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+    sources = source_service.get_notebook_sources(client, notebook_id)
+    return {"sources": sources}
+
 @router.get("/library", response_model=dict)
 def get_library_sources(
     notebook_id: str,

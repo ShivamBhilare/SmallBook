@@ -197,3 +197,52 @@ def test_remove_source_from_notebook_success():
     mock_select.eq.assert_called_with("id", notebook_id)
     mock_eq1.eq.assert_called_with("user_id", user_id)
 
+
+def test_get_notebook_sources_endpoint():
+    from app.routers.sources import get_notebook_sources_endpoint
+
+    mock_client = MagicMock()
+    user = MagicMock(id=str(uuid4()))
+    notebook_id = str(uuid4())
+
+    # Mock notebook check
+    mock_nb_table = MagicMock()
+    mock_select = MagicMock()
+    mock_eq1 = MagicMock()
+    mock_eq2 = MagicMock()
+    mock_eq2.execute.return_value = MagicMock(data=[{"id": notebook_id}])
+    mock_eq1.eq.return_value = mock_eq2
+    mock_select.eq.return_value = mock_eq1
+    mock_nb_table.select.return_value = mock_select
+
+    # Mock notebook_sources and sources
+    mock_ns_table = MagicMock()
+    mock_ns_select = MagicMock()
+    mock_ns_eq = MagicMock()
+    mock_ns_eq.execute.return_value = MagicMock(data=[{"source_id": "src-1"}])
+    mock_ns_select.eq.return_value = mock_ns_eq
+    mock_ns_table.select.return_value = mock_ns_select
+
+    mock_sources_table = MagicMock()
+    mock_sources_select = MagicMock()
+    mock_sources_in = MagicMock()
+    mock_sources_in.execute.return_value = MagicMock(data=[{"id": "src-1", "original_filename": "Doc.pdf"}])
+    mock_sources_select.in_.return_value = mock_sources_in
+    mock_sources_table.select.return_value = mock_sources_select
+
+    def table_side_effect(name):
+        if name == "notebooks":
+            return mock_nb_table
+        elif name == "notebook_sources":
+            return mock_ns_table
+        elif name == "sources":
+            return mock_sources_table
+        return MagicMock()
+
+    mock_client.table.side_effect = table_side_effect
+
+    res = get_notebook_sources_endpoint(notebook_id, user, mock_client)
+    assert "sources" in res
+    assert len(res["sources"]) == 1
+    assert res["sources"][0]["original_filename"] == "Doc.pdf"
+

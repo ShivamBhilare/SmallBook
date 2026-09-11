@@ -3,6 +3,7 @@ import tempfile
 from typing import Optional
 from datetime import datetime, timezone
 from celery import shared_task
+from app.core.celery_app import celery_app
 from app.services.authentication.auth_service import get_service_role_client
 from app.services.ingestion.extractor import pdf_extracter
 from app.services.ingestion.chunker import HierarchicalChunker
@@ -44,7 +45,15 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
             tmp_file.write(pdf_bytes)
             tmp_pdf_path = tmp_file.name
 
-        # 4. Extract Markdown (File handle closed first for Windows safety)
+        # 4. Extract Markdown and Page Count (File handle closed first for Windows safety)
+        page_count = None
+        try:
+            import pymupdf
+            with pymupdf.open(tmp_pdf_path) as doc:
+                page_count = len(doc)
+        except Exception:
+            pass
+
         md_text = pdf_extracter(tmp_pdf_path)
         if tmp_pdf_path and os.path.exists(tmp_pdf_path):
             os.remove(tmp_pdf_path)
@@ -84,7 +93,11 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
             "status": "completed",
             "completed_at": completed_iso
         }).eq("source_id", source_id).execute()
-        supabase.table("sources").update({"ingestion_status": "completed"}).eq("id", source_id).execute()
+        
+        source_update_payload = {"ingestion_status": "completed"}
+        if page_count is not None:
+            source_update_payload["page_count"] = page_count
+        supabase.table("sources").update(source_update_payload).eq("id", source_id).execute()
 
     except Exception as e:
         if tmp_pdf_path and os.path.exists(tmp_pdf_path):

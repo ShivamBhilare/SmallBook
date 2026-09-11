@@ -292,6 +292,22 @@
         }
     }
 
+    // Manual Refresh Study Tools (matches refreshSourcesList with smooth spin animation)
+    async function refreshStudyTools() {
+        const refreshIcon = document.getElementById('refresh-study-tools-icon');
+        if (refreshIcon) refreshIcon.classList.add('animate-spin');
+        try {
+            await loadNotebookStudyTools(false);
+        } catch (err) {
+            console.error("Error refreshing study tools:", err);
+        } finally {
+            if (refreshIcon) {
+                setTimeout(() => refreshIcon.classList.remove('animate-spin'), 350);
+            }
+        }
+    }
+    window.refreshStudyTools = refreshStudyTools;
+
     let currentArtifactSort = 'modified_desc';
 
     function changeArtifactSort(newSort) {

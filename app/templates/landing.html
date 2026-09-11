@@ -1,0 +1,797 @@
+{% extends "base.html" %}
+
+{% block title %}SmallBook - Grounded AI Research & Study Workspace{% endblock %}
+
+{% block navbar %}
+<!-- Glassmorphic Sticky Header -->
+<header class="sticky top-0 z-50 w-full border-b border-paper dark:border-dark-border bg-surface/80 dark:bg-dark-bg/80 backdrop-blur-md transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <!-- Logo -->
+        <a href="/" class="flex items-center gap-2.5 group">
+            <div class="h-9 w-9 rounded-xl flex items-center justify-center p-0.5 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border group-hover:border-secondary dark:group-hover:border-dark-accent transition-colors shadow-sm">
+                <img alt="SmallBook Logo" class="h-7 w-7 object-contain rounded-md" src="/static/images/SmallBooklogo.png">
+            </div>
+            <span class="text-[19px] font-bold tracking-tight text-primary dark:text-dark-text group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">SmallBook</span>
+        </a>
+
+        <!-- Desktop Navigation Links -->
+        <nav class="hidden md:flex items-center gap-7 text-[14px] font-medium text-on-surface-variant dark:text-dark-text-muted">
+            <a href="#features" class="hover:text-primary dark:hover:text-dark-text transition-colors">Features</a>
+            <a href="#modes" class="hover:text-primary dark:hover:text-dark-text transition-colors">Chat Modes</a>
+            <a href="#preview" class="hover:text-primary dark:hover:text-dark-text transition-colors">Interactive Demo</a>
+            <a href="#comparison" class="hover:text-primary dark:hover:text-dark-text transition-colors">Comparison</a>
+            <a href="#faq" class="hover:text-primary dark:hover:text-dark-text transition-colors">FAQ</a>
+        </nav>
+
+        <!-- Right Header Actions -->
+        <div class="flex items-center gap-3">
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" aria-label="Toggle theme" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/70 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+            </button>
+
+            {% if user %}
+            <!-- Authenticated User Action -->
+            <a href="/notebooks/dashboard" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[14px] font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm">
+                <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                <span>Go to Dashboard</span>
+            </a>
+            {% else %}
+            <!-- Unauthenticated User Actions -->
+            <a href="/auth/sign-in" class="hidden sm:inline-flex text-[14px] font-medium text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent px-3 py-1.5 transition-colors">
+                Sign In
+            </a>
+            <a href="/auth/sign-up" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[14px] font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm">
+                <span>Get Started</span>
+                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<main class="flex-1 overflow-x-hidden">
+    <!-- ================================================= -->
+    <!-- HERO SECTION                                      -->
+    <!-- ================================================= -->
+    <section class="relative pt-12 pb-20 md:pt-20 md:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
+        <!-- Ambient Background Glow -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-secondary/10 dark:bg-dark-accent/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+
+        <!-- Pill Badge -->
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface-variant dark:text-dark-text-muted text-[13px] font-medium mb-6 shadow-sm">
+            <span class="flex h-2 w-2 rounded-full bg-secondary dark:bg-dark-accent animate-pulse"></span>
+            <span>Grounded AI Study & Research Assistant</span>
+            <span class="text-on-surface-variant/40 dark:text-dark-text-muted/40">•</span>
+            <span class="text-secondary dark:text-dark-accent font-semibold">Multi-Model BYOK</span>
+        </div>
+
+        <!-- Main Headline -->
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-on-surface dark:text-dark-text max-w-4xl mx-auto leading-[1.15] mb-6">
+            Your Research, Strictly Grounded.
+            <span class="block mt-2 bg-gradient-to-r from-secondary via-orange-600 to-amber-700 dark:from-dark-accent dark:via-orange-400 dark:to-amber-300 bg-clip-text text-transparent">
+                AI That Backs Up Every Word.
+            </span>
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-base sm:text-lg md:text-xl text-on-surface-variant dark:text-dark-text-muted max-w-2xl mx-auto mb-10 leading-relaxed">
+            Upload your documents and interrogate them using top models like Claude, GPT-4o, and Gemini. Get exact chunk citations, switch between custom chat modes, and turn reading into instant flashcards and quizzes.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+            <a href="/auth/sign-up" class="w-full sm:w-auto bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg font-semibold text-[15px] px-7 py-3.5 rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                <span>Start Researching Free</span>
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </a>
+            <a href="#preview" class="w-full sm:w-auto bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface dark:text-dark-text font-medium text-[15px] px-6 py-3.5 rounded-full hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover transition-colors flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent">play_circle</span>
+                <span>Try Interactive Demo</span>
+            </a>
+        </div>
+
+        <!-- Trust Badges -->
+        <div class="flex flex-wrap items-center justify-center gap-y-3 gap-x-8 text-[13px] text-on-surface-variant dark:text-dark-text-muted font-medium pt-2">
+            <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent">verified</span>
+                <span>Hover-to-Inspect Chunk Citations</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent">lock</span>
+                <span>AES-256 Encrypted Keys</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent">alt_route</span>
+                <span>Cascading Fallbacks</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent">folder_shared</span>
+                <span>Shared Source Library</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- INTERACTIVE WORKSPACE PREVIEW (MOCK UI)           -->
+    <!-- ================================================= -->
+    <section id="preview" class="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-24" x-data="{
+        activeTab: 'flashcards',
+        chatMode: 'hybrid',
+        flashcardFlipped: false,
+        selectedQuizOption: null,
+        quizSubmitted: false,
+        showCitationPreview: false
+    }">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface dark:text-dark-text">Experience the Workspace</h2>
+            <p class="text-on-surface-variant dark:text-dark-text-muted text-[15px] mt-2">Interact directly with the 3-panel research environment below.</p>
+        </div>
+
+        <!-- Mock Window Frame -->
+        <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl shadow-xl overflow-hidden">
+            <!-- Window Title Bar -->
+            <div class="bg-surface-container-low dark:bg-dark-bg/90 border-b border-paper dark:border-dark-border px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                    <span class="ml-3 text-[13px] font-semibold text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">menu_book</span>
+                        Deep Learning & Transformer Architectures
+                    </span>
+                </div>
+                <!-- Model Badge & Fallback Indicator -->
+                <div class="flex items-center gap-2">
+                    <span class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Claude 3.5 Sonnet (BYOK)
+                    </span>
+                    <span class="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-secondary/10 dark:bg-dark-accent/10 text-secondary dark:text-dark-accent border border-secondary/20">
+                        <span class="material-symbols-outlined text-[13px]">shield</span>
+                        Cascading Fallback Ready
+                    </span>
+                </div>
+            </div>
+
+            <!-- 3-Pane Workspace Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 min-h-[560px]">
+                <!-- 1. Left Panel: Sources Library (3 cols) -->
+                <div class="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-paper dark:border-dark-border p-4 bg-surface-bright/50 dark:bg-dark-panel/50 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">Sources (3 Active)</span>
+                            <span class="text-[11px] text-secondary dark:text-dark-accent font-medium cursor-pointer">+ Link Source</span>
+                        </div>
+                        <div class="space-y-2">
+                            <!-- Source Card 1 -->
+                            <div class="p-2.5 rounded-xl bg-surface-container-lowest dark:bg-dark-bg border border-secondary/30 dark:border-dark-accent/30 shadow-xs">
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px] mt-0.5">description</span>
+                                    <div class="overflow-hidden">
+                                        <p class="text-[13px] font-medium text-on-surface dark:text-dark-text truncate">Attention_Is_All_You_Need.pdf</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Indexed • 15 Chunks</span>
+                                            <span class="text-[10px] bg-surface-container dark:bg-dark-panel px-1.5 py-0.5 rounded text-on-surface-variant dark:text-dark-text-muted">15 pgs</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Source Card 2 -->
+                            <div class="p-2.5 rounded-xl bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border opacity-90">
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted text-[20px] mt-0.5">description</span>
+                                    <div class="overflow-hidden">
+                                        <p class="text-[13px] font-medium text-on-surface dark:text-dark-text truncate">Deep_Residual_Learning.pdf</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Indexed • 42 Chunks</span>
+                                            <span class="text-[10px] bg-surface-container dark:bg-dark-panel px-1.5 py-0.5 rounded text-on-surface-variant dark:text-dark-text-muted">28 pgs</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Source Card 3 -->
+                            <div class="p-2.5 rounded-xl bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border opacity-90">
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted text-[20px] mt-0.5">description</span>
+                                    <div class="overflow-hidden">
+                                        <p class="text-[13px] font-medium text-on-surface dark:text-dark-text truncate">Transformer_Interpretability.pdf</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Indexed • 24 Chunks</span>
+                                            <span class="text-[10px] bg-surface-container dark:bg-dark-panel px-1.5 py-0.5 rounded text-on-surface-variant dark:text-dark-text-muted">19 pgs</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-2.5 rounded-xl bg-surface-container-low dark:bg-dark-bg border border-paper dark:border-dark-border text-[11px] text-on-surface-variant dark:text-dark-text-muted">
+                        <span class="font-semibold text-primary dark:text-dark-text">Global Library:</span> Sources uploaded here can be linked into any other notebook with 1 click.
+                    </div>
+                </div>
+
+                <!-- 2. Center Panel: Grounded Chat & Citations (5 cols) -->
+                <div class="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-paper dark:border-dark-border p-4 flex flex-col justify-between bg-surface-container-lowest dark:bg-dark-bg">
+                    <div>
+                        <!-- Chat Header & Mode Selector -->
+                        <div class="flex items-center justify-between pb-3 border-b border-paper dark:border-dark-border mb-3">
+                            <span class="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">Grounded Chat</span>
+                            <!-- Mode Switcher Buttons -->
+                            <div class="flex items-center gap-1 bg-surface-container dark:bg-dark-panel p-1 rounded-full text-[11px] font-medium">
+                                <button @click="chatMode = 'strict'" :class="chatMode === 'strict' ? 'bg-secondary text-white dark:bg-dark-accent dark:text-dark-bg font-bold shadow-xs' : 'text-on-surface-variant dark:text-dark-text-muted hover:text-primary'" class="px-2 py-0.5 rounded-full transition-all">Strict</button>
+                                <button @click="chatMode = 'hybrid'" :class="chatMode === 'hybrid' ? 'bg-secondary text-white dark:bg-dark-accent dark:text-dark-bg font-bold shadow-xs' : 'text-on-surface-variant dark:text-dark-text-muted hover:text-primary'" class="px-2 py-0.5 rounded-full transition-all">Hybrid</button>
+                                <button @click="chatMode = 'concise'" :class="chatMode === 'concise' ? 'bg-secondary text-white dark:bg-dark-accent dark:text-dark-bg font-bold shadow-xs' : 'text-on-surface-variant dark:text-dark-text-muted hover:text-primary'" class="px-2 py-0.5 rounded-full transition-all">Concise</button>
+                            </div>
+                        </div>
+
+                        <!-- Chat Messages Stream -->
+                        <div class="space-y-3">
+                            <!-- User Message -->
+                            <div class="flex justify-end">
+                                <div class="bg-surface-container-high dark:bg-dark-panel text-on-surface dark:text-dark-text text-[13px] px-3.5 py-2 rounded-2xl rounded-tr-none max-w-[85%]">
+                                    How do residual connections prevent vanishing gradients?
+                                </div>
+                            </div>
+
+                            <!-- Assistant Message -->
+                            <div class="flex flex-col items-start">
+                                <div class="bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface dark:text-dark-text text-[13px] p-3.5 rounded-2xl rounded-tl-none max-w-[95%] space-y-2">
+                                    <!-- Dynamic Response Based on Selected Mode -->
+                                    <template x-if="chatMode === 'strict'">
+                                        <p class="leading-relaxed">
+                                            According to He et al., residual connections reformulate layers to fit a residual mapping <code class="px-1 py-0.5 bg-surface-variant dark:bg-dark-bg rounded text-[12px]">F(x) := H(x) - x</code>. During backpropagation, the derivative includes an additive identity term <code class="px-1 py-0.5 bg-surface-variant dark:bg-dark-bg rounded text-[12px]">+1</code>, directly bypassing weight multiplications and mathematically preserving gradient signal.
+                                        </p>
+                                    </template>
+                                    <template x-if="chatMode === 'hybrid'">
+                                        <p class="leading-relaxed">
+                                            Residual skip connections create a direct highway for gradients to flow backwards without attenuation. Instead of requiring each stacked layer to fit the entire underlying mapping <code class="px-1 py-0.5 bg-surface-variant dark:bg-dark-bg rounded text-[12px]">H(x)</code>, the network learns the delta <code class="px-1 py-0.5 bg-surface-variant dark:bg-dark-bg rounded text-[12px]">F(x)</code>, ensuring gradients do not diminish over dozens of layers.
+                                        </p>
+                                    </template>
+                                    <template x-if="chatMode === 'concise'">
+                                        <ul class="list-disc pl-4 space-y-1 leading-relaxed">
+                                            <li><strong>Identity Shortcut:</strong> Gradient propagates directly as <code class="text-[12px]">d(F(x)+x)/dx = dF/dx + 1</code>.</li>
+                                            <li><strong>Zero Attenuation:</strong> Prevents gradients from shrinking to zero in deep networks.</li>
+                                            <li><strong>Proven Impact:</strong> Enables training 100+ layer architectures stably.</li>
+                                        </ul>
+                                    </template>
+
+                                    <!-- Verifiable Citations Badge & Trigger (Hover-to-Inspect) -->
+                                    <div class="pt-2 flex flex-wrap items-center gap-1.5 relative">
+                                        <div @mouseenter="showCitationPreview = true" @mouseleave="showCitationPreview = false" @click="showCitationPreview = !showCitationPreview" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary/10 dark:bg-dark-accent/10 border border-secondary/30 dark:border-dark-accent/30 text-secondary dark:text-dark-accent text-[11px] font-semibold cursor-pointer hover:bg-secondary/15 dark:hover:bg-dark-accent/15 transition-all">
+                                            <span class="material-symbols-outlined text-[13px]">pin_drop</span>
+                                            <span>Deep_Residual_Learning.pdf [Chunk #14]</span>
+                                            <span class="text-[9px] opacity-75 font-normal ml-0.5">(Hover to inspect)</span>
+                                        </div>
+                                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
+                                            <span class="material-symbols-outlined text-[12px]">verified</span> 98% Match
+                                        </span>
+                                    </div>
+
+                                    <!-- Expandable Verifiable Citation Inspector -->
+                                    <div x-show="showCitationPreview" x-transition class="mt-2 p-2.5 rounded-lg bg-surface-bright dark:bg-dark-bg border border-secondary/30 dark:border-dark-accent/30 text-[11px] text-on-surface-variant dark:text-dark-text-muted shadow-sm">
+                                        <div class="font-bold text-secondary dark:text-dark-accent mb-1 flex items-center justify-between">
+                                            <span>Grounded Document Chunk (Chunk #14)</span>
+                                            <span class="text-[10px] cursor-pointer hover:opacity-75" @click="showCitationPreview = false">✕</span>
+                                        </div>
+                                        <p class="italic">"...formally denoting H(x) as an underlying mapping to be fit by a few stacked layers, we let these layers fit another mapping of F(x) := H(x) - x. The original mapping is recast into F(x) + x..."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Box -->
+                    <div class="mt-4 pt-2">
+                        <div class="flex items-center bg-surface-container dark:bg-dark-panel rounded-full px-3 py-1.5 border border-paper dark:border-dark-border">
+                            <input type="text" readonly value="Ask follow-up question..." class="bg-transparent border-none text-[12px] text-on-surface dark:text-dark-text flex-1 outline-none cursor-pointer">
+                            <button class="h-6 w-6 rounded-full bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[14px]">send</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Right Panel: Study Studio (4 cols) -->
+                <div class="lg:col-span-4 p-4 bg-surface-bright/30 dark:bg-dark-panel/30 flex flex-col justify-between">
+                    <div>
+                        <!-- Studio Header & Tabs -->
+                        <div class="flex items-center justify-between pb-3 border-b border-paper dark:border-dark-border mb-3">
+                            <span class="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant dark:text-dark-text-muted">Study Studio</span>
+                            <div class="flex items-center gap-1 bg-surface-container dark:bg-dark-panel p-1 rounded-lg text-[11px] font-medium">
+                                <button @click="activeTab = 'flashcards'" :class="activeTab === 'flashcards' ? 'bg-surface-container-lowest dark:bg-dark-bg text-primary dark:text-dark-text font-bold shadow-xs' : 'text-on-surface-variant dark:text-dark-text-muted'" class="px-2 py-0.5 rounded transition-all">Flashcards</button>
+                                <button @click="activeTab = 'quiz'" :class="activeTab === 'quiz' ? 'bg-surface-container-lowest dark:bg-dark-bg text-primary dark:text-dark-text font-bold shadow-xs' : 'text-on-surface-variant dark:text-dark-text-muted'" class="px-2 py-0.5 rounded transition-all">Quiz</button>
+                                <button @click="activeTab = 'notes'" :class="activeTab === 'notes' ? 'bg-surface-container-lowest dark:bg-dark-bg text-primary dark:text-dark-text font-bold shadow-xs' : 'text-on-surface-variant dark:text-dark-text-muted'" class="px-2 py-0.5 rounded transition-all">Notes</button>
+                            </div>
+                        </div>
+
+                        <!-- 3.1 Flashcards Tab -->
+                        <div x-show="activeTab === 'flashcards'">
+                            <div class="text-[11px] text-on-surface-variant dark:text-dark-text-muted mb-2 flex items-center justify-between">
+                                <span>Card 1 of 8</span>
+                                <span class="text-secondary dark:text-dark-accent cursor-pointer" @click="flashcardFlipped = !flashcardFlipped">Click to Flip ↺</span>
+                            </div>
+                            <div @click="flashcardFlipped = !flashcardFlipped" class="h-44 rounded-xl border border-secondary/30 dark:border-dark-accent/30 bg-surface-container-lowest dark:bg-dark-bg p-4 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all relative overflow-hidden group">
+                                <div class="text-[11px] uppercase tracking-wider text-secondary dark:text-dark-accent font-semibold" x-text="flashcardFlipped ? 'Answer' : 'Question'"></div>
+                                
+                                <div class="my-auto text-center">
+                                    <p x-show="!flashcardFlipped" class="text-[13px] font-medium text-on-surface dark:text-dark-text">
+                                        What does the identity shortcut connection <code class="font-mono text-secondary dark:text-dark-accent">F(x) + x</code> accomplish?
+                                    </p>
+                                    <p x-show="flashcardFlipped" class="text-[13px] text-on-surface dark:text-dark-text leading-relaxed">
+                                        It allows unimpeded backpropagation of gradients to earlier layers, eliminating vanishing gradient bottlenecks in deep networks.
+                                    </p>
+                                </div>
+                                
+                                <div class="flex items-center justify-between text-[11px] text-on-surface-variant dark:text-dark-text-muted">
+                                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400">Verified from Source</span>
+                                    <span class="group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors">Tap card to flip</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3.2 Quiz Tab -->
+                        <div x-show="activeTab === 'quiz'" style="display: none;">
+                            <div class="text-[11px] text-on-surface-variant dark:text-dark-text-muted mb-2">Question 1: Multiple Choice</div>
+                            <div class="rounded-xl border border-paper dark:border-dark-border bg-surface-container-lowest dark:bg-dark-bg p-3.5">
+                                <p class="text-[13px] font-medium text-on-surface dark:text-dark-text mb-3">
+                                    What happens to a deep neural network without residual connections?
+                                </p>
+                                <div class="space-y-1.5 text-[12px]">
+                                    <button @click="selectedQuizOption = 'A'; quizSubmitted = true" :class="selectedQuizOption === 'A' ? 'border-error text-error bg-error/5' : 'border-paper dark:border-dark-border hover:bg-surface-variant/40 dark:hover:bg-dark-panel-hover'" class="w-full text-left p-2 rounded-lg border transition-colors flex items-center gap-2">
+                                        <span class="font-bold">A.</span> Training speeds up linearly
+                                    </button>
+                                    <button @click="selectedQuizOption = 'B'; quizSubmitted = true" :class="selectedQuizOption === 'B' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 font-medium' : 'border-paper dark:border-dark-border hover:bg-surface-variant/40 dark:hover:bg-dark-panel-hover'" class="w-full text-left p-2 rounded-lg border transition-colors flex items-center gap-2">
+                                        <span class="font-bold">B.</span> Gradients vanish, degrading training accuracy
+                                    </button>
+                                </div>
+                                <div x-show="quizSubmitted" class="mt-2.5 pt-2 border-t border-paper dark:border-dark-border text-[11px] text-emerald-600 dark:text-emerald-400">
+                                    <span class="font-bold">✓ Correct!</span> Option B is confirmed on page 2 of the uploaded source.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3.3 Notes Tab -->
+                        <div x-show="activeTab === 'notes'" style="display: none;">
+                            <div class="rounded-xl border border-paper dark:border-dark-border bg-surface-container-lowest dark:bg-dark-bg p-3.5 space-y-2 text-[12px]">
+                                <div class="font-bold text-on-surface dark:text-dark-text flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[16px] text-secondary dark:text-dark-accent">edit_note</span>
+                                    <span>Core Formulas & Takeaways</span>
+                                </div>
+                                <p class="text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                                    - Layer formulation: <code class="font-mono bg-surface-container dark:bg-dark-panel px-1 py-0.5 rounded">H(x) = F(x) + x</code><br>
+                                    - Preserves identity flow through arbitrarily deep architectures.<br>
+                                    - Formatted with markdown and KaTeX math support.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 p-2 rounded-xl bg-surface-container dark:bg-dark-panel text-[11px] text-center text-on-surface-variant dark:text-dark-text-muted">
+                        Generated dynamically from your active source documents
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- CUSTOM CHAT MODES SHOWCASE                        -->
+    <!-- ================================================= -->
+    <section id="modes" class="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-paper dark:border-dark-border">
+        <div class="text-center max-w-3xl mx-auto mb-14">
+            <span class="text-[12px] font-bold uppercase tracking-widest text-secondary dark:text-dark-accent">Tailored Intelligence</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-on-surface dark:text-dark-text mt-2 mb-4">
+                Three Custom Chat Modes. Total Control.
+            </h2>
+            <p class="text-on-surface-variant dark:text-dark-text-muted text-base sm:text-lg">
+                Different study tasks need different answering styles. Seamlessly toggle how SmallBook analyzes and responds.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Mode 1: Strict -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border hover:border-secondary dark:hover:border-dark-accent transition-all shadow-xs hover:shadow-md">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">verified</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2 flex items-center gap-2">
+                    <span>Strict Mode</span>
+                    <span class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-secondary/10 dark:bg-dark-accent/10 text-secondary dark:text-dark-accent">Zero Hallucination</span>
+                </h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed mb-4">
+                    Restricts responses strictly to confirmed facts in your uploaded sources. If information isn't in your files, SmallBook explicitly lets you know instead of guessing.
+                </p>
+                <div class="text-[12px] font-medium text-on-surface dark:text-dark-text flex items-center gap-1.5 text-secondary dark:text-dark-accent">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    <span>Ideal for legal research, exams, & hard data</span>
+                </div>
+            </div>
+
+            <!-- Mode 2: Hybrid -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border-2 border-secondary/40 dark:border-dark-accent/40 shadow-sm relative">
+                <div class="absolute -top-3 right-6 bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider">
+                    Most Popular
+                </div>
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">auto_stories</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2 flex items-center gap-2">
+                    <span>Hybrid Mode</span>
+                    <span class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-surface-container dark:bg-dark-bg text-on-surface-variant dark:text-dark-text-muted">Balanced</span>
+                </h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed mb-4">
+                    Blends verified document passages with broader conceptual synthesis and intuitive explanations. Connects the dots across complex concepts while preserving exact source anchors.
+                </p>
+                <div class="text-[12px] font-medium text-on-surface dark:text-dark-text flex items-center gap-1.5 text-secondary dark:text-dark-accent">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    <span>Ideal for conceptual study & literature reviews</span>
+                </div>
+            </div>
+
+            <!-- Mode 3: Concise -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border hover:border-secondary dark:hover:border-dark-accent transition-all shadow-xs hover:shadow-md">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">format_list_bulleted</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2 flex items-center gap-2">
+                    <span>Concise Mode</span>
+                    <span class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-surface-container dark:bg-dark-bg text-on-surface-variant dark:text-dark-text-muted">Executive</span>
+                </h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed mb-4">
+                    Eliminates filler and delivers high-impact bulleted summaries with key takeaways and formulas. Get straight to the answer without scrolling through paragraphs.
+                </p>
+                <div class="text-[12px] font-medium text-on-surface dark:text-dark-text flex items-center gap-1.5 text-secondary dark:text-dark-accent">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    <span>Ideal for quick reviews & pre-meeting briefs</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- CORE FEATURES GRID (BENTO STYLE)                  -->
+    <!-- ================================================= -->
+    <section id="features" class="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-paper dark:border-dark-border">
+        <div class="text-center max-w-3xl mx-auto mb-14">
+            <span class="text-[12px] font-bold uppercase tracking-widest text-secondary dark:text-dark-accent">Core Superpowers</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-on-surface dark:text-dark-text mt-2 mb-4">
+                Engineered for Serious Study & Research
+            </h2>
+            <p class="text-on-surface-variant dark:text-dark-text-muted text-base sm:text-lg">
+                Every detail is built to help you extract truth, retain knowledge, and move faster without vendor lock-in.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Feature 1: Hoverable Chunk Citations -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">pin_drop</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Hoverable Chunk Citations</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Every answer provides interactive citation chips. Simply hover over any citation to inspect the exact grounded document chunk excerpt without having to click or navigate away.
+                </p>
+            </div>
+
+            <!-- Feature 2: BYOK Freedom -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">vpn_key</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Bring-Your-Own-Key (BYOK)</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Use OpenAI (GPT-4o), Anthropic (Claude 3.5 Sonnet), Google (Gemini 1.5 Pro), or Groq (Llama-3). Your keys are encrypted at rest with AES-256-GCM.
+                </p>
+            </div>
+
+            <!-- Feature 3: Cascading Fallbacks -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">alt_route</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Resilient Cascading Fallback</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    If your primary model encounters rate limits or cloud outages, SmallBook seamlessly falls over to backup providers so your study session is never interrupted.
+                </p>
+            </div>
+
+            <!-- Feature 4: Universal Library -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">library_books</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Cross-Notebook Library</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Upload textbooks, papers, or documentation once. Link any source across multiple notebooks without re-uploading or waiting for repeated processing.
+                </p>
+            </div>
+
+            <!-- Feature 5: Active Study Studio -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">quiz</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Flashcards & Quizzes</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Turn your reading into active recall drills. Auto-generate study decks, take self-grading quizzes with full rationale, and write markdown notes side-by-side.
+                </p>
+            </div>
+
+            <!-- Feature 6: Instant & Private Processing -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border">
+                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center text-secondary dark:text-dark-accent mb-4">
+                    <span class="material-symbols-outlined text-[24px]">speed</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Instant & Private Processing</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Drop in large PDFs and start chatting in seconds. Your document indexing runs smoothly in the background, keeping your data strictly isolated and secure.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- COMPARISON MATRIX: SMALLBOOK VS THE REST          -->
+    <!-- ================================================= -->
+    <section id="comparison" class="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-paper dark:border-dark-border">
+        <div class="text-center max-w-3xl mx-auto mb-14">
+            <span class="text-[12px] font-bold uppercase tracking-widest text-secondary dark:text-dark-accent">Clear Advantages</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-on-surface dark:text-dark-text mt-2 mb-4">
+                Why Researchers Choose SmallBook
+            </h2>
+            <p class="text-on-surface-variant dark:text-dark-text-muted text-base sm:text-lg">
+                Compare how SmallBook stacks up against single-vendor tools and generic chatbots.
+            </p>
+        </div>
+
+        <div class="overflow-x-auto bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl shadow-sm">
+            <table class="w-full text-left border-collapse text-[14px]">
+                <thead>
+                    <tr class="border-b border-paper dark:border-dark-border bg-surface-container-low/50 dark:bg-dark-bg/60">
+                        <th class="p-4 sm:p-5 font-semibold text-on-surface dark:text-dark-text">Capability</th>
+                        <th class="p-4 sm:p-5 font-bold text-secondary dark:text-dark-accent bg-secondary/5 dark:bg-dark-accent/5">SmallBook</th>
+                        <th class="p-4 sm:p-5 font-medium text-on-surface-variant dark:text-dark-text-muted">NotebookLM</th>
+                        <th class="p-4 sm:p-5 font-medium text-on-surface-variant dark:text-dark-text-muted">OpenBook</th>
+                        <th class="p-4 sm:p-5 font-medium text-on-surface-variant dark:text-dark-text-muted">Notion</th>
+                        <th class="p-4 sm:p-5 font-medium text-on-surface-variant dark:text-dark-text-muted">Standard GPT</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-paper dark:divide-dark-border text-on-surface dark:text-dark-text">
+                    <!-- Row 1 -->
+                    <tr>
+                        <td class="p-4 sm:p-5 font-medium">Strict Document Grounding</td>
+                        <td class="p-4 sm:p-5 font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/5 dark:bg-dark-accent/5 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span> Yes (Strict Mode + Hover Chunk)
+                        </td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Partial (Gemini-only)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Basic RAG (No guardrails)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">No (Prone to hallucination)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">No (Unconstrained generic LLM)</td>
+                    </tr>
+                    <!-- Row 2 -->
+                    <tr>
+                        <td class="p-4 sm:p-5 font-medium">Model Choice & BYOK</td>
+                        <td class="p-4 sm:p-5 font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/5 dark:bg-dark-accent/5 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span> Claude, GPT-4o, Gemini, Groq
+                        </td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Gemini Only</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Single / Local model</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Proprietary / Locked vendor</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">OpenAI Only</td>
+                    </tr>
+                    <!-- Row 3 -->
+                    <tr>
+                        <td class="p-4 sm:p-5 font-medium">Custom Grounding Modes</td>
+                        <td class="p-4 sm:p-5 font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/5 dark:bg-dark-accent/5 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span> Strict, Hybrid, Concise
+                        </td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">No (Fixed single style)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">No (Single template)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">No (Generic tone only)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Manual prompt only</td>
+                    </tr>
+                    <!-- Row 4 -->
+                    <tr>
+                        <td class="p-4 sm:p-5 font-medium">Resilient Cascading Fallback</td>
+                        <td class="p-4 sm:p-5 font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/5 dark:bg-dark-accent/5 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span> Automatic Provider Failover
+                        </td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Fails on rate limit</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Manual server reconfig</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Fails on outage</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Fails on capacity</td>
+                    </tr>
+                    <!-- Row 5 -->
+                    <tr>
+                        <td class="p-4 sm:p-5 font-medium">Built-in Flashcards & Quizzes</td>
+                        <td class="p-4 sm:p-5 font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/5 dark:bg-dark-accent/5 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span> Native Study Studio
+                        </td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Audio Overview Only</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">None (Chat only)</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Manual tables</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Chat text only</td>
+                    </tr>
+                    <!-- Row 6 -->
+                    <tr>
+                        <td class="p-4 sm:p-5 font-medium">Cross-Notebook Source Sharing</td>
+                        <td class="p-4 sm:p-5 font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/5 dark:bg-dark-accent/5 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span> Global Library Junction
+                        </td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Re-upload required</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Per-project uploads</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Workspace search</td>
+                        <td class="p-4 sm:p-5 text-on-surface-variant dark:text-dark-text-muted">Per-chat upload</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- HOW IT WORKS (3 SIMPLE STEPS)                     -->
+    <!-- ================================================= -->
+    <section id="how-it-works" class="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-paper dark:border-dark-border">
+        <div class="text-center max-w-3xl mx-auto mb-14">
+            <span class="text-[12px] font-bold uppercase tracking-widest text-secondary dark:text-dark-accent">Streamlined Workflow</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-on-surface dark:text-dark-text mt-2 mb-4">
+                From Document to Mastery in 3 Steps
+            </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            <!-- Step 1 -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border relative">
+                <div class="text-3xl font-black text-secondary dark:text-dark-accent mb-3">01</div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Upload Your Sources</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Drag and drop research papers, textbooks, or PDFs. SmallBook parses and indexes them in the background with speed.
+                </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border relative">
+                <div class="text-3xl font-black text-secondary dark:text-dark-accent mb-3">02</div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Ask & Verify</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Select your AI provider and preferred mode (Strict, Hybrid, or Concise). Interrogate your sources with hoverable chunk citations.
+                </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="p-6 rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border relative">
+                <div class="text-3xl font-black text-secondary dark:text-dark-accent mb-3">03</div>
+                <h3 class="text-lg font-bold text-on-surface dark:text-dark-text mb-2">Cement Your Knowledge</h3>
+                <p class="text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+                    Jump into the Study Studio to generate interactive flashcards, take self-grading quizzes, and organize formula-rich study notes.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- FAQ ACCORDION                                     -->
+    <!-- ================================================= -->
+    <section id="faq" class="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto border-t border-paper dark:border-dark-border" x-data="{ openFaq: null }">
+        <div class="text-center mb-12">
+            <span class="text-[12px] font-bold uppercase tracking-widest text-secondary dark:text-dark-accent">Got Questions?</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-on-surface dark:text-dark-text mt-2 mb-4">
+                Frequently Asked Questions
+            </h2>
+        </div>
+
+        <div class="space-y-4">
+            <!-- FAQ 1 -->
+            <div class="border border-paper dark:border-dark-border rounded-2xl bg-surface-container-lowest dark:bg-dark-panel overflow-hidden">
+                <button @click="openFaq = (openFaq === 1 ? null : 1)" class="w-full text-left p-5 flex items-center justify-between font-semibold text-[15px] text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                    <span>What makes SmallBook different from generic ChatGPT?</span>
+                    <span class="material-symbols-outlined text-[20px] transition-transform" :class="openFaq === 1 ? 'rotate-180' : ''">expand_more</span>
+                </button>
+                <div x-show="openFaq === 1" x-transition class="px-5 pb-5 text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed border-t border-paper dark:border-dark-border pt-4">
+                    Generic chatbots generate text based on broad training data and frequently fabricate facts. SmallBook grounds every answer in your specific uploaded documents and provides exact chunk citations. If an answer isn't supported by your files, Strict Mode tells you clearly.
+                </div>
+            </div>
+
+            <!-- FAQ 2 -->
+            <div class="border border-paper dark:border-dark-border rounded-2xl bg-surface-container-lowest dark:bg-dark-panel overflow-hidden">
+                <button @click="openFaq = (openFaq === 2 ? null : 2)" class="w-full text-left p-5 flex items-center justify-between font-semibold text-[15px] text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                    <span>How does Bring-Your-Own-Key (BYOK) work? Are my keys safe?</span>
+                    <span class="material-symbols-outlined text-[20px] transition-transform" :class="openFaq === 2 ? 'rotate-180' : ''">expand_more</span>
+                </button>
+                <div x-show="openFaq === 2" x-transition class="px-5 pb-5 text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed border-t border-paper dark:border-dark-border pt-4">
+                    You can input your personal API key for OpenAI, Anthropic, Google Gemini, or Groq. All keys are encrypted at rest using industry-standard AES-256-GCM encryption and are only decrypted in-memory during inference requests. You maintain complete control over your LLM usage.
+                </div>
+            </div>
+
+            <!-- FAQ 3 -->
+            <div class="border border-paper dark:border-dark-border rounded-2xl bg-surface-container-lowest dark:bg-dark-panel overflow-hidden">
+                <button @click="openFaq = (openFaq === 3 ? null : 3)" class="w-full text-left p-5 flex items-center justify-between font-semibold text-[15px] text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                    <span>What is Resilient Cascading Fallback?</span>
+                    <span class="material-symbols-outlined text-[20px] transition-transform" :class="openFaq === 3 ? 'rotate-180' : ''">expand_more</span>
+                </button>
+                <div x-show="openFaq === 3" x-transition class="px-5 pb-5 text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed border-t border-paper dark:border-dark-border pt-4">
+                    If an external provider experiences high traffic, rate limits (HTTP 429), or temporary outages, SmallBook's streaming engine automatically cascades to a backup model so your research and study session continues without errors.
+                </div>
+            </div>
+
+            <!-- FAQ 4 -->
+            <div class="border border-paper dark:border-dark-border rounded-2xl bg-surface-container-lowest dark:bg-dark-panel overflow-hidden">
+                <button @click="openFaq = (openFaq === 4 ? null : 4)" class="w-full text-left p-5 flex items-center justify-between font-semibold text-[15px] text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                    <span>Can I share documents across multiple notebooks?</span>
+                    <span class="material-symbols-outlined text-[20px] transition-transform" :class="openFaq === 4 ? 'rotate-180' : ''">expand_more</span>
+                </button>
+                <div x-show="openFaq === 4" x-transition class="px-5 pb-5 text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed border-t border-paper dark:border-dark-border pt-4">
+                    Yes! SmallBook includes a universal Sources Library. Upload a textbook or foundational paper once, and link it across as many notebooks as you like with a single click.
+                </div>
+            </div>
+
+            <!-- FAQ 5 -->
+            <div class="border border-paper dark:border-dark-border rounded-2xl bg-surface-container-lowest dark:bg-dark-panel overflow-hidden">
+                <button @click="openFaq = (openFaq === 5 ? null : 5)" class="w-full text-left p-5 flex items-center justify-between font-semibold text-[15px] text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                    <span>Is SmallBook free to use?</span>
+                    <span class="material-symbols-outlined text-[20px] transition-transform" :class="openFaq === 5 ? 'rotate-180' : ''">expand_more</span>
+                </button>
+                <div x-show="openFaq === 5" x-transition class="px-5 pb-5 text-[14px] text-on-surface-variant dark:text-dark-text-muted leading-relaxed border-t border-paper dark:border-dark-border pt-4">
+                    Yes. You can register for free, create notebooks, upload documents, and study immediately. You can also plug in your own API keys for unlimited high-tier model access.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================= -->
+    <!-- BOTTOM CALL TO ACTION BANNER                      -->
+    <!-- ================================================= -->
+    <section class="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-16">
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface-container-low via-surface-container-lowest to-secondary/10 dark:from-dark-panel dark:via-dark-bg dark:to-dark-accent/10 border border-paper dark:border-dark-border p-8 sm:p-12 md:p-16 text-center shadow-lg">
+            <div class="max-w-2xl mx-auto relative z-10">
+                <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-on-surface dark:text-dark-text mb-4">
+                    Ready to Turn Documents Into Understanding?
+                </h2>
+                <p class="text-base sm:text-lg text-on-surface-variant dark:text-dark-text-muted mb-8 leading-relaxed">
+                    Join researchers, students, and curious minds who study with verifiable citations and multi-model intelligence.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <a href="/auth/sign-up" class="w-full sm:w-auto bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg font-semibold text-[15px] px-8 py-3.5 rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md">
+                        <span>Create Free Account</span>
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                    </a>
+                    <a href="/auth/sign-in" class="w-full sm:w-auto bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface dark:text-dark-text font-medium text-[15px] px-6 py-3.5 rounded-full hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover transition-colors">
+                        Sign In
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ================================================= -->
+<!-- LANDING FOOTER                                    -->
+<!-- ================================================= -->
+<footer class="border-t border-paper dark:border-dark-border bg-surface dark:bg-dark-panel py-10 px-4 sm:px-6 lg:px-8 transition-colors">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2.5">
+            <div class="h-7 w-7 rounded-lg flex items-center justify-center p-0.5 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border shadow-xs">
+                <img alt="SmallBook Logo" class="h-5 w-5 object-contain" src="/static/images/SmallBooklogo.png">
+            </div>
+            <span class="font-bold text-[16px] text-primary dark:text-dark-text">SmallBook</span>
+            <span class="text-on-surface-variant/40 dark:text-dark-text-muted/40">•</span>
+            <span class="text-[13px] text-on-surface-variant dark:text-dark-text-muted">Strictly Grounded Research</span>
+        </div>
+
+        <div class="flex items-center gap-6 text-[13px] font-medium text-on-surface-variant dark:text-dark-text-muted">
+            <a href="/auth/sign-in" class="hover:text-primary dark:hover:text-dark-text transition-colors">Sign In</a>
+            <a href="/auth/sign-up" class="hover:text-primary dark:hover:text-dark-text transition-colors">Sign Up</a>
+            <a href="#features" class="hover:text-primary dark:hover:text-dark-text transition-colors">Features</a>
+            <a href="#comparison" class="hover:text-primary dark:hover:text-dark-text transition-colors">Comparison</a>
+            <a href="#faq" class="hover:text-primary dark:hover:text-dark-text transition-colors">FAQ</a>
+        </div>
+
+        <div class="text-[12px] text-on-surface-variant/70 dark:text-dark-text-muted/70">
+            © 2026 SmallBook. All rights reserved.
+        </div>
+    </div>
+</footer>
+{% endblock %}

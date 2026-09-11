@@ -62,3 +62,24 @@ def test_read_verify_email_page():
     assert "Check your email" in resp.text
     assert "Click to resend link" in resp.text
     assert "verifyEmailState" in resp.text
+
+
+def test_read_landing_page():
+    """Verifies GET / renders the SmallBook landing page with CTAs and core features."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "SmallBook" in resp.text
+    assert "/auth/sign-up" in resp.text
+    assert "/auth/sign-in" in resp.text
+    assert "Strictly Grounded" in resp.text
+    assert "Strict Mode" in resp.text
+    assert "Flashcards" in resp.text
+
+
+def test_read_landing_alias():
+    """Verifies GET /landing renders the landing page identically."""
+    resp = client.get("/landing")
+    assert resp.status_code == 200
+    assert "SmallBook" in resp.text
+    assert "/auth/sign-up" in resp.text
+
