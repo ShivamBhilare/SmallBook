@@ -1,3 +1,28 @@
+{# =========================================================================
+   TEMPLATE: notebook_workspace.html
+   DESCRIPTION:
+     Primary 3-panel research workspace shell for SmallBook. Coordinates:
+     1. Left panel: Document source management, PDF ingestion, checkbox selection.
+     2. Center panel: Grounded streaming RAG chat, citation chips, model switcher.
+     3. Right panel: Studio tools (markdown notes, flashcards, practice quizzes).
+     Includes Markdown parsing (Marked), KaTeX math typesetting, DOMPurify
+     sanitization, and responsive drawer navigation for mobile viewports.
+
+   EXTENDS: base.html
+
+   CONTEXT PARAMETERS:
+     - request (Request): Starlette HTTP request context.
+     - notebook (NotebookResponseSchema | dict): Active notebook entity (id, title, user_id).
+     - user (dict): Authenticated user session dictionary.
+
+   BLOCKS OVERRIDDEN:
+     - title: Browser tab title ('SmallBook - Notebook Workspace').
+     - body_classes: Fixed viewport height and scroll containment styles.
+     - extra_head: Marked, KaTeX, DOMPurify, and workspace.css stylesheet.
+     - content: Mobile tab switcher, left/right resizers, and partial panel inclusions.
+     - extra_scripts: Loads workspace modular controllers (workspace-ui, sources, chat,
+       study-tools, flashcards, quiz, notes).
+   ========================================================================= #}
 {% extends "base.html" %}
 
 {% block title %}SmallBook - Notebook Workspace{% endblock %}

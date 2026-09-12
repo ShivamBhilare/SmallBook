@@ -1,3 +1,15 @@
+"""
+Asynchronous PDF Ingestion & Indexing Celery Tasks
+
+Defines the core background task `process_pdf_task` for end-to-end document processing:
+    1. Downloads uploaded PDF from Supabase Storage to a secure temporary file.
+    2. Extracts structured Markdown text and page count via PyMuPDF4LLM.
+    3. Performs recursive hierarchical chunking into parent and child chunks.
+    4. Persists parent chunks to Supabase PostgreSQL (`document_chunks`).
+    5. Vectorizes child chunks and upserts points to Qdrant Cloud.
+    6. Updates operational tracking tables (`ingestion_jobs` and `sources`).
+"""
+
 import os
 import tempfile
 from typing import Optional
@@ -9,9 +21,24 @@ from app.services.ingestion.extractor import pdf_extracter
 from app.services.ingestion.chunker import HierarchicalChunker
 from app.services.ingestion.qdrant_db import QdrantManager
 
+
 @shared_task(name="process_pdf_task", bind=True)
 def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
-    """The asynchronous background task for PDF RAG ingestion."""
+    """
+    Celery background worker task for complete PDF document ingestion.
+
+    Coordinates document retrieval, Markdown extraction, parent-child token chunking,
+    database chunk insertion, and vector database indexing.
+    Safely deletes temporary files on both success and error branches.
+
+    Args:
+        self: Bound Celery task instance for inspecting task ID and request state.
+        source_id: UUID string of the target source document in the `sources` table.
+        user_id: Optional UUID string of the document owner.
+
+    Raises:
+        Exception: Propagates extraction or database errors after updating job status to 'failed'.
+    """
     supabase = get_service_role_client()
     tmp_pdf_path = None
     
@@ -117,4 +144,4 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
             "ingestion_status": "failed",
             "ingestion_error": error_msg
         }).eq("id", source_id).execute()
-        raise e
+        raise e

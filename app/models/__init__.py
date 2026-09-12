@@ -1,3 +1,16 @@
+"""
+SmallBook Domain Data Models Package
+
+Exposes unified Pydantic schemas and dataclasses used across API routers,
+database queries, background workers, and service layers:
+    - Authentication: `SignInSchema`, `SignUpSchema`, `ForgotPasswordSchema`, `UpdatePasswordSchema`
+    - Chat & RAG: `ChatRequestSchema`, `ChatResponseSchema`, `SourceCitationSchema`, etc.
+    - Ingestion: `ParentChunk`, `ChildChunk`
+    - Notebooks: `NotebookCreateSchema`, `NotebookUpdateSchema`, `NotebookResponseSchema`
+    - Sources: `SourceUploadResponse`, `SourceRenameSchema`
+    - Study Tools: `StudyGenerateRequest`, `FlashcardSetResponse`, `QuizResponse`, `NoteResponse`, etc.
+"""
+
 from app.models.auth_models import (
     SignInSchema,
     SignUpSchema,
@@ -79,3 +92,4 @@ __all__ = [
     "NoteUpdateRequest",
     "NoteResponse",
 ]
+

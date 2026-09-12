@@ -1,3 +1,20 @@
+{# =========================================================================
+   TEMPLATE PARTIAL: components/workspace_modals.html
+   DESCRIPTION:
+     Collection of modal dialog partials utilized throughout the research workspace.
+     Includes:
+     1. Add Documents Modal (#upload-modal): Local PDF drag-and-drop uploader + library cross-linking.
+     2. Rename Source Modal (#rename-source-modal): Source document title editing.
+     3. Delete Source Modal (#delete-source-modal): Detach vs global permanent delete dialog.
+     4. Clear Chat History Modal (#clear-chat-modal): Chat conversation reset confirmation.
+     5. Configure Chat Modal (#configure-chat-modal): Grounding modes (Strict, Hybrid, Concise)
+        and response length settings (Default, Longer, Shorter).
+     6. Study Generator Modal (#study-generator-modal): Flashcard & practice quiz dispatch dialog.
+     7. Delete Study Artifact Modal (#delete-study-tool-modal): Artifact removal confirmation.
+     Controlled by static/js/workspace/sources.js, chat.js, and study-tools.js.
+
+   CONTEXT PARAMETERS: None (Client-side partial populated dynamically via JS).
+   ========================================================================= #}
 <!-- Upload Modal Overlay (Hidden by default) -->
 <div id="upload-modal" class="hidden fixed inset-0 z-[100] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
     <!-- Modal Content -->

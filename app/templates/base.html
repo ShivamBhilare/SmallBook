@@ -1,16 +1,40 @@
+{# =========================================================================
+   TEMPLATE: base.html
+   DESCRIPTION:
+     Root HTML5 application shell for SmallBook. Configures responsive meta tags,
+     CDN dependencies (TailwindCSS, Material Symbols, Google Inter typography, Alpine.js),
+     FOUC theme prevention script, global design tokens, core stylesheet imports,
+     navigation landmarks, shared component modals, and extensible Jinja2 blocks.
+
+   CONTEXT PARAMETERS:
+     - user (dict | None): Authenticated user metadata session dictionary or None.
+     - request (Request): Starlette/FastAPI request context.
+
+   BLOCKS EXPOSED:
+     - title: Browser window / tab title string (defaults to 'SmallBook').
+     - extra_head: View-specific stylesheets, external font links, or meta tags.
+     - body_classes: Additional CSS classes injected into the <body> element.
+     - navbar: Primary top application navigation bar (includes components/navbar.html).
+     - content: Core view template markup body.
+     - extra_scripts: View-specific JavaScript imports or initialization scripts.
+   ========================================================================= #}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>{% block title %}SmallBook{% endblock %}</title>
-    <link rel="icon" type="image/png" href="/static/images/SmallBooklogo.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/SmallBooklogo.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/SmallBooklogo.png">
+    <link rel="apple-touch-icon" href="/static/images/SmallBooklogo.png">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
-    <!-- Prevent Flash of Unstyled Content (FOUC) and load saved theme -->
+    <!-- =========================================================================
+         FOUC PREVENTION & THEME RESTORATION
+         ========================================================================= -->
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -19,6 +43,9 @@
         }
     </script>
 
+    <!-- =========================================================================
+         TAILWIND CSS DESIGN SYSTEM CONFIGURATION
+         ========================================================================= -->
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -115,19 +142,21 @@
     <!-- Base Application CSS -->
     <link rel="stylesheet" href="/static/css/main.css">
     
-    <!-- Block for any view-specific styles -->
+    <!-- View-Specific Stylesheets Hook -->
     {% block extra_head %}{% endblock %}
 </head>
 
 <body class="bg-background dark:bg-dark-bg text-on-background dark:text-dark-text font-body-md flex flex-col {% block body_classes %}min-h-screen{% endblock %}">
     
+    <!-- Top Application Navigation -->
     {% block navbar %}
     {% include "components/navbar.html" %}
     {% endblock %}
 
+    <!-- Primary Main View Content -->
     {% block content %}{% endblock %}
 
-    <!-- Global Modals & Notifications -->
+    <!-- Global Modals & Notifications Layer -->
     {% include "components/library_modal.html" %}
     {% include "components/byok_modal.html" %}
     {% include "components/app_alert.html" %}
@@ -138,7 +167,7 @@
     <script src="/static/js/components/byok-modal.js"></script>
     <script src="/static/js/components/library-modal.js"></script>
     
-    <!-- Block for any view-specific scripts -->
+    <!-- View-Specific Scripts Hook -->
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

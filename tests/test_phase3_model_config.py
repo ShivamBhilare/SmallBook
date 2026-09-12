@@ -1,12 +1,34 @@
+"""Model Configuration and Ingestion Model Compatibility Test Suite for SmallBook.
+
+Validates:
+- Study generator prioritization: User BYOK custom key takes precedence over free tier fallbacks.
+- Developer key fallback: When no BYOK key is provided, falls back cleanly to developer Gemini and Groq.
+- Function signature defaults: Standard default models are consistently declared across all RAG methods.
+- Legacy migrations: Obsolete model identifiers are seamlessly mapped to current models.
+- Chunk citation compatibility: ParentChunk supports relevance score attributes with 1.0 default.
+"""
+
 import inspect
 from unittest.mock import MagicMock, patch
+
 from app.models.ingestion_models import ParentChunk
-from app.services.study.generator import _get_llm_candidates
-from app.services.rag.promptllm import generate_llm_response, stream_llm_response, stream_resilient_llm_response
 from app.services.llm.key_service import OBSOLETE_MODEL_MIGRATIONS
+from app.services.rag.promptllm import (
+    generate_llm_response,
+    stream_llm_response,
+    stream_resilient_llm_response,
+)
+from app.services.study.generator import _get_llm_candidates
 
 
 def test_study_generator_prioritizes_user_byok_key():
+    """Verifies that the study tool candidate builder puts the user's custom BYOK key at top priority.
+
+    Pattern:
+        - Arrange: Mock user preferences for gpt-4o, valid decrypted user BYOK key, and developer fallback keys.
+        - Act: Call _get_llm_candidates with requested_model='gpt-4o'.
+        - Assert: Candidate list has user's key at index 0 and developer Gemini at index 1.
+    """
     mock_supabase = MagicMock()
     user_id = "user_123"
 
@@ -29,6 +51,13 @@ def test_study_generator_prioritizes_user_byok_key():
 
 
 def test_study_generator_falls_back_to_dev_keys_when_no_user_key():
+    """Verifies that the candidate builder falls back to developer Gemini and Groq when no user key exists.
+
+    Pattern:
+        - Arrange: Mock get_decrypted_user_key returning None and mock developer keys.
+        - Act: Call _get_llm_candidates without user key.
+        - Assert: Priority 1 is Gemini free-tier and Priority 2 is Groq free-tier.
+    """
     mock_supabase = MagicMock()
     user_id = "user_123"
 
@@ -48,6 +77,14 @@ def test_study_generator_falls_back_to_dev_keys_when_no_user_key():
 
 
 def test_standardized_default_model_identifiers():
+    """Verifies default model parameter signatures and obsolete model mapping rules.
+
+    Pattern:
+        - Arrange: Introspect parameter signatures of RAG functions using python `inspect`.
+        - Act & Assert:
+            1. Verify default model across generate, stream, and resilient stream is 'groq/openai/gpt-oss-120b'.
+            2. Verify OBSOLETE_MODEL_MIGRATIONS maps legacy 'groq/llama-3.3-70b-versatile' to 'groq/openai/gpt-oss-120b'.
+    """
     gen_sig = inspect.signature(generate_llm_response)
     assert gen_sig.parameters["model"].default == "groq/openai/gpt-oss-120b"
 
@@ -62,6 +99,12 @@ def test_standardized_default_model_identifiers():
 
 
 def test_parent_chunk_score_field_and_citation_compatibility():
+    """Verifies that ParentChunk includes a relevance score attribute for citation ranking.
+
+    Pattern:
+        - Arrange: Instantiate ParentChunk with and without explicit score parameter.
+        - Act & Assert: Verify default score is 1.0, explicit score is preserved, and float conversion succeeds.
+    """
     # 1. Default score
     chunk1 = ParentChunk(
         id="chunk-1",

@@ -1,9 +1,18 @@
 /**
- * SmallBook - Authentication Forms Components
- * Provides Alpine.js controllers for Sign In, Sign Up, Password Reset,
- * Password Update, and Email Verification.
+ * @fileoverview Authentication Forms Components.
+ * Provides reactive Alpine.js controllers for Sign In, Sign Up, Password Reset,
+ * Password Update, and Email Verification workflows with inline validation and state.
  */
 
+/* ==========================================================================
+   SIGN IN FORM CONTROLLER
+   ========================================================================== */
+
+/**
+ * Alpine component for user login credential submission.
+ *
+ * @returns {Object} Alpine data object managing sign-in state.
+ */
 function signInForm() {
     return {
         email: '',
@@ -12,6 +21,11 @@ function signInForm() {
         loading: false,
         errorMsg: '',
         successMsg: '',
+
+        /**
+         * Submits sign-in credentials to backend and handles redirect on success.
+         * @returns {Promise<void>}
+         */
         async submitForm() {
             this.errorMsg = '';
             this.successMsg = '';
@@ -39,6 +53,15 @@ function signInForm() {
     };
 }
 
+/* ==========================================================================
+   SIGN UP FORM CONTROLLER
+   ========================================================================== */
+
+/**
+ * Alpine component for new user account registration.
+ *
+ * @returns {Object} Alpine data object managing sign-up state.
+ */
 function signUpForm() {
     return {
         fullname: '',
@@ -48,6 +71,11 @@ function signUpForm() {
         loading: false,
         errorMsg: '',
         successMsg: '',
+
+        /**
+         * Submits registration data to backend and routes to dashboard or verification.
+         * @returns {Promise<void>}
+         */
         async submitForm() {
             this.errorMsg = '';
             this.successMsg = '';
@@ -56,10 +84,10 @@ function signUpForm() {
                 const res = await fetch('/auth/api/sign-up', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: this.email, 
-                        password: this.password, 
-                        fullname: this.fullname 
+                    body: JSON.stringify({
+                        email: this.email,
+                        password: this.password,
+                        fullname: this.fullname
                     })
                 });
                 const data = await res.json();
@@ -86,12 +114,26 @@ function signUpForm() {
     };
 }
 
+/* ==========================================================================
+   FORGOT PASSWORD FORM CONTROLLER
+   ========================================================================== */
+
+/**
+ * Alpine component for requesting a password recovery email.
+ *
+ * @returns {Object} Alpine data object managing forgot password state.
+ */
 function forgotPasswordForm() {
     return {
         email: '',
         loading: false,
         errorMsg: '',
         successMsg: '',
+
+        /**
+         * Submits recovery email address to trigger reset email delivery.
+         * @returns {Promise<void>}
+         */
         async submitForm() {
             this.errorMsg = '';
             this.successMsg = '';
@@ -116,6 +158,16 @@ function forgotPasswordForm() {
     };
 }
 
+/* ==========================================================================
+   UPDATE PASSWORD FORM CONTROLLER
+   ========================================================================== */
+
+/**
+ * Alpine component for updating password using an active recovery token.
+ *
+ * @param {string} [initialError=''] - Server-rendered initial error message.
+ * @returns {Object} Alpine data object managing password reset submission.
+ */
 function updatePasswordForm(initialError = '') {
     return {
         password: '',
@@ -127,18 +179,27 @@ function updatePasswordForm(initialError = '') {
         loading: false,
         errorMsg: initialError || '',
         successMsg: '',
+
+        /**
+         * Parses access/recovery tokens from URL hash or search params.
+         */
         init() {
             // Parse tokens from URL hash (Supabase default) or search parameters
             const urlParams = new URLSearchParams(window.location.search);
             const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash);
-            
+
             this.accessToken = hashParams.get('access_token') || urlParams.get('access_token') || urlParams.get('token') || '';
             this.refreshToken = hashParams.get('refresh_token') || urlParams.get('refresh_token') || '';
-            
+
             if (!this.accessToken && !this.errorMsg) {
                 this.errorMsg = 'Recovery token missing or expired. Please request a new password reset link.';
             }
         },
+
+        /**
+         * Validates password criteria and submits new password to backend.
+         * @returns {Promise<void>}
+         */
         async submitForm() {
             this.errorMsg = '';
             this.successMsg = '';
@@ -184,12 +245,27 @@ function updatePasswordForm(initialError = '') {
     };
 }
 
+/* ==========================================================================
+   EMAIL VERIFICATION CONTROLLER
+   ========================================================================== */
+
+/**
+ * Alpine component for the email confirmation screen with resend link capability.
+ *
+ * @param {string} [serverEmail=''] - Default recipient email passed from server context.
+ * @returns {Object} Alpine data object managing verification state.
+ */
 function verifyEmailState(serverEmail = '') {
     return {
         email: new URLSearchParams(window.location.search).get('email') || serverEmail || '',
         loading: false,
         successMsg: '',
         errorMsg: '',
+
+        /**
+         * Re-requests delivery of an email verification confirmation link.
+         * @returns {Promise<void>}
+         */
         async resendVerification() {
             if (!this.email || !this.email.includes('@')) {
                 this.errorMsg = 'Please provide a valid email address.';

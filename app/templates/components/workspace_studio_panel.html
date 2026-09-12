@@ -1,4 +1,23 @@
-    <aside id="panel-studio" class="hidden lg:flex w-full lg:w-[var(--right-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+    {# =========================================================================
+   TEMPLATE PARTIAL: components/workspace_studio_panel.html
+   DESCRIPTION:
+     Right collateral sidebar panel for Studio Tools in the research workspace.
+     Comprises two primary view modes:
+     1. Studio Main View:
+        - Study Tools quick-action launchers (Flashcards, Quiz, Notes).
+        - Artifacts list (Notes, Flashcard decks, Practice quizzes, pending generation tiles).
+        - Sorting selector (Recently Modified, Date Created, Title A-Z).
+     2. Studio Active Viewer (swapped in when an artifact is opened):
+        - Header with width expansion (440px to 680px) and close controls.
+        - Flashcard practice card carousel with 3D flip card mechanics.
+        - Practice quiz interactive player with question stepper and score review.
+        - Markdown Note editor with live preview toggle and auto-save debouncing.
+     Controlled by static/js/workspace/study-tools.js, flashcards.js, quiz.js, and notes.js.
+
+   CONTEXT PARAMETERS:
+     - notebook (NotebookResponseSchema | dict, optional): Active notebook object.
+   ========================================================================= #}
+<aside id="panel-studio" class="hidden lg:flex w-full lg:w-[var(--right-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
         
         <!-- 1. STUDIO MAIN VIEW (Features + Artifacts List) -->
         <div id="studio-main-view" class="flex-1 flex flex-col h-full overflow-hidden">

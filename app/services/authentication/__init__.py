@@ -1,3 +1,10 @@
+"""
+Authentication Service Package
+
+Exports authentication helpers, client factories, and FastAPI dependencies
+interfacing with Supabase GoTrue authentication services.
+"""
+
 from app.services.authentication.auth_service import (
     get_token_from_request,
     get_supabase_client,
@@ -27,3 +34,4 @@ __all__ = [
     "login_required",
     "get_optional_current_user",
 ]
+

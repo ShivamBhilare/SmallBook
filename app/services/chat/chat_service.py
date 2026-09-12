@@ -1,20 +1,39 @@
-import logging
+"""Chat Service Module.
+
+Handles persistence, retrieval, citation linkage, and model provider routing
+for SmallBook notebook conversational interactions.
+"""
+
 import json
-from typing import List, Optional, Dict, Any, Tuple
-from supabase import Client
+import logging
+from typing import Any, Dict, List, Optional, Tuple
+
 from postgrest.exceptions import APIError
+from supabase import Client
+
 from app.services.authentication.auth_service import get_service_role_client
 
 logger = logging.getLogger(__name__)
 
+# Markers used to embed non-user-facing metadata (timings, token counts) into message content
 META_PREFIX = "<!--smallbook-meta:"
 META_SUFFIX = "-->"
 
 
 def extract_message_metadata(content: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Extracts embedded JSON metadata from message content, returning the clean content
-    and the parsed metadata dictionary (or None).
+    """Extracts embedded JSON metadata from message content.
+
+    Parses out hidden HTML comment markers containing serialization metadata
+    (such as latency and token counts), returning the clean user-facing text
+    and parsed metadata dictionary.
+
+    Args:
+        content: Raw message text potentially containing embedded metadata tags.
+
+    Returns:
+        Tuple containing:
+            - clean_content: Content with metadata marker stripped and trimmed.
+            - metadata: Parsed dictionary if valid JSON was found, otherwise None.
     """
     if not content or META_PREFIX not in content:
         return content, None
@@ -33,13 +52,25 @@ def extract_message_metadata(content: str) -> Tuple[str, Optional[Dict[str, Any]
 
 
 def infer_llm_provider(model_name: Optional[str]) -> Optional[str]:
-    """Infers the LLM provider name from the model identifier string."""
+    """Infers the LLM provider identifier from a model name string.
+
+    Uses prefix routing and fallback substring matching to categorize model IDs
+    into standard provider keys recognized by the application (e.g., 'groq',
+    'google', 'anthropic', 'openai', 'openrouter', or 'custom').
+
+    Args:
+        model_name: Name or path of the model (e.g., 'gemini/gemini-2.5-flash',
+            'groq/openai/gpt-oss-120b', 'claude-3-5-sonnet').
+
+    Returns:
+        Canonical provider string identifier, or None if model_name is empty.
+    """
     if not model_name:
         return None
-    
+
     m = model_name.lower().strip()
-    
-    # 1. Prefix-based routing (handles models like 'groq/openai/gpt-oss-120b' correctly)
+
+    # 1. Prefix-based routing (handles compound prefixes such as 'groq/openai/gpt-oss-120b')
     if m.startswith("groq/") or m.startswith("groq"):
         return "groq"
     elif m.startswith("gemini/") or m.startswith("gemini") or m.startswith("google"):
@@ -52,8 +83,8 @@ def infer_llm_provider(model_name: Optional[str]) -> Optional[str]:
         return "custom"
     elif m.startswith("openai/") or m.startswith("gpt") or m.startswith("o1") or m.startswith("o3"):
         return "openai"
-    
-    # 2. Substring matching for un-prefixed models
+
+    # 2. Substring matching for un-prefixed or shorthand model strings
     if "groq" in m or "llama" in m or "mixtral" in m:
         return "groq"
     elif "gemini" in m or "google" in m:
@@ -64,7 +95,7 @@ def infer_llm_provider(model_name: Optional[str]) -> Optional[str]:
         return "openai"
     elif "/" in m:
         return m.split("/")[0]
-        
+
     return "custom"
 
 
@@ -78,10 +109,27 @@ def save_chat_message(
     llm_model: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """
-    Inserts a user or assistant message into the chat_messages table.
-    If metadata is provided (e.g. timings_ms, used_tokens), embeds it into content.
-    Uses the provided client, falling back to the service role client if needed.
+    """Inserts a user or assistant message into the chat_messages table.
+
+    Embeds telemetry and timing metadata into content if provided. Tries insertion
+    with the provided authenticated user client first, falling back to service-role
+    client if permissions or RLS policies demand elevated privileges.
+
+    Args:
+        client: Authenticated Supabase client instance.
+        notebook_id: UUID of the notebook workspace.
+        role: Author role ('user' or 'assistant').
+        content: Raw markdown text of the message.
+        parent_id: Optional UUID of the parent message in thread.
+        llm_provider: Provider key (e.g. 'groq', 'google') for assistant responses.
+        llm_model: Exact model identifier used for generation.
+        metadata: Optional dictionary with metrics (e.g. timings_ms, used_tokens).
+
+    Returns:
+        Dictionary representation of the newly inserted chat_messages row.
+
+    Raises:
+        RuntimeError: If database insertion fails across both user and admin clients.
     """
     stored_content = content
     if metadata:
@@ -109,7 +157,10 @@ def save_chat_message(
         if res.data:
             return res.data[0]
     except Exception as err:
-        logger.warning(f"Failed to insert chat_message via user client ({err}). Retrying with service role client.")
+        logger.warning(
+            f"Failed to insert chat_message via user client ({err}). "
+            "Retrying with service role client."
+        )
         try:
             admin_client = get_service_role_client()
             res = admin_client.table("chat_messages").insert(data).execute()
@@ -126,9 +177,19 @@ def save_citations(
     chat_message_id: str,
     citations_data: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    """
-    Persists RAG grounding citations linked to a specific assistant message.
-    Uses the service role client to satisfy citations RLS policies.
+    """Persists RAG grounding citations linked to an assistant chat message.
+
+    Uses elevated service-role permissions to ensure citation records are
+    successfully attached regardless of row-level security constraints on
+    individual chunk references.
+
+    Args:
+        chat_message_id: UUID of the assistant chat message row.
+        citations_data: List of citation dictionaries containing chunk references,
+            page numbers, document titles, and relevance scores.
+
+    Returns:
+        List of inserted citation database records, or empty list on failure.
     """
     if not citations_data:
         return []
@@ -143,7 +204,7 @@ def save_citations(
             record["chunk_id"] = cit["chunk_id"]
         elif "id" in cit and cit["id"]:
             record["chunk_id"] = cit["id"]
-            
+
         if "page_number" in cit and cit["page_number"] is not None:
             record["page_number"] = cit["page_number"]
         elif "order" in cit and cit["order"] is not None:
@@ -169,9 +230,18 @@ def save_citations(
 
 
 def get_chat_history(client: Client, notebook_id: str) -> List[Dict[str, Any]]:
-    """
-    Fetches the persistent chat history for a notebook ordered chronologically,
-    joining all corresponding source citations for assistant responses.
+    """Fetches chronological chat history for a notebook with attached citations.
+
+    Queries messages in ascending creation order, batches citation lookups
+    for all assistant responses, and unpacks embedded performance metadata.
+
+    Args:
+        client: Authenticated Supabase client instance.
+        notebook_id: UUID of the target notebook.
+
+    Returns:
+        List of message dictionaries with 'citations', 'timings_ms', and
+        'used_tokens' populated, or empty list if no messages exist or on error.
     """
     try:
         msg_res = (
@@ -206,7 +276,7 @@ def get_chat_history(client: Client, notebook_id: str) -> List[Dict[str, Any]]:
             except Exception as cit_err:
                 logger.warning(f"Error loading citations for notebook {notebook_id}: {cit_err}")
 
-        # Attach citations and metadata to messages
+        # Attach citations and unpack embedded metadata into top-level keys
         for msg in messages:
             msg["citations"] = citations_by_msg.get(msg["id"], [])
             clean_content, meta = extract_message_metadata(msg.get("content", ""))
@@ -225,9 +295,21 @@ def get_chat_history(client: Client, notebook_id: str) -> List[Dict[str, Any]]:
 
 
 def clear_chat_history(client: Client, notebook_id: str) -> bool:
-    """
-    Deletes all chat messages associated with a notebook.
-    Citations and dependencies are automatically removed via ON DELETE CASCADE.
+    """Deletes all chat messages associated with a notebook workspace.
+
+    Child citations are automatically removed via database foreign-key
+    CASCADE constraints. Tries deletion via user client before falling back
+    to service-role client.
+
+    Args:
+        client: Authenticated Supabase client instance.
+        notebook_id: UUID of the notebook whose history should be cleared.
+
+    Returns:
+        True if history was cleared successfully.
+
+    Raises:
+        Exception: If admin fallback client also fails to delete records.
     """
     try:
         (

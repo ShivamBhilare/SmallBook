@@ -1,8 +1,13 @@
+/**
+ * SmallBook - Core Global Stylesheet
+ * Defines elevation shadow tokens, paper border utilities, customized scrollbars,
+ * text-truncation clamping classes, and Alpine.js cloak helpers.
+ */
+
 /* ==========================================================================
-   SmallBook - Core Global Styles
+   ELEVATION SHADOW TOKENS
    ========================================================================== */
 
-/* Elevation Shadows */
 .custom-shadow {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
@@ -15,7 +20,10 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-/* Border Theme Utilities */
+/* ==========================================================================
+   BORDER THEME UTILITIES
+   ========================================================================== */
+
 .border-paper {
     border-color: #E5E5E5;
 }
@@ -24,7 +32,10 @@
     border-color: #3f3f46;
 }
 
-/* Custom Scrollbars */
+/* ==========================================================================
+   CUSTOM SCROLLBAR STYLING
+   ========================================================================== */
+
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -51,12 +62,14 @@
     background: #e57754;
 }
 
-/* Base Transition Utilities */
+/* ==========================================================================
+   TRANSITION & TRUNCATION UTILITIES
+   ========================================================================== */
+
 .transition-smooth {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Text Truncation Helpers */
 .truncate-2-lines {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -73,7 +86,10 @@
     overflow: hidden;
 }
 
-/* Alpine.js cloak helper */
+/* ==========================================================================
+   ALPINE.JS CLOAK UTILITY (Hides unrendered directives during page load)
+   ========================================================================== */
+
 [x-cloak] {
     display: none !important;
 }

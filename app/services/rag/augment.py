@@ -1,8 +1,25 @@
+"""
+Prompt Augmentation & Pedagogical Context Formatting Service
+
+Assembles grounded system instructions and structured user context blocks for LLM inference:
+    1. Context Formatting: Packages retrieved `ParentChunk` records with numbered citation tags.
+    2. Prompt Modes:
+       - `STRICT`: Zero-hallucination pedagogical instruction grounded strictly in provided documents.
+       - `HYBRID`: Prioritizes sources, falling back explicitly with a warning marker when unaddressed.
+       - `CONCISE`: High-impact bullet point executive summary.
+    3. Output Steering: Enforces LaTeX mathematical equation formatting ($ and $$) and
+       length/anti-truncation budget instructions.
+"""
+
 from enum import Enum
 from typing import List, Union
 from app.models.ingestion_models import ParentChunk
 
+
 class PromptMode(str, Enum):
+    """
+    Operational modes governing LLM synthesis behavior and source grounding rigor.
+    """
     STRICT = "strict"      # Strict Source Grounding with pedagogical synthesis
     HYBRID = "hybrid"      # Balanced / Hybrid: Sources first, explicit fallback
     CONCISE = "concise"    # Concise / Executive: Fast takeaways
@@ -11,8 +28,20 @@ class PromptMode(str, Enum):
     HONEST = "strict"
     ANSWER_ALL = "hybrid"
 
+
 def format_context(chunks: List[ParentChunk]) -> str:
-    """Formats parent chunks into an indexed, structured context block."""
+    """
+    Formats parent text chunks into an indexed, structured document context block.
+
+    Generates distinct header delimiters (`--- [Source X] (Document ID: ...) ---`)
+    enabling the model to attribute grounded statements and cite specific sources.
+
+    Args:
+        chunks: List of retrieved `ParentChunk` records.
+
+    Returns:
+        str: Concatenated, labeled Markdown context block.
+    """
     if not chunks:
         return "No document context available."
     
@@ -21,6 +50,7 @@ def format_context(chunks: List[ParentChunk]) -> str:
         formatted.append(f"--- [Source {idx + 1}] (Document ID: {chunk.document_id}) ---\n{chunk.text.strip()}")
     return "\n\n".join(formatted)
 
+
 def build_augmented_prompt(
     query: str, 
     chunks: List[ParentChunk], 
@@ -28,8 +58,19 @@ def build_augmented_prompt(
     length_setting: str = "default"
 ) -> tuple[str, str]:
     """
-    Constructs a system instruction and user prompt based on the selected mode.
-    Dynamically appends length and behavioral steering constraints.
+    Constructs the system instruction and augmented user prompt for chat inference.
+
+    Synthesizes length steering, LaTeX mathematical notation guidelines, and mode-specific
+    grounding rules (STRICT, HYBRID, CONCISE).
+
+    Args:
+        query: The raw user prompt or question.
+        chunks: Retrieved candidate parent chunks to supply as context.
+        mode: Grounding mode (Strict, Hybrid, or Concise).
+        length_setting: Target response length ('default', 'longer', 'shorter').
+
+    Returns:
+        tuple[str, str]: (system_instruction, user_prompt).
     """
     context_text = format_context(chunks)
 

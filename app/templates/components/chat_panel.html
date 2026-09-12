@@ -1,3 +1,18 @@
+{# =========================================================================
+   TEMPLATE PARTIAL: components/chat_panel.html
+   DESCRIPTION:
+     Center conversational research workspace panel.
+     Coordinates:
+     - Header controls: Clear chat history and Chat mode configuration modal opener.
+     - Messages scroll viewport: Initial welcome bubble, user prompts, streaming AI responses,
+       citation source pills, timing chips, and assistant action bars.
+     - Floating input toolbar: Auto-expanding textarea, active source count chip,
+       LLM model selector popover, and submission button.
+     - Managed client-side by static/js/workspace/chat.js.
+
+   CONTEXT PARAMETERS:
+     - notebook (NotebookResponseSchema | dict, optional): Active notebook object.
+   ========================================================================= #}
 <section id="panel-chat" class="active-tab flex-1 flex flex-col min-w-0 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
     <!-- Chat Header -->
     <div class="pt-2 px-3 pb-0 lg:px-4 lg:py-2.5 lg:border-b border-paper dark:border-dark-border flex items-center justify-between z-10 bg-surface-container-lowest dark:bg-dark-panel">
@@ -17,14 +32,14 @@
     </div>
     
     <!-- Chat Messages Scroll Container -->
-    <div id="chat-messages-container" class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6 relative z-0">
+    <div id="chat-messages-container" class="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 lg:space-y-6 relative z-0">
         <!-- Initial AI Welcome Message -->
-        <div class="flex gap-3 max-w-3xl">
-            <div class="h-8 w-8 rounded-full bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/30 flex items-center justify-center flex-shrink-0 text-secondary dark:text-dark-accent">
-                <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+        <div class="flex gap-2 sm:gap-3 max-w-3xl w-full">
+            <div class="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-secondary/10 dark:bg-dark-accent/15 border border-secondary/20 dark:border-dark-accent/30 flex items-center justify-center flex-shrink-0 text-secondary dark:text-dark-accent mt-0.5">
+                <span class="material-symbols-outlined text-[14px] sm:text-[18px]">auto_awesome</span>
             </div>
-            <div class="flex-1 bg-surface-variant/40 dark:bg-dark-panel-hover p-4 rounded-2xl rounded-tl-none border border-paper/60 dark:border-dark-border/60">
-                <p class="font-body-md dark:text-dark-text leading-relaxed">
+            <div class="flex-1 min-w-0 bg-surface-variant/40 dark:bg-dark-panel-hover p-3 sm:p-4 rounded-xl sm:rounded-2xl rounded-tl-none border border-paper/60 dark:border-dark-border/60 break-words">
+                <p class="font-body-md text-sm sm:text-base dark:text-dark-text leading-relaxed">
                     Hello! I'm ready to answer questions grounded in your selected documents. What would you like to explore?
                 </p>
             </div>
@@ -35,17 +50,17 @@
     
     <!-- Input Area (Pinned to Bottom) -->
     <div class="absolute bottom-0 left-0 w-full p-3 lg:p-5 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/95 to-transparent dark:from-dark-panel dark:via-dark-panel/95 pointer-events-none z-10">
-        <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-4 sm:pl-6 pr-2 py-2 flex items-center gap-2 max-w-3xl mx-auto pointer-events-auto">
+        <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-3.5 sm:pl-6 pr-2 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 max-w-3xl mx-auto pointer-events-auto">
             
             <!-- Text Area (Center) -->
             <textarea id="chat-input" class="flex-1 bg-transparent border-none resize-none focus:ring-0 font-body-md py-1 px-0 dark:text-dark-text dark:placeholder-dark-text-muted outline-none text-sm sm:text-base leading-normal max-h-[120px] self-center" placeholder="Ask a question about your sources..." rows="1"></textarea>
             
             <!-- Right Actions -->
-            <div class="flex items-center gap-1.5 flex-shrink-0">
+            <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
                 <!-- Custom Model Dropdown (Populated Dynamically via User Preferences) -->
                 <div class="relative" id="model-dropdown-container">
-                    <button type="button" onclick="toggleModelDropdown(event)" class="bg-transparent border-none text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-1.5 px-2.5 sm:px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
-                        <span id="selected-model-name" class="max-w-[130px] truncate">Groq GPT-OSS 120B</span>
+                    <button type="button" onclick="toggleModelDropdown(event)" class="bg-transparent border-none text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-1 sm:py-1.5 px-2 sm:px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
+                        <span id="selected-model-name" class="max-w-[85px] sm:max-w-[130px] truncate">Groq GPT-OSS 120B</span>
                         <span class="material-symbols-outlined text-[16px]">expand_more</span>
                     </button>
                     <!-- Dropdown Menu -->

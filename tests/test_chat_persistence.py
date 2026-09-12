@@ -1,14 +1,34 @@
-import pytest
+"""Chat Persistence and Streaming Invariant Tests for SmallBook.
+
+Verifies:
+- Streaming failure safety: Assistant message is never persisted with empty content on LLM failure,
+  and metadata event yields message_id as None.
+- Successful streaming completion: Assistant message and citation entities are correctly persisted,
+  and final metadata payload emits the generated message_id.
+- Metadata comment parsing: Embedded telemetry comments (timings_ms, used_tokens) are cleanly
+  extracted and stripped from client-facing content.
+"""
+
+import json
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-import json
 
-from app.routers.chat import send_chat_message
+import pytest
+
 from app.models.chat_models import ChatRequestSchema
+from app.routers.chat import send_chat_message
 
 
 @pytest.mark.anyio
 async def test_chat_streaming_does_not_save_empty_assistant_message_on_failure():
+    """Verifies that an aborted or errored LLM stream does not persist an empty assistant message.
+
+    Pattern:
+        - Arrange: Mock Supabase client, user, and an LLM stream that yields an error event without tokens.
+        - Act: Consume the async body_iterator returned by send_chat_message.
+        - Assert: Verify save_chat_message was called only once (for user prompt), citations were not saved,
+          and metadata event reflects message_id=None.
+    """
     mock_client = MagicMock()
     mock_user = MagicMock()
     mock_user.id = str(uuid4())
@@ -60,6 +80,14 @@ async def test_chat_streaming_does_not_save_empty_assistant_message_on_failure()
 
 @pytest.mark.anyio
 async def test_chat_streaming_saves_assistant_message_when_content_generated():
+    """Verifies that assistant message and grounding citations are persisted upon successful generation.
+
+    Pattern:
+        - Arrange: Mock dependencies with an LLM stream returning text chunks and parent document citations.
+        - Act: Consume the async body_iterator from send_chat_message.
+        - Assert: Verify save_chat_message called twice (user and assistant), full response content persisted,
+          citations saved, and metadata event contains the saved assistant message ID.
+    """
     mock_client = MagicMock()
     mock_user = MagicMock()
     mock_user.id = str(uuid4())
@@ -117,6 +145,13 @@ async def test_chat_streaming_saves_assistant_message_when_content_generated():
 
 
 def test_chat_history_metadata_extraction():
+    """Tests metadata comment parsing and sanitization from stored message records.
+
+    Pattern:
+        - Arrange: Prepare sample response strings with and without embedded HTML comments.
+        - Act: Execute extract_message_metadata and get_chat_history with mocked database records.
+        - Assert: Verify metadata dictionary is parsed and clean message text is returned.
+    """
     from app.services.chat.chat_service import extract_message_metadata, get_chat_history
 
     raw_text = "Here is the response.\n\n<!--smallbook-meta:{\"timings_ms\": {\"total_ms\": 123.4, \"retrieval_ms\": 23.4, \"llm_ms\": 100.0}, \"used_tokens\": 250}-->"
@@ -150,4 +185,3 @@ def test_chat_history_metadata_extraction():
     assert history[0]["content"] == "Here is the response."
     assert history[0]["timings_ms"]["total_ms"] == 123.4
     assert history[0]["used_tokens"] == 250
-

@@ -1,3 +1,14 @@
+"""
+Developer Free-Tier Rate Limiting & Quota Management Subsystem
+
+Enforces daily query limits and anti-spam burst controls on developer-subsidized
+free LLM inference (Groq GPT-OSS and Gemini Flash). Implements a resilient 3-tier
+state hierarchy:
+    1. Tier 1 (Fast-path): Redis sliding window counters and daily increment keys.
+    2. Tier 2 (Local Dev Fallback): In-memory dictionary tracking when Redis is offline.
+    3. Tier 3 (Durable Source of Truth): Supabase PostgreSQL `user_free_tier_usage` table.
+"""
+
 import os
 import time
 import logging
@@ -10,29 +21,53 @@ from app.core.redis_client import get_redis_client
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
 
 # In-memory fallback tracking in case Redis is offline during local development
 _memory_daily_counts: Dict[str, int] = {}
 _memory_burst_timestamps: Dict[str, list] = {}
 
 
+# =========================================================================
+# 1. DEVELOPER KEY RESOLUTION
+# =========================================================================
+
 def get_developer_groq_key() -> Optional[str]:
-    """Retrieves developer free-tier Groq API key from environment."""
+    """
+    Retrieves the developer-provided Groq API key from environment variables.
+
+    Returns:
+        Optional[str]: Stripped API key string, or None if not configured.
+    """
     key = os.getenv("DEVELOPER_GROQ_KEY") or os.getenv("GROQ_API_KEY")
     return key.strip() if key else None
 
 
 def get_developer_gemini_key() -> Optional[str]:
-    """Retrieves developer free-tier Gemini API key from environment."""
+    """
+    Retrieves the developer-provided Google Gemini API key from environment variables.
+
+    Returns:
+        Optional[str]: Stripped API key string, or None if not configured.
+    """
     key = os.getenv("DEVELOPER_GEMINI_KEY") or os.getenv("GEMINI_API_KEY")
     return key.strip() if key else None
 
 
-logger = logging.getLogger(__name__)
-
+# =========================================================================
+# 2. INTERNAL VALIDATION & CLIENT HELPERS
+# =========================================================================
 
 def _is_valid_uuid(val: str) -> bool:
-    """Checks if a given string is a valid UUID."""
+    """
+    Checks if a given string conforms to standard UUID formatting.
+
+    Args:
+        val: String to validate.
+
+    Returns:
+        bool: True if valid UUID, False otherwise.
+    """
     try:
         uuid.UUID(str(val))
         return True
@@ -42,9 +77,17 @@ def _is_valid_uuid(val: str) -> bool:
 
 def _get_db_client(client: Optional[Any] = None) -> Optional[Any]:
     """
-    Returns an admin Supabase client for reliable quota operations.
-    If a test mock is provided, uses it. Otherwise always uses the service role client
-    so that user JWT/RLS restrictions never break system rate-limiting.
+    Returns an administrative Supabase client for reliable quota operations.
+
+    If a test mock is supplied, uses it directly. Otherwise resolves the service role
+    client so that user JWT or Row-Level Security (RLS) constraints do not impede
+    system-level quota accounting.
+
+    Args:
+        client: Optional client or test mock override.
+
+    Returns:
+        Optional[Any]: Client instance for database quota queries.
     """
     if client is not None:
         from unittest.mock import Mock, MagicMock
@@ -59,10 +102,27 @@ def _get_db_client(client: Optional[Any] = None) -> Optional[Any]:
         return client
 
 
-def check_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] = None) -> Tuple[bool, int, int]:
+# =========================================================================
+# 3. DAILY QUOTA & BURST LIMIT CONTROLS
+# =========================================================================
+
+def check_daily_quota(
+    user_id: str,
+    limit: int = 25,
+    client: Optional[Any] = None
+) -> Tuple[bool, int, int]:
     """
-    Checks if a user has remaining free tier queries for today.
-    Returns: (is_allowed: bool, used_today: int, remaining_today: int)
+    Checks if a user has remaining free-tier queries for today (UTC).
+
+    Evaluates Redis first; falls back to in-memory tracking or PostgreSQL if Redis is offline.
+
+    Args:
+        user_id: Unique UUID string of the requesting user.
+        limit: Daily query cap (defaults to 25 queries).
+        client: Optional database client override.
+
+    Returns:
+        Tuple[bool, int, int]: (is_allowed, used_today, remaining_today).
     """
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     redis_key = f"smallbook:freetier:daily:{user_id}:{today_str}"
@@ -101,10 +161,24 @@ def check_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] = Non
     return (True, 0, limit)
 
 
-def increment_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] = None) -> int:
+def increment_daily_quota(
+    user_id: str,
+    limit: int = 25,
+    client: Optional[Any] = None
+) -> int:
     """
     Increments the daily quota counter for a user across Redis, Memory, and Supabase.
-    Returns the new used count.
+
+    Maintains cache synchronization across the multi-tier storage layers and persists
+    the updated count to the `user_free_tier_usage` PostgreSQL table for analytics.
+
+    Args:
+        user_id: Unique UUID string of the requesting user.
+        limit: Daily query cap.
+        client: Optional database client override.
+
+    Returns:
+        int: The newly updated query count for today.
     """
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     redis_key = f"smallbook:freetier:daily:{user_id}:{today_str}"
@@ -161,8 +235,17 @@ def increment_daily_quota(user_id: str, limit: int = 25, client: Optional[Any] =
 
 def check_burst_limit(user_id: str, max_per_minute: int = 4) -> bool:
     """
-    Anti-spam burst limiter: Prevents rapid-fire requests within a 60-second window.
-    Returns True if allowed, False if rate-limited.
+    Anti-spam burst limiter using a 60-second sliding window.
+
+    Prevents bot spam or accidental double-submits from consuming daily quotas instantly.
+    Uses Redis sorted sets (`ZADD` / `ZREMRANGEBYSCORE`) with in-memory fallback.
+
+    Args:
+        user_id: Unique UUID string of the requesting user.
+        max_per_minute: Maximum permitted requests in a 60-second window.
+
+    Returns:
+        bool: True if allowed under burst limit, False if rate-limited.
     """
     now = time.time()
     r = get_redis_client()
@@ -187,8 +270,22 @@ def check_burst_limit(user_id: str, max_per_minute: int = 4) -> bool:
     return len(timestamps) <= max_per_minute
 
 
-def get_free_tier_status(user_id: str, limit: int = 25, client: Optional[Any] = None) -> Dict[str, Any]:
-    """Returns a full status dictionary for frontend badge & modal display."""
+def get_free_tier_status(
+    user_id: str,
+    limit: int = 25,
+    client: Optional[Any] = None
+) -> Dict[str, Any]:
+    """
+    Returns a full status dictionary for frontend badge & modal display.
+
+    Args:
+        user_id: Unique UUID string of the requesting user.
+        limit: Daily query cap.
+        client: Optional database client override.
+
+    Returns:
+        Dict[str, Any]: Detailed status dictionary for UI consumption.
+    """
     allowed, used, remaining = check_daily_quota(user_id, limit=limit, client=client)
     has_groq = bool(get_developer_groq_key())
     has_gemini = bool(get_developer_gemini_key())
@@ -202,3 +299,4 @@ def get_free_tier_status(user_id: str, limit: int = 25, client: Optional[Any] = 
         "primary_model": "groq/openai/gpt-oss-120b",
         "secondary_model": "gemini/gemini-2.5-flash",
     }
+

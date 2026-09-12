@@ -1,3 +1,10 @@
+"""
+LLM Configuration, BYOK Credentials, and Free-Tier Management Package
+
+Exports services for Bring-Your-Own-Key (BYOK) credential encryption/decryption,
+model catalogs, preference management, key verification, and multi-tier quota tracking.
+"""
+
 from app.services.llm.key_service import (
     DEFAULT_PREFERRED_MODELS,
     PROVIDER_CATALOG,
@@ -35,3 +42,4 @@ __all__ = [
     "check_burst_limit",
     "get_free_tier_status",
 ]
+

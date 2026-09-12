@@ -1,3 +1,16 @@
+"""
+Hybrid Document Retriever & Context Assembly Pipeline
+
+Implements SmallBook's two-stage hierarchical retrieval architecture:
+    1. Vector Semantic Search: Dense retrieval over child chunk embeddings in Qdrant.
+    2. Precision Reranking: Sentence-Transformers Cross-Encoder (`ms-marco-MiniLM-L-6-v2`)
+       with domain entity boosting for figures, equations, and tables.
+    3. Parent Resolution: Maps winning child scores to macro parent chunks in PostgreSQL.
+    4. Context Expansion: Fetches adjacent neighboring parent chunks for narrative continuity.
+    5. Token Budgeting: Assembles chunks within the prompt token budget via `tiktoken`.
+    6. Multi-Query Decomposition: Splits complex compound queries ('and') into sub-queries.
+"""
+
 import re
 import time
 from typing import Optional, Dict
@@ -17,12 +30,20 @@ from app.services.ingestion.config import (
 from app.services.ingestion.qdrant_db import get_embedding_model, QdrantManager
 from app.services.authentication.auth_service import get_service_role_client
 
-# Global CrossEncoder Cache
+# Global model and tokenizer singletons to avoid repeated instantiation overhead
 _cross_encoder_model = None
 _tokenizer = None
 
+
 def get_cross_encoder_model() -> CrossEncoder:
-    """Loads and caches the local CrossEncoder reranking model."""
+    """
+    Loads and caches the local CrossEncoder reranking model singleton.
+
+    Attempts local weights loading first; falls back to HuggingFace download if uninitialized.
+
+    Returns:
+        CrossEncoder: Initialized CrossEncoder model instance.
+    """
     global _cross_encoder_model
     if _cross_encoder_model is None:
         try:
@@ -31,22 +52,51 @@ def get_cross_encoder_model() -> CrossEncoder:
             _cross_encoder_model = CrossEncoder(CROSS_ENCODER_MODEL)
     return _cross_encoder_model
 
+
 def get_tokenizer():
-    """Caches and returns the tiktoken tokenizer."""
+    """
+    Caches and returns the `tiktoken` BPE tokenizer (`cl100k_base`).
+
+    Returns:
+        Encoding: Cached tiktoken encoding instance.
+    """
     global _tokenizer
     if _tokenizer is None:
         _tokenizer = tiktoken.get_encoding("cl100k_base")
     return _tokenizer
 
+
 def _token_count(text: str, tokenizer=None) -> int:
-    """Computes the token count of a given string."""
+    """
+    Computes the token count of a given text string using tiktoken.
+
+    Args:
+        text: Input string.
+        tokenizer: Optional pre-resolved tokenizer instance.
+
+    Returns:
+        int: Number of BPE tokens in the text.
+    """
     tok = tokenizer or get_tokenizer()
     return len(tok.encode(text))
 
+
+# =========================================================================
+# 1. QUERY DECOMPOSITION & NEIGHBOR HELPERS
+# =========================================================================
+
 def decompose_query(query: str) -> list[str]:
     """
-    Splits compound queries containing 'and' into discrete sub-queries 
-    if the segment begins with recognized question starters.
+    Splits compound user queries containing 'and' into discrete sub-queries.
+
+    Only splits when subsequent clauses begin with recognized question starters
+    (e.g., 'What is X and how does Y work?').
+
+    Args:
+        query: Raw user query string.
+
+    Returns:
+        list[str]: List of decomposed sub-queries, or original query if not compound.
     """
     parts = re.split(r"\s+and\s+", query, flags=re.IGNORECASE)
     if len(parts) == 1:
@@ -66,8 +116,23 @@ def decompose_query(query: str) -> list[str]:
 
     return sub_queries if len(sub_queries) > 1 else [query]
 
-def _get_neighboring_parents(all_parents: list[ParentChunk], best_parent: ParentChunk, window: int) -> list[ParentChunk]:
-    """Retrieves adjacent parent chunks within the same document for context continuity."""
+
+def _get_neighboring_parents(
+    all_parents: list[ParentChunk], 
+    best_parent: ParentChunk, 
+    window: int
+) -> list[ParentChunk]:
+    """
+    Retrieves adjacent parent chunks within the same document for context continuity.
+
+    Args:
+        all_parents: Candidate pool of parent chunks.
+        best_parent: The highest scoring parent chunk.
+        window: Number of neighboring offsets (+/-) to include.
+
+    Returns:
+        list[ParentChunk]: Adjacent parent chunks from the same document.
+    """
     same_doc = {p.order: p for p in all_parents if p.document_id == best_parent.document_id}
     neighbors = []
     for offset in range(1, window + 1):
@@ -75,6 +140,11 @@ def _get_neighboring_parents(all_parents: list[ParentChunk], best_parent: Parent
             if order in same_doc:
                 neighbors.append(same_doc[order])
     return neighbors
+
+
+# =========================================================================
+# 2. CORE RETRIEVAL PIPELINE
+# =========================================================================
 
 def retrieve(
     query: str,
@@ -88,12 +158,26 @@ def retrieve(
     min_rerank_score: float = -2.0,
 ) -> Optional[dict]:
     """
-    Hybrid Sweet Spot Retrieval:
-    1. Query Qdrant Cloud for the top candidate child chunks (filtered by active source_ids).
-    2. Run Cross-Encoder reranking on the candidate child chunks with entity boosting.
-    3. Aggregate winning scores to parent chunks.
-    4. Fetch winning parent chunks and adjacent neighbors from Supabase (or local cache).
-    5. Assemble context within the token budget.
+    Executes the complete two-stage hierarchical retrieval algorithm:
+    1. Dense Vector Search: Queries Qdrant Cloud for candidate child chunks scoped to `source_ids`.
+    2. Cross-Encoder Reranking: Predicts pairwise relevance scores with heuristic entity boosts.
+    3. Score Aggregation: Maps maximum child scores to their respective parent chunk IDs.
+    4. Database Hydration: Retrieves winning parent chunks and adjacent neighbor chunks from Supabase.
+    5. Token Budget Allocation: Selects chunks up to `context_token_budget` without exceeding limits.
+
+    Args:
+        query: User search or chat prompt query.
+        source_ids: Optional list of source document UUIDs to scope vector search.
+        client: Optional Supabase client instance.
+        parents_cache: Optional pre-loaded parent chunks to bypass database queries.
+        top_k: Top candidate children to retrieve from Qdrant (defaults to TOP_K_HYBRID).
+        top_n_parents: Number of top winning parent chunks to select (defaults to TOP_N_PARENTS).
+        neighbor_window: Adjacent chunk offset distance for context expansion.
+        context_token_budget: Maximum allowed tokens for assembled prompt context.
+        min_rerank_score: Minimum CrossEncoder score required for a chunk to be considered relevant.
+
+    Returns:
+        Optional[dict]: Structured retrieval payload with selected parents and timings, or None.
     """
     top_k = TOP_K_HYBRID if top_k is None else top_k
     top_n_parents = TOP_N_PARENTS if top_n_parents is None else top_n_parents
@@ -246,6 +330,11 @@ def retrieve(
         "timings_ms": timings,
     }
 
+
+# =========================================================================
+# 3. MULTI-QUERY RETRIEVAL
+# =========================================================================
+
 def retrieve_multi(
     query: str,
     source_ids: Optional[list[str]] = None,
@@ -253,8 +342,19 @@ def retrieve_multi(
     **kwargs
 ) -> Optional[dict]:
     """
-    Handles complex or multi-part queries by decomposing them into sub-queries,
-    retrieving context for each sub-query, and merging the resulting parent chunks.
+    Handles complex multi-part queries by decomposing them into sub-queries.
+
+    Executes targeted retrieval for each sub-query, aggregates and deduplicates
+    parent chunks, and allocates context tokens evenly across query aspects.
+
+    Args:
+        query: Compound user query.
+        source_ids: Optional list of source UUID strings.
+        client: Optional Supabase client instance.
+        **kwargs: Additional overrides passed to `retrieve`.
+
+    Returns:
+        Optional[dict]: Merged multi-query retrieval result dictionary.
     """
     sub_queries = decompose_query(query)
     if len(sub_queries) == 1:

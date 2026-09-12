@@ -1,28 +1,46 @@
 /**
- * SmallBook - Sources Library Modal Alpine Component
+ * @fileoverview Sources Library Modal Alpine Component.
+ * Manages the global cross-notebook document library modal, client-side searching,
+ * sorting, byte size formatting, and permanent global document deletion.
  */
+
+/* ==========================================================================
+   SOURCES LIBRARY MODAL COMPONENT REGISTRATION
+   ========================================================================== */
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('sourcesLibraryModal', () => ({
+        // State
         isOpen: false,
         isLoading: false,
         sources: [],
         searchQuery: '',
         sortBy: 'recent', // 'recent', 'oldest', 'name'
-        
+
+        // Deletion confirmation state
         isDeleteConfirmOpen: false,
         sourceToDelete: null,
         isDeleting: false,
 
+        /**
+         * Opens library modal and initiates source fetching.
+         */
         openModal() {
             this.isOpen = true;
             this.fetchSources();
         },
 
+        /**
+         * Closes library modal.
+         */
         closeModal() {
             this.isOpen = false;
         },
 
+        /**
+         * Fetches all user documents across all notebooks from backend.
+         * @returns {Promise<void>}
+         */
         async fetchSources() {
             this.isLoading = true;
             try {
@@ -37,6 +55,10 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        /**
+         * Computed getter filtering sources by query and sorting by selected metric.
+         * @returns {Array<Object>} Sorted and filtered source items.
+         */
         get sortedAndFilteredSources() {
             let list = this.sources.filter(s => {
                 const q = this.searchQuery.toLowerCase();
@@ -56,6 +78,11 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
+        /**
+         * Formats byte count into human-readable unit string (KB, MB, GB).
+         * @param {number} bytes - Byte count.
+         * @returns {string} Formatted size string.
+         */
         formatBytes(bytes) {
             if (!bytes || bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -64,23 +91,39 @@ document.addEventListener('alpine:init', () => {
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         },
 
+        /**
+         * Formats ISO date string into localized short date.
+         * @param {string} dateStr - ISO date string.
+         * @returns {string} Formatted date (e.g. "Jul 3, 2026").
+         */
         formatDate(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr);
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         },
 
+        /**
+         * Opens confirmation modal before permanent document deletion.
+         * @param {Object} source - Target source document object.
+         */
         confirmDeleteSource(source) {
             this.sourceToDelete = source;
             this.isDeleteConfirmOpen = true;
         },
 
+        /**
+         * Cancels active deletion and resets modal state.
+         */
         cancelDelete() {
             this.isDeleteConfirmOpen = false;
             this.sourceToDelete = null;
             this.isDeleting = false;
         },
 
+        /**
+         * Sends permanent deletion request to backend and removes source from state.
+         * @returns {Promise<void>}
+         */
         async executeDeleteSource() {
             if (!this.sourceToDelete) return;
             this.isDeleting = true;
@@ -89,7 +132,7 @@ document.addEventListener('alpine:init', () => {
                     method: 'DELETE'
                 });
                 if (!res.ok) throw new Error('Failed to delete source');
-                
+
                 this.sources = this.sources.filter(s => s.id !== this.sourceToDelete.id);
                 this.cancelDelete();
             } catch (err) {

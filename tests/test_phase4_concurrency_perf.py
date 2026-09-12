@@ -1,6 +1,17 @@
+"""Concurrency, Connection Pooling, and Performance Batching Tests for SmallBook.
+
+Validates:
+- Redis client singleton lifecycle and connection pool reuse across application threads.
+- Offline circuit breaker backoff: Fast-fails for 10s interval to eliminate socket blocking.
+- Distributed concurrency locks and cooldown keys via Redis SET NX/EX.
+- In-memory thread-safe fallback for distributed locks when Redis is unreachable.
+- Celery ingestion chunk batching: Verifies parent chunks are partitioned into batches
+  of 250 records to prevent HTTP POST payload size exhaustion against Supabase REST API.
+"""
+
 import sys
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 # Mock heavy ML framework for fast unit testing
@@ -8,22 +19,29 @@ if "sentence_transformers" not in sys.modules:
     sys.modules["sentence_transformers"] = MagicMock()
 
 from app.core.redis_client import (
+    _OFFLINE_RETRY_INTERVAL,
     get_redis_client,
     reset_redis_client,
-    _OFFLINE_RETRY_INTERVAL
 )
 from app.services.study.concurrency import (
+    _local_cooldowns,
+    _local_locks,
     acquire_study_lock,
-    release_study_lock,
     check_and_set_cooldown,
     clear_cooldown,
-    _local_locks,
-    _local_cooldowns
+    release_study_lock,
 )
 
 
 def test_redis_client_singleton():
-    """Verifies get_redis_client returns a singleton instance and reuses the pool."""
+    """Verifies get_redis_client returns a singleton instance and reuses the connection pool.
+
+    Pattern:
+        - Arrange: Reset existing singleton, mock Redis and ConnectionPool factory.
+        - Act: Fetch client twice, reset, then fetch a third time.
+        - Assert: First two clients are identical instances (factory called once);
+          third call creates new instance (factory called twice).
+    """
     reset_redis_client()
     mock_redis = MagicMock()
     mock_redis.ping.return_value = True
@@ -51,7 +69,15 @@ def test_redis_client_singleton():
 
 
 def test_redis_client_offline_backoff():
-    """Verifies that offline Redis failure is cached for _OFFLINE_RETRY_INTERVAL."""
+    """Verifies that offline Redis failure is cached for _OFFLINE_RETRY_INTERVAL to fast-fail.
+
+    Pattern:
+        - Arrange: Mock Redis ping raising ConnectionError.
+        - Act & Assert:
+            1. First call fails and records offline timestamp.
+            2. Immediate second call fast-fails without issuing another ping() call.
+            3. Fast-forwarding past retry interval re-attempts connection and calls ping().
+    """
     reset_redis_client()
 
     with patch("redis.Redis") as mock_redis_class:
@@ -80,7 +106,16 @@ def test_redis_client_offline_backoff():
 
 
 def test_study_concurrency_with_pooled_redis():
-    """Verifies study tool concurrency locks use the pooled Redis client."""
+    """Verifies study tool concurrency locks and cooldown keys use the pooled Redis client.
+
+    Pattern:
+        - Arrange: Mock Redis client with set, delete, and ttl operations.
+        - Act & Assert:
+            1. Acquire lock: Verify redis.set called with NX and EX flags.
+            2. Release lock: Verify redis.delete called on lock key.
+            3. Set cooldown: Verify redis.set called on cooldown key with expiration.
+            4. Clear cooldown: Verify redis.delete called on cooldown key.
+    """
     mock_client = MagicMock()
     mock_client.set.return_value = True
     mock_client.ttl.return_value = -2  # Key doesn't exist yet
@@ -109,7 +144,14 @@ def test_study_concurrency_with_pooled_redis():
 
 
 def test_study_concurrency_offline_fallback():
-    """Verifies study tool concurrency seamlessly falls back to memory when Redis is offline."""
+    """Verifies study tool concurrency seamlessly falls back to in-memory state when Redis is offline.
+
+    Pattern:
+        - Arrange: Mock get_redis_client returning None; clear user from local sets.
+        - Act & Assert:
+            1. Memory lock: Acquire succeeds once, second attempt fails, release allows re-acquisition.
+            2. Memory cooldown: Initial attempt succeeds, immediate repeat is blocked with remaining seconds.
+    """
     user_id = f"offline-user-{uuid4()}"
     _local_locks.discard(user_id)
     _local_cooldowns.pop(f"quiz:{user_id}", None)
@@ -136,9 +178,16 @@ def test_study_concurrency_offline_fallback():
 
 
 def test_celery_task_chunk_batching():
-    """Verifies that parent chunks are inserted in batches of 250 to prevent HTTP payload overflow."""
+    """Verifies that parent chunks are inserted in batches of 250 to prevent HTTP payload overflow.
+
+    Pattern:
+        - Arrange: Generate 650 dummy parent chunks, mock Supabase database operations, and intercept chunk inserts.
+        - Act: Execute process_pdf_task.run() directly without Celery broker.
+        - Assert: Verify 650 chunks produce exactly 3 batches of size 250, 250, 150,
+          and maintain ordered chunk_index assignments from 0 to 649.
+    """
+    from app.models.ingestion_models import ChildChunk, ParentChunk
     from app.services.ingestion.celery_tasks import process_pdf_task
-    from app.models.ingestion_models import ParentChunk, ChildChunk
 
     source_id = str(uuid4())
     storage_path = f"test/{source_id}.pdf"

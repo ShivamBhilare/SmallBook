@@ -1,43 +1,64 @@
+"""Notebook Chat Router Module.
+
+Exposes endpoints for conversation history retrieval, history deletion,
+and Server-Sent Events (SSE) streaming RAG queries with groundings, multi-source
+retrieval, token budgeting, prompt steering, and resilient multi-provider LLM fallbacks.
+"""
+
 import json
 import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from supabase import Client
 
-from app.services.authentication.auth_service import login_required, get_supabase_client
-from app.services.sources.source_service import get_notebook_sources
-from app.services.rag import (
-    retrieve_multi,
-    build_augmented_prompt,
-    stream_resilient_llm_response
-)
-from app.services.llm import (
-    get_decrypted_user_key,
-    get_user_preferences,
-    check_daily_quota,
-    increment_daily_quota,
-    check_burst_limit,
-)
 from app.models.chat_models import ChatRequestSchema
+from app.services.authentication.auth_service import get_supabase_client, login_required
 from app.services.chat import (
+    clear_chat_history,
+    get_chat_history,
+    infer_llm_provider,
     save_chat_message,
     save_citations,
-    get_chat_history,
-    clear_chat_history,
-    infer_llm_provider
 )
+from app.services.llm import (
+    check_burst_limit,
+    check_daily_quota,
+    get_decrypted_user_key,
+    get_user_preferences,
+    increment_daily_quota,
+)
+from app.services.rag import (
+    build_augmented_prompt,
+    retrieve_multi,
+    stream_resilient_llm_response,
+)
+from app.services.sources.source_service import get_notebook_sources
 
 router = APIRouter(prefix="/notebooks/{notebook_id}/chat", tags=["Chat"])
+
 
 @router.get("/history")
 def get_notebook_chat_history(
     notebook_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """
-    Retrieves the persistent conversation history for a notebook,
-    including linked citations and branch references.
+    """Retrieves chronological conversation history for a notebook with attached citations.
+
+    Verifies user ownership of the notebook workspace before fetching persisted
+    messages, unpacked metrics, and linked groundings.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary containing 'messages' array.
+
+    Raises:
+        HTTPException: 404 if notebook does not exist or user lacks access.
     """
     nb_res = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
     if not nb_res.data:
@@ -53,11 +74,21 @@ def get_notebook_chat_history(
 @router.delete("/history")
 def clear_notebook_chat_history(
     notebook_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """
-    Clears all messages and attached citations for the given notebook.
+    """Clears all persisted chat messages and linked citations for a notebook.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary containing operation success status and detail string.
+
+    Raises:
+        HTTPException: 404 if notebook not found or access denied.
     """
     nb_res = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
     if not nb_res.data:
@@ -74,19 +105,32 @@ def clear_notebook_chat_history(
 def send_chat_message(
     notebook_id: str,
     payload: ChatRequestSchema,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """
-    RAG Streaming Query Endpoint with Full Persistence & Branching:
-    1. Validates notebook ownership and active sources.
-    2. Persists the incoming User Prompt into `chat_messages` (with `parent_id` for branching).
-    3. Runs hybrid retrieval across active source chunks in Qdrant & Supabase.
-    4. Reranks and aggregates chunks within the token budget.
-    5. Augments the prompt according to the selected mode and length constraints.
-    6. Streams LLM response tokens via SSE.
-    7. Persists the Assistant response into `chat_messages` and grounded sources into `citations`.
-    8. Emits completion metadata (IDs, citations, timings).
+    """Handles conversational RAG queries with SSE streaming token delivery.
+
+    Execution Pipeline:
+    1. Validates notebook ownership and non-empty query.
+    2. Persists user query to chat_messages table (linking parent_id for branching).
+    3. Resolves active source IDs and queries dense vector representations.
+    4. Reranks and aggregates parent chunks within the token budget.
+    5. Formulates augmented prompt conforming to selected persona mode and length constraint.
+    6. Verifies BYOK credentials or enforces developer free-tier rate limits.
+    7. Streams tokens, fallback notices, and model events to client via SSE.
+    8. Persists assistant reply and grounding citations upon stream termination.
+
+    Args:
+        notebook_id: UUID of the target notebook.
+        payload: ChatRequestSchema with query text, active sources, model, and mode.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        StreamingResponse with text/event-stream content type delivering JSON events.
+
+    Raises:
+        HTTPException: 400 if query is empty; 404 if notebook not found; 500 on database error.
     """
     query = (payload.query or "").strip()
     if not query:

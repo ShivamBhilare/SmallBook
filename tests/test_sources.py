@@ -1,12 +1,30 @@
-import pytest
+"""Source Document Management and Library Services Test Suite for SmallBook.
+
+Validates:
+- Universal Sources Library: Aggregating all uploaded PDF documents for a user with notebook cross-links.
+- Library Sources endpoint: Serving library documents filtered by current workspace ownership.
+- Notebook verification: Rejecting library queries with HTTP 404 when notebook is missing or unowned.
+- Source detachment: Removing a source link from a notebook while preventing unauthorized deletions.
+- Notebook sources lookup: Fetching all active source records linked to a specific notebook.
+"""
+
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-from app.services.sources.source_service import get_all_user_sources
+import pytest
+
 from app.routers.sources import get_library_sources
+from app.services.sources.source_service import get_all_user_sources
 
 
 def test_get_all_user_sources():
+    """Verifies that get_all_user_sources returns user documents with linked notebook titles.
+
+    Pattern:
+        - Arrange: Mock database tables for sources, notebook_sources, and notebooks.
+        - Act: Call get_all_user_sources.
+        - Assert: Verify two sources are returned and first source contains linked notebook metadata.
+    """
     mock_client = MagicMock()
     user_id = str(uuid4())
     source_id_1 = str(uuid4())
@@ -64,6 +82,13 @@ def test_get_all_user_sources():
 
 
 def test_get_library_sources_endpoint():
+    """Verifies that get_library_sources endpoint returns all accessible user sources.
+
+    Pattern:
+        - Arrange: Mock Supabase client verifying notebook ownership and returning sources list.
+        - Act: Call get_library_sources.
+        - Assert: Verify returned payload contains sources list with expected document name.
+    """
     mock_client = MagicMock()
     mock_user = MagicMock()
     mock_user.id = str(uuid4())
@@ -112,6 +137,12 @@ def test_get_library_sources_endpoint():
 
 
 def test_get_library_sources_notebook_not_found():
+    """Verifies that get_library_sources raises HTTP 404 when notebook does not exist.
+
+    Pattern:
+        - Arrange: Mock database returning empty notebook record list.
+        - Act & Assert: Call get_library_sources inside pytest.raises(Exception), confirming 404.
+    """
     mock_client = MagicMock()
     mock_user = MagicMock()
     mock_user.id = str(uuid4())
@@ -133,8 +164,15 @@ def test_get_library_sources_notebook_not_found():
 
 
 def test_remove_source_from_notebook_unauthorized():
-    from app.services.sources.source_service import remove_source_from_notebook
+    """Verifies that remove_source_from_notebook enforces notebook ownership.
+
+    Pattern:
+        - Arrange: Mock database returning empty list for unauthorized notebook lookup.
+        - Act & Assert: Call remove_source_from_notebook inside pytest.raises(HTTPException), confirming status 404.
+    """
     from fastapi import HTTPException
+
+    from app.services.sources.source_service import remove_source_from_notebook
 
     mock_client = MagicMock()
     user_id = str(uuid4())
@@ -157,6 +195,13 @@ def test_remove_source_from_notebook_unauthorized():
 
 
 def test_remove_source_from_notebook_success():
+    """Verifies successful detachment of a source from a notebook.
+
+    Pattern:
+        - Arrange: Mock authorized notebook record and successful deletion on notebook_sources table.
+        - Act: Call remove_source_from_notebook.
+        - Assert: Function returns True and verifies user_id and notebook_id filter conditions.
+    """
     from app.services.sources.source_service import remove_source_from_notebook
 
     mock_client = MagicMock()
@@ -199,6 +244,13 @@ def test_remove_source_from_notebook_success():
 
 
 def test_get_notebook_sources_endpoint():
+    """Verifies the GET /notebooks/{id}/sources API endpoint logic.
+
+    Pattern:
+        - Arrange: Mock query builder verifying notebook ownership and returning linked source rows.
+        - Act: Call get_notebook_sources_endpoint.
+        - Assert: Verify returned payload contains 'sources' list with matching document filename.
+    """
     from app.routers.sources import get_notebook_sources_endpoint
 
     mock_client = MagicMock()
@@ -245,4 +297,3 @@ def test_get_notebook_sources_endpoint():
     assert "sources" in res
     assert len(res["sources"]) == 1
     assert res["sources"][0]["original_filename"] == "Doc.pdf"
-

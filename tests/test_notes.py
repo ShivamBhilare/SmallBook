@@ -1,17 +1,31 @@
+"""Study Notes Data Model and Service CRUD Test Suite for SmallBook.
+
+Validates:
+- Pydantic schema validation for NoteCreateRequest and NoteResponse models.
+- Database service operations: creating, listing, updating, and deleting study notes.
+"""
+
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 from uuid import uuid4
-from datetime import datetime, timezone
 
 from app.models.study_models import NoteCreateRequest, NoteResponse
 from app.services.study.note_service import (
     create_note,
+    delete_note,
     list_notebook_notes,
     update_note,
-    delete_note
 )
 
 
 def test_note_models_validation():
+    """Verifies that NoteCreateRequest and NoteResponse schemas validate expected field types.
+
+    Pattern:
+        - Arrange: Prepare valid title and markdown content strings, and UUID entity identifiers.
+        - Act: Instantiate NoteCreateRequest and NoteResponse instances.
+        - Assert: Verify attribute values match input data.
+    """
     # 1. Test create schema
     req = NoteCreateRequest(title="Key Summary", content="# Main Points\n- Point 1\n- Point 2")
     assert req.title == "Key Summary"
@@ -35,6 +49,16 @@ def test_note_models_validation():
 
 
 def test_note_service_crud():
+    """Verifies full Create, Read, Update, and Delete lifecycle for study notes via service layer.
+
+    Pattern:
+        - Arrange: Mock Supabase client query builder chains (insert, select, update, delete).
+        - Act & Assert:
+            1. Create note: Confirm returned dictionary matches inserted record.
+            2. List notes: Confirm filtered query returns the active note record.
+            3. Update note: Confirm modified title and content persist.
+            4. Delete note: Confirm delete_note returns True.
+    """
     mock_client = MagicMock()
     mock_table = MagicMock()
     mock_client.table.return_value = mock_table

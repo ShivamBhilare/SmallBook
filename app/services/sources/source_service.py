@@ -1,12 +1,26 @@
+"""
+Source Document Management & Storage Pipeline Service
+
+Orchestrates source document uploads, cryptographic SHA-256 deduplication,
+Supabase Storage bucket operations, and background ingestion job scheduling.
+Provides document cross-notebook linking, renaming, unlinking, and deep cascading
+resource deletion (Storage files, Celery tasks, parent chunks, and Qdrant vectors).
+"""
+
 import hashlib
 import uuid
 from typing import Optional
 from fastapi import UploadFile, HTTPException, status, BackgroundTasks
 from supabase import Client
 
-# 50 MB limit to protect memory during extraction
+# Maximum permissible document upload size (50 MB) to safeguard server memory during extraction
 MAX_FILE_SIZE = 50 * 1024 * 1024 
 STORAGE_BUCKET = "user-documents"
+
+
+# =========================================================================
+# 1. ASYNCHRONOUS STORAGE & CELERY DISPATCH WORKERS
+# =========================================================================
 
 def _async_storage_upload_and_trigger_celery(
     storage_path: str,
@@ -16,10 +30,21 @@ def _async_storage_upload_and_trigger_celery(
     job_id: Optional[str]
 ):
     """
-    Background task worker function to handle synchronous Supabase storage upload 
-    and dispatch the Celery ingestion job without blocking the HTTP request.
+    Background worker function for asynchronous file persistence and task dispatch.
+
+    Executes outside the main HTTP request-response cycle via FastAPI BackgroundTasks:
+    1. Uploads the raw PDF bytes into the Supabase Storage bucket (`user-documents`).
+    2. Enqueues the `process_pdf_task` Celery background ingestion task.
+    3. Falls back to immediate in-process task execution if Redis/Celery is unreachable.
+
+    Args:
+        storage_path: Target path in Supabase Storage (e.g. `{user_id}/{source_id}.pdf`).
+        file_bytes: Raw binary PDF payload.
+        source_id: UUID of the source document database record.
+        user_id: UUID of the owning user.
+        job_id: Optional UUID of the associated `ingestion_jobs` tracker record.
     """
-    # 1. Storage Upload
+    # 1. Supabase Storage Upload via privileged service role client
     try:
         from app.services.authentication.auth_service import get_service_role_client
         service_client = get_service_role_client()
@@ -53,6 +78,11 @@ def _async_storage_upload_and_trigger_celery(
         except Exception as fallback_err:
             print(f"❌ Ingestion task execution failed during fallback: {fallback_err}")
 
+
+# =========================================================================
+# 2. SOURCE UPLOAD & DEDUPLICATION
+# =========================================================================
+
 def handle_source_upload(
     client: Client, 
     user_id: str, 
@@ -62,7 +92,30 @@ def handle_source_upload(
     file_bytes: Optional[bytes] = None
 ) -> dict:
     """
-    Handles file validation, hashing, DB tracking, and delegates heavy storage upload & Celery dispatch to BackgroundTask.
+    Validates, deduplicates, and initiates the ingestion pipeline for a new document.
+
+    Checks:
+    1. Enforces PDF MIME type and 50MB file size limits.
+    2. Computes SHA-256 hash of file bytes for instant user-level deduplication.
+    3. If identical file was previously uploaded by this user, links the existing
+       source to the target notebook without re-uploading or re-embedding.
+    4. If new, inserts source record, creates initial ingestion job tracker,
+       and delegates storage upload and Celery processing to background tasks.
+
+    Args:
+        client: Active per-request Supabase client.
+        user_id: UUID string of the uploading user.
+        notebook_id: UUID string of the target notebook workspace.
+        file: UploadFile object from FastAPI endpoint.
+        background_tasks: FastAPI BackgroundTasks registry.
+        file_bytes: Optional pre-read binary content bytes.
+
+    Returns:
+        dict: Acknowledgment payload with status ('processing' or 'linked_existing') and IDs.
+
+    Raises:
+        HTTPException: 400 Bad Request if file is non-PDF or exceeds 50MB.
+        HTTPException: 500 Internal Server Error if database insertion fails.
     """
     # 1. Validation
     if file.content_type != "application/pdf":
@@ -159,9 +212,21 @@ def handle_source_upload(
         "filename": file.filename
     }
 
+
+# =========================================================================
+# 3. SOURCE RETRIEVAL & NOTEBOOK LINKING
+# =========================================================================
+
 def get_notebook_sources(client: Client, notebook_id: str) -> list[dict]:
     """
-    Retrieves all source documents linked to a given notebook.
+    Retrieves all source documents actively attached to a given notebook workspace.
+
+    Args:
+        client: Active Supabase client.
+        notebook_id: UUID string of the target notebook.
+
+    Returns:
+        list[dict]: List of source document dictionaries.
     """
     try:
         ns_res = client.table("notebook_sources").select("source_id").eq("notebook_id", notebook_id).execute()
@@ -178,10 +243,20 @@ def get_notebook_sources(client: Client, notebook_id: str) -> list[dict]:
         print(f"Error fetching notebook sources: {e}")
         return []
 
+
 def get_all_user_sources(client: Client, user_id: str) -> list[dict]:
     """
-    Retrieves all source documents uploaded by the user across all notebooks,
-    including linked notebook details for each source document.
+    Retrieves all source documents owned by the user across the entire library.
+
+    Annotates each source dictionary with a `notebooks` list showing which notebook
+    workspaces currently reference this document.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated user.
+
+    Returns:
+        list[dict]: List of all user source dictionaries with notebook attachment metadata.
     """
     try:
         try:
@@ -222,9 +297,23 @@ def get_all_user_sources(client: Client, user_id: str) -> list[dict]:
         print(f"Error fetching all user sources: {e}")
         return []
 
+
 def rename_source(client: Client, user_id: str, source_id: str, new_filename: str) -> dict:
     """
-    Renames a source document for a user.
+    Renames a source document's display filename.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the requesting user.
+        source_id: UUID string of the target source.
+        new_filename: New human-readable filename string.
+
+    Returns:
+        dict: The updated source database record.
+
+    Raises:
+        HTTPException: 400 Bad Request if filename is empty.
+        HTTPException: 404 Not Found if source not found or user lacks permission.
     """
     if not new_filename or not new_filename.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename cannot be empty.")
@@ -235,10 +324,24 @@ def rename_source(client: Client, user_id: str, source_id: str, new_filename: st
         
     return res.data[0]
 
+
 def link_sources_to_notebook(client: Client, user_id: str, notebook_id: str, source_ids: list[str]) -> list[dict]:
     """
-    Links existing sources owned by user to the specified notebook.
-    Returns the newly linked source objects.
+    Attaches existing library sources owned by the user to the specified notebook workspace.
+
+    Filters out sources that are already linked to avoid duplicate entries in `notebook_sources`.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated user.
+        notebook_id: UUID string of the target notebook.
+        source_ids: List of source UUID strings to attach.
+
+    Returns:
+        list[dict]: List of newly linked source records.
+
+    Raises:
+        HTTPException: 404 Not Found if the notebook is not found or access is denied.
     """
     if not source_ids:
         return []
@@ -269,9 +372,24 @@ def link_sources_to_notebook(client: Client, user_id: str, notebook_id: str, sou
     newly_linked_sources = [s for s in valid_sources if s["id"] in to_link_ids]
     return newly_linked_sources
 
+
 def remove_source_from_notebook(client: Client, user_id: str, notebook_id: str, source_id: str) -> bool:
     """
-    Unlinks a source document from a specific notebook.
+    Unlinks a source document from a specific notebook workspace.
+
+    Does not delete the source from the user's global library or remove vector embeddings.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated user.
+        notebook_id: UUID string of the notebook workspace.
+        source_id: UUID string of the source document to detach.
+
+    Returns:
+        bool: True upon successful removal.
+
+    Raises:
+        HTTPException: 404 Not Found if notebook is not found or access is denied.
     """
     # 1. Verify notebook access
     nb = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
@@ -283,13 +401,22 @@ def remove_source_from_notebook(client: Client, user_id: str, notebook_id: str, 
 
     return True
 
+
+# =========================================================================
+# 4. PERMANENT SOURCE DELETION & CASCADING CLEANUP
+# =========================================================================
+
 def _async_cleanup_source_resources(storage_path: Optional[str], source_id: str):
     """
     Background worker to asynchronously clean up heavy external resources:
-    - Ingestion jobs and Celery task revoking
-    - Parent chunk records in document_chunks table
-    - PDF file in Supabase storage bucket
-    - Child chunk vectors in Qdrant Cloud
+    1. Revokes active Celery tasks and deletes `ingestion_jobs` records.
+    2. Deletes parent chunk text records from `document_chunks` table.
+    3. Removes original PDF file from Supabase storage bucket.
+    4. Deletes child chunk vector points from Qdrant Cloud.
+
+    Args:
+        storage_path: Path to the PDF file in Supabase Storage.
+        source_id: UUID string of the deleted source document.
     """
     from app.services.authentication.auth_service import get_service_role_client
     service_client = get_service_role_client()
@@ -332,6 +459,7 @@ def _async_cleanup_source_resources(storage_path: Optional[str], source_id: str)
     except Exception as e:
         print(f"⚠️ Warning: Failed to remove vectors from Qdrant for source {source_id}: {e}")
 
+
 def delete_source_permanently(
     client: Client, 
     user_id: str, 
@@ -339,9 +467,23 @@ def delete_source_permanently(
     background_tasks: Optional[BackgroundTasks] = None
 ) -> bool:
     """
-    Permanently deletes a source document:
-    Synchronously removes database rows so the UI updates instantly,
-    and offloads heavy resource cleanup (Storage, Celery, Qdrant, Chunks) to the background.
+    Permanently deletes a source document and cascades cleanup across all systems.
+
+    Synchronously removes database rows from `notebook_sources` and `sources` so the UI
+    updates immediately, then delegates heavy external resource deletion (Storage,
+    Celery task revocation, Qdrant vectors, and PostgreSQL chunks) to background tasks.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated owner.
+        source_id: UUID string of the source to delete.
+        background_tasks: Optional FastAPI BackgroundTasks registry.
+
+    Returns:
+        bool: True upon successful deletion.
+
+    Raises:
+        HTTPException: 404 Not Found if source not found or permission denied.
     """
     # 1. Fetch source record to verify ownership and get storage path
     src_res = client.table("sources").select("id, storage_path").eq("id", source_id).eq("user_id", user_id).execute()
@@ -363,4 +505,4 @@ def delete_source_permanently(
     else:
         _async_cleanup_source_resources(storage_path, source_id)
 
-    return True
+    return True

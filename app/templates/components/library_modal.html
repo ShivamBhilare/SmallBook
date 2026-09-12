@@ -1,3 +1,14 @@
+{# =========================================================================
+   TEMPLATE PARTIAL: components/library_modal.html
+   DESCRIPTION:
+     Global cross-notebook Sources Library modal partial. Binds to Alpine.js
+     sourcesLibraryModal() controller in static/js/components/library-modal.js.
+     Allows users to browse all uploaded PDF documents across all their notebooks,
+     search by filename, sort by upload date or name, inspect linked notebooks,
+     and link existing library sources into the current active workspace.
+
+   CONTEXT PARAMETERS: None (Client-side partial populated by library-modal.js).
+   ========================================================================= #}
 <!-- Sources Library Modal Component -->
 <div x-data="sourcesLibraryModal()" 
      @open-library-modal.window="openModal()" 
@@ -178,11 +189,11 @@
             <p class="text-body-md text-on-surface-variant dark:text-dark-text-muted mb-6">
                 Are you sure you want to permanently delete <span class="font-semibold text-on-surface dark:text-dark-text" x-text="sourceToDelete?.original_filename"></span>? This will purge the file from database & storage across all notebooks. <span class="text-error font-semibold">This action cannot be undone.</span>
             </p>
-            <div class="flex justify-end gap-2.5">
-                <button type="button" @click="cancelDelete()" class="px-4 py-2 rounded-full text-label-md font-medium text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors">
+            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3">
+                <button type="button" @click="cancelDelete()" class="w-full sm:w-auto px-4 py-2 rounded-full text-label-md font-medium text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant dark:hover:bg-dark-panel-hover transition-colors text-center">
                     Cancel
                 </button>
-                <button type="button" @click="executeDeleteSource()" :disabled="isDeleting" class="px-4 py-2 rounded-full text-label-md font-medium bg-error text-on-error hover:bg-error/90 transition-colors flex items-center gap-2 disabled:opacity-60">
+                <button type="button" @click="executeDeleteSource()" :disabled="isDeleting" class="w-full sm:w-auto px-4 py-2 rounded-full text-label-md font-medium bg-error text-on-error hover:bg-error/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-xs">
                     <span x-show="!isDeleting">Permanently Delete</span>
                     <span x-show="isDeleting" class="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
                 </button>

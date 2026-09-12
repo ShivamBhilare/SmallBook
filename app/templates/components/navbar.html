@@ -1,12 +1,23 @@
-<!-- TopNavBar (Common across app) -->
-<nav x-data="{ userMenuOpen: false }" class="bg-surface dark:bg-dark-panel border-b border-paper dark:border-dark-border flex flex-col lg:flex-row justify-between items-center w-full px-4 lg:px-margin min-h-[64px] py-3 lg:py-0 z-50 flex-shrink-0 gap-3 lg:gap-0 sticky top-0">
-    <div class="flex items-center justify-between w-full lg:w-auto">
-        <a href="/" class="flex items-center gap-sm cursor-pointer">
-            <img alt="SmallBook Logo" class="h-8 w-8 object-contain rounded-md" src="/static/images/SmallBooklogo.png">
-            <span class="text-headline-md font-headline-md font-bold text-primary dark:text-dark-text tracking-tight">{{ notebook.title if notebook is defined and notebook else 'SmallBook' }}</span>
+{# =========================================================================
+   TEMPLATE PARTIAL: components/navbar.html
+   DESCRIPTION:
+     Global sticky top navigation bar for authenticated dashboard and workspace views.
+     Features dynamic title rendering (notebook title if active, else 'SmallBook'),
+     'Create Notebook' action button, BYOK key settings trigger with status indicator dot,
+     Sources Library modal launcher, theme toggle, and user profile sign-out dropdown.
+
+   CONTEXT PARAMETERS:
+     - notebook (NotebookResponseSchema | dict, optional): Active notebook object.
+     - user (dict, optional): Authenticated user session dictionary.
+   ========================================================================= #}
+<nav x-data="{ userMenuOpen: false }" class="bg-surface dark:bg-dark-panel border-b border-paper dark:border-dark-border flex flex-col sm:flex-row justify-between items-center w-full px-4 sm:px-6 lg:px-margin min-h-[64px] py-2.5 sm:py-0 z-50 flex-shrink-0 gap-2.5 sm:gap-4 sticky top-0">
+    <div class="flex items-center justify-between w-full sm:w-auto">
+        <a href="/notebooks/dashboard" class="flex items-center gap-2.5 cursor-pointer group">
+            <img alt="SmallBook Logo" class="h-9 w-9 sm:h-10 sm:w-10 object-contain rounded-md transition-transform group-hover:scale-105" src="/static/images/SmallBooklogo.png">
+            <span class="text-[18px] sm:text-[20px] font-bold text-primary dark:text-dark-text tracking-tight truncate max-w-[200px] sm:max-w-xs md:max-w-md">{{ notebook.title if notebook is defined and notebook else 'SmallBook' }}</span>
         </a>
-        <!-- Mobile Actions -->
-        <div class="flex lg:hidden items-center gap-2">
+        <!-- Mobile Actions (visible only on small mobile < sm) -->
+        <div class="flex sm:hidden items-center gap-1.5">
             <!-- BYOK Key Icon Button (Mobile) -->
             <button @click="window.dispatchEvent(new CustomEvent('open-byok-modal'))" title="LLM Keys & Models (Cmd+K)" class="relative h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                 <span class="material-symbols-outlined text-[20px]">vpn_key</span>
@@ -32,14 +43,14 @@
         </div>
     </div>
     
-    <div class="flex items-center justify-start lg:justify-end gap-md w-full lg:w-auto">
-        <button @click="if(window.location.pathname === '/notebooks/dashboard' || window.location.pathname === '/') { window.dispatchEvent(new CustomEvent('open-create-modal')); } else { window.location.href = '/notebooks/dashboard?create=1'; }" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-5 py-1.5 font-label-md flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+    <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
+        <button @click="if(window.location.pathname === '/notebooks/dashboard' || window.location.pathname === '/') { window.dispatchEvent(new CustomEvent('open-create-modal')); } else { window.location.href = '/notebooks/dashboard?create=1'; }" class="w-full sm:w-auto justify-center bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full px-4 sm:px-5 py-2 sm:py-1.5 font-label-md flex items-center gap-1.5 hover:opacity-80 transition-opacity text-sm shadow-xs">
             <span class="material-symbols-outlined text-[18px]">add</span>
             Create Notebook
         </button>
 
-        <!-- Desktop Actions -->
-        <div class="hidden lg:flex items-center gap-2 relative">
+        <!-- Tablet & Desktop Actions (visible on sm and above) -->
+        <div class="hidden sm:flex items-center gap-2 relative">
             <!-- BYOK Key Icon Button (Desktop) -->
             <button @click="window.dispatchEvent(new CustomEvent('open-byok-modal'))" title="LLM Keys & Model Preferences (Cmd+K / Ctrl+K)" class="relative h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                 <span class="material-symbols-outlined text-[20px]">vpn_key</span>

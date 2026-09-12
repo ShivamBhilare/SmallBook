@@ -1,3 +1,10 @@
+"""
+Source Management Service Package
+
+Exports functions for source document lifecycle management: file upload deduplication,
+cross-notebook linking, background storage persistence, and resource cleanup.
+"""
+
 from app.services.sources.source_service import (
     handle_source_upload,
     get_notebook_sources,
@@ -17,3 +24,4 @@ __all__ = [
     "remove_source_from_notebook",
     "delete_source_permanently",
 ]
+

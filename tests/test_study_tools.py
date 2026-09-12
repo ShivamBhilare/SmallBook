@@ -1,13 +1,27 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from uuid import uuid4
+"""Studio Tools Subsystem and Quiz Grading Test Suite for SmallBook.
+
+Validates:
+- Pydantic schema validation for flashcard decks and multiple-choice quizzes.
+- Distributed concurrency locks preventing duplicate inflight generation per user.
+- Cooldown clock tracking: 30-minute generation cooldowns per tool type with remaining time peeking.
+- Flashcard generator service: Document chunk extraction and structured LLM completion.
+- Practice quiz grading service: Instant option verification, score tallying, and percentage calculation.
+- Number of items parameter propagation: Passing custom card/question counts to LLM prompts.
+- Endpoint authorization: Enforcing ownership and notebook association for generation requests.
+- Unified Studio artifact timeline: Sorting notes, flashcards, and quizzes by modified timestamp.
+"""
+
 import json
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
+import pytest
 
 from app.models.study_models import (
-    StudyGenerateRequest,
     FlashcardSetGenerateSchema,
+    QuizAttemptSubmit,
     QuizGenerateSchema,
-    QuizAttemptSubmit
+    StudyGenerateRequest,
 )
 from app.services.study.concurrency import acquire_study_lock, release_study_lock
 from app.services.study.generator import generate_flashcards, generate_quiz
@@ -15,6 +29,13 @@ from app.services.study.quiz_service import grade_and_record_quiz_attempt
 
 
 def test_study_models_validation():
+    """Verifies that FlashcardSetGenerateSchema and QuizGenerateSchema validate structured JSON.
+
+    Pattern:
+        - Arrange: Sample dictionaries matching flashcard and quiz LLM generation schemas.
+        - Act: Instantiate FlashcardSetGenerateSchema and QuizGenerateSchema.
+        - Assert: Verify title, card front/back texts, options, and correct answers.
+    """
     # 1. Test Flashcard schema validation
     fc_data = {
         "title": "Photosynthesis Concepts",
@@ -56,6 +77,16 @@ def test_study_models_validation():
 
 
 def test_study_concurrency_lock():
+    """Verifies that parallel generation requests for the same user are rejected by the lock.
+
+    Pattern:
+        - Arrange: Generate unique test user ID.
+        - Act & Assert:
+            1. First acquire succeeds (True).
+            2. Second parallel acquire fails (False).
+            3. Release lock.
+            4. Re-acquiring succeeds (True).
+    """
     user_id = f"test-user-{uuid4()}"
     
     # 1. Acquire first lock -> must succeed
@@ -76,7 +107,21 @@ def test_study_concurrency_lock():
 
 
 def test_study_cooldown():
-    from app.services.study.concurrency import check_and_set_cooldown, get_cooldown_remaining, clear_cooldown
+    """Verifies that generation cooldowns prevent repeated calls within the cooldown window.
+
+    Pattern:
+        - Arrange: Generate unique user ID.
+        - Act & Assert:
+            1. Initial check confirms 0s remaining.
+            2. First generation sets cooldown and succeeds.
+            3. Second generation within window fails with positive remaining seconds.
+            4. Different tool type (quiz) is tracked on its own clock.
+    """
+    from app.services.study.concurrency import (
+        check_and_set_cooldown,
+        clear_cooldown,
+        get_cooldown_remaining,
+    )
     user_id = f"cd-user-{uuid4()}"
     
     # 0. Check remaining initially -> 0
@@ -107,8 +152,20 @@ def test_study_cooldown():
 
 
 def test_study_cooldown_endpoint():
+    """Verifies the GET /notebooks/{id}/study/cooldown status endpoint.
+
+    Pattern:
+        - Arrange: Mock user with unique ID.
+        - Act & Assert:
+            1. Check status initially: both flashcards and quiz active=False.
+            2. Set flashcards cooldown.
+            3. Query endpoint for flashcards: active=True, remaining_seconds > 0.
+    """
     from app.routers.study import get_study_cooldown_status
-    from app.services.study.concurrency import check_and_set_cooldown, clear_cooldown
+    from app.services.study.concurrency import (
+        check_and_set_cooldown,
+        clear_cooldown,
+    )
 
     user_id = f"endpoint-user-{uuid4()}"
     mock_user = MagicMock()
@@ -130,8 +187,14 @@ def test_study_cooldown_endpoint():
     clear_cooldown(user_id, "flashcards")
 
 
-
 def test_generate_flashcards_service():
+    """Verifies that generate_flashcards reads document chunks and parses LLM structured cards.
+
+    Pattern:
+        - Arrange: Mock Supabase queries returning source document and chunks, mock LLM response JSON.
+        - Act: Call generate_flashcards.
+        - Assert: Verify returned title, deck title, card count, and source_chunk_id.
+    """
     mock_supabase = MagicMock()
     
     # Mock source fetch
@@ -178,6 +241,13 @@ def test_generate_flashcards_service():
 
 
 def test_quiz_grading_logic():
+    """Verifies option comparison, scoring calculation, and question breakdown in quiz grading.
+
+    Pattern:
+        - Arrange: Mock quiz entity with 2 questions (answers: B, A).
+        - Act: Submit user answers (Q1: B [correct], Q2: B [incorrect]).
+        - Assert: Score=1, total=2, percentage=50.0%, and individual is_correct results are accurate.
+    """
     mock_supabase = MagicMock()
     quiz_id = str(uuid4())
     user_id = str(uuid4())
@@ -220,6 +290,13 @@ def test_quiz_grading_logic():
 
 
 def test_generate_quiz_service_num_items():
+    """Verifies that the requested num_items count is injected into the LLM system prompt.
+
+    Pattern:
+        - Arrange: Mock database queries and mock LiteLLM completion response.
+        - Act: Call generate_quiz with num_items=7.
+        - Assert: Verify '7 questions' appears in the prompt messages sent to LiteLLM.
+    """
     mock_supabase = MagicMock()
     mock_supabase.table().select().eq().execute.side_effect = [
         MagicMock(data=[{"id": "s1", "original_filename": "Physics.pdf"}]),
@@ -270,8 +347,18 @@ def test_generate_quiz_service_num_items():
 
 
 def test_generate_study_tool_endpoint_validations():
-    from app.routers.study import generate_study_tool
+    """Verifies input validation and background task queuing on POST /notebooks/{id}/study/generate.
+
+    Pattern:
+        - Arrange: Mock ownership and association check matrices.
+        - Act & Assert:
+            1. Source not owned -> 404.
+            2. Source not linked to notebook -> 400.
+            3. Source owned and linked -> 202 Queued with background task registered.
+    """
     from fastapi import HTTPException
+
+    from app.routers.study import generate_study_tool
 
     mock_client = MagicMock()
     mock_user = MagicMock()
@@ -335,6 +422,13 @@ def test_generate_study_tool_endpoint_validations():
 
 
 def test_get_notebook_study_items_artifacts_sorting():
+    """Verifies that get_notebook_study_items aggregates and sorts artifacts by modified timestamp.
+
+    Pattern:
+        - Arrange: Mock notes, flashcards, and quizzes with distinct created and updated timestamps.
+        - Act: Call get_notebook_study_items.
+        - Assert: Verify artifacts are sorted: note-1 (modified Sep 7), quiz-1 (Sep 6), deck-1 (Sep 5).
+    """
     from app.routers.study import get_notebook_study_items
 
     mock_user = MagicMock()
@@ -391,4 +485,3 @@ def test_get_notebook_study_items_artifacts_sorting():
 
         assert res["artifacts"][2]["id"] == "deck-1"
         assert res["artifacts"][2]["type"] == "flashcards"
-

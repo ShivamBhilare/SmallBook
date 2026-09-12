@@ -1,3 +1,13 @@
+"""
+Qdrant Vector Database Integration & Embedding Manager
+
+Manages the lifecycle of vector collections, payload indices, dense embedding models,
+and similarity search queries within Qdrant Cloud for SmallBook:
+    - Collection: `smallbook_child_chunks` (768-dimensional Cosine distance vectors).
+    - Payload Index: Keyword index on `source_id` enabling fast tenant/source-scoped filtering.
+    - Embedding Model: Cached `SentenceTransformer(ACTIVE_MODEL)` loaded locally or from HuggingFace.
+"""
+
 import os
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
@@ -5,10 +15,19 @@ from sentence_transformers import SentenceTransformer
 from app.models.ingestion_models import ChildChunk
 from app.services.ingestion.config import ACTIVE_MODEL, DEFAULT_BATCH_SIZE
 
-# Global Model Cache
+# Global embedding model cache to eliminate repeated weights loading
 _embedding_model = None
 
-def get_embedding_model():
+
+def get_embedding_model() -> SentenceTransformer:
+    """
+    Retrieves the global cached SentenceTransformer embedding model singleton.
+
+    Attempts local cached loading first; falls back to HuggingFace Hub download if needed.
+
+    Returns:
+        SentenceTransformer: Initialized sentence transformer model instance.
+    """
     global _embedding_model
     if _embedding_model is None:
         try:
@@ -17,12 +36,21 @@ def get_embedding_model():
             _embedding_model = SentenceTransformer(ACTIVE_MODEL)
     return _embedding_model
 
-# Global Client Cache
+
+# Global client and collection initialization verification flags
 _qdrant_client = None
 _collection_verified = False
 
+
 class QdrantManager:
+    """
+    Qdrant Cloud Client & Vector Collection Controller.
+
+    Handles point upserts, vector similarity searches, payload filtering,
+    and bulk point deletions by source ID.
+    """
     def __init__(self):
+        """Initializes the QdrantClient connection and verifies target collection existence."""
         global _qdrant_client
         if _qdrant_client is None:
             _qdrant_client = QdrantClient(
@@ -36,7 +64,13 @@ class QdrantManager:
         self._ensure_collection_exists()
 
     def _ensure_collection_exists(self):
-        """Creates the Qdrant collection if it doesn't exist (cached)."""
+        """
+        Idempotently verifies and creates the Qdrant collection and payload indexes.
+
+        Ensures the collection exists with 768 dimensions and Cosine distance metric.
+        Creates a keyword payload index on `source_id` for fast filtered queries.
+        Uses a process-level cache flag (`_collection_verified`) to eliminate redundant HTTP calls.
+        """
         global _collection_verified
         if _collection_verified:
             return
@@ -61,13 +95,22 @@ class QdrantManager:
             print(f"Failed to verify/create Qdrant collection: {e}")
 
     def embed_and_upsert(self, children: list[ChildChunk]):
-        """Embeds text and uploads vectors to Qdrant with payload metadata."""
+        """
+        Embeds child chunk text strings and uploads vectorized points into Qdrant.
+
+        1. Generates 768-d normalized embeddings using `SentenceTransformer`.
+        2. Constructs `PointStruct` records containing child chunk text, `parent_id`, and `source_id`.
+        3. Upserts points to Qdrant in batches of 250 with `wait=False` for fast async indexing.
+
+        Args:
+            children: List of ChildChunk instances to embed and store.
+        """
         if not children:
             return
 
         texts = [c.text for c in children]
         
-        # 1. Generate Embeddings
+        # 1. Generate normalized embeddings in batches
         model = get_embedding_model()
         embeddings = model.encode(
             texts, 
@@ -76,7 +119,7 @@ class QdrantManager:
             show_progress_bar=False
         )
 
-        # 2. Prepare Qdrant Points
+        # 2. Prepare Qdrant PointStruct payloads
         points = []
         for idx, child in enumerate(children):
             points.append(
@@ -86,13 +129,13 @@ class QdrantManager:
                     payload={
                         "parent_id": child.parent_id,
                         "source_id": child.source_id,
-                        "text": child.text,  # Optional: Store text for CrossEncoder reranking later
+                        "text": child.text,  # Stored in payload for CrossEncoder reranking
                         "order": child.order
                     }
                 )
             )
 
-        # 3. Upsert to Qdrant Cloud in batches (Wait=False for asynchronous background speed)
+        # 3. Upsert to Qdrant Cloud in 250-point batches (Wait=False for asynchronous worker speed)
         batch_size = 250
         for i in range(0, len(points), batch_size):
             batch = points[i:i + batch_size]
@@ -103,7 +146,12 @@ class QdrantManager:
             )
 
     def delete_by_source_id(self, source_id: str):
-        """Deletes all vector points associated with a specific source_id."""
+        """
+        Deletes all vector points associated with a specific source document ID.
+
+        Args:
+            source_id: UUID string of the deleted source document.
+        """
         from qdrant_client.http.models import Filter, FieldCondition, MatchValue
         self.client.delete(
             collection_name=self.collection_name,
@@ -125,8 +173,17 @@ class QdrantManager:
         limit: int = 20
     ) -> list[dict]:
         """
-        Queries Qdrant Cloud for the nearest child chunk vectors,
-        optionally filtered by a list of source_ids.
+        Queries Qdrant Cloud for the nearest child chunk vectors.
+
+        Supports optional filtering by a list of allowed source document UUIDs.
+
+        Args:
+            query_vector: 768-dimensional normalized query embedding vector.
+            source_ids: Optional list of source UUID strings to filter against.
+            limit: Maximum number of closest matches to return.
+
+        Returns:
+            list[dict]: Matched points with score, parent_id, source_id, text, and order.
         """
         from qdrant_client.http.models import Filter, FieldCondition, MatchAny, MatchValue
 
@@ -160,4 +217,4 @@ class QdrantManager:
                 "text": payload.get("text", ""),
                 "order": payload.get("order", 0)
             })
-        return results
+        return results

@@ -1,6 +1,15 @@
-<!-- ========================================================================= -->
-<!-- GLOBAL APP UI ALERT / CONFIRMATION MODAL POPUP                            -->
-<!-- ========================================================================= -->
+{# =========================================================================
+   TEMPLATE PARTIAL: components/app_alert.html
+   DESCRIPTION:
+     Global modal alert and confirmation dialog partial included in base.html.
+     Programmatically controlled by showAppAlert() in static/js/core/alert.js to
+     display custom styled alerts (info, warning, error, success) and promise confirmations.
+
+   CONTEXT PARAMETERS: None (Client-side partial populated by alert.js).
+   ========================================================================= #}
+<!-- =========================================================================
+     GLOBAL APP UI ALERT / CONFIRMATION MODAL POPUP
+     ========================================================================= -->
 <div id="app-alert-modal" class="hidden fixed inset-0 z-[300] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-200" role="dialog" aria-modal="true" aria-labelledby="app-alert-title">
     <div id="app-alert-card" class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-md custom-shadow flex flex-col overflow-hidden p-6 transform transition-all duration-200 scale-95 opacity-0">
         <!-- Header: Icon Badge + Title + Close Button -->

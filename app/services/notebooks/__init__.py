@@ -1,3 +1,10 @@
+"""
+Notebook Service Package
+
+Exports CRUD business logic functions and service exceptions for managing
+user notebook workspaces in Supabase.
+"""
+
 from app.services.notebooks.notebook_service import (
     get_user_notebooks,
     get_notebook_by_id,
@@ -17,3 +24,4 @@ __all__ = [
     "NotebookServiceError",
     "DatabaseError",
 ]
+

@@ -1,5 +1,12 @@
+"""Flashcard Persistence & Management Service.
+
+Provides CRUD routines for user flashcard sets and individual study cards in Supabase,
+including card aggregation and chunk foreign-key validation.
+"""
+
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from supabase import Client
 
 from app.models.study_models import FlashcardSetGenerateSchema
@@ -8,7 +15,19 @@ logger = logging.getLogger(__name__)
 
 
 def list_notebook_flashcard_sets(supabase: Client, notebook_id: str, user_id: str) -> List[Dict[str, Any]]:
-    """Fetches all flashcard sets for a given notebook with card counts."""
+    """Fetches all flashcard sets for a given notebook with computed card counts.
+
+    Queries flashcard sets owned by the user in descending chronological order
+    and batches card counts across all matching set IDs.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        notebook_id: UUID of the workspace notebook.
+        user_id: UUID of the authenticated owner.
+
+    Returns:
+        List of flashcard set dictionaries with an attached 'cards_count' integer.
+    """
     try:
         res = (
             supabase.table("flashcard_sets")
@@ -22,7 +41,7 @@ def list_notebook_flashcard_sets(supabase: Client, notebook_id: str, user_id: st
         if not sets:
             return []
 
-        # Count cards per set
+        # Count cards per set in a single aggregated batch
         set_ids = [s["id"] for s in sets]
         cards_res = (
             supabase.table("flashcards")
@@ -46,7 +65,17 @@ def list_notebook_flashcard_sets(supabase: Client, notebook_id: str, user_id: st
 
 
 def get_flashcard_set_with_cards(supabase: Client, set_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    """Fetches a specific flashcard deck and all its cards."""
+    """Fetches a specific flashcard deck and all its child cards in sequential order.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        set_id: UUID of the target flashcard set.
+        user_id: UUID of the requesting owner.
+
+    Returns:
+        Deck dictionary containing populated 'cards' list and 'cards_count',
+        or None if not found or unauthorized.
+    """
     try:
         set_res = (
             supabase.table("flashcard_sets")
@@ -82,7 +111,26 @@ def save_generated_flashcard_set(
     custom_prompt: Optional[str],
     deck_data: FlashcardSetGenerateSchema
 ) -> Dict[str, Any]:
-    """Persists a newly generated flashcard set and its individual cards to Supabase."""
+    """Persists a newly generated flashcard set and its individual cards to Supabase.
+
+    Inserts the parent flashcard_sets row, validates referenced source chunk IDs
+    against the document_chunks table to avoid foreign-key violations, and batch-inserts
+    the individual child flashcard rows.
+
+    Args:
+        supabase: Authenticated or service-role Supabase client instance.
+        notebook_id: UUID of the notebook workspace.
+        user_id: UUID of the deck owner.
+        source_id: UUID of the document source the deck was generated from.
+        custom_prompt: Optional user instructions used during generation.
+        deck_data: Validated flashcard set schema containing title and card items.
+
+    Returns:
+        Created flashcard set dictionary including attached 'cards' and 'cards_count'.
+
+    Raises:
+        RuntimeError: If inserting the parent flashcard set record fails.
+    """
     # 1. Insert Set
     set_payload = {
         "notebook_id": notebook_id,
@@ -111,7 +159,7 @@ def save_generated_flashcard_set(
     for idx, card in enumerate(deck_data.cards):
         raw_chunk_id = str(card.source_chunk_id) if card.source_chunk_id else None
         safe_chunk_id = raw_chunk_id if (raw_chunk_id and raw_chunk_id in valid_chunk_ids) else None
-        
+
         cards_payload.append({
             "set_id": set_id,
             "order_index": idx,
@@ -132,7 +180,16 @@ def save_generated_flashcard_set(
 
 
 def delete_flashcard_set(supabase: Client, set_id: str, user_id: str) -> bool:
-    """Deletes a flashcard set (cascade deletes child cards via foreign key)."""
+    """Deletes a flashcard set and its associated cards via foreign key cascade.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        set_id: UUID of the flashcard set to delete.
+        user_id: UUID of the authenticated owner.
+
+    Returns:
+        True if deletion succeeded; False otherwise.
+    """
     try:
         res = (
             supabase.table("flashcard_sets")

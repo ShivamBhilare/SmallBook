@@ -1,73 +1,89 @@
-    <aside id="panel-sources" class="hidden lg:flex w-full lg:w-[var(--left-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
-        <div class="panel-header hidden lg:flex px-3 py-2 border-b border-paper dark:border-dark-border items-center justify-between">
-            <h2 class="font-label-md font-semibold dark:text-dark-text hide-on-collapse">Sources</h2>
-            <button onclick="togglePanel('left')" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
-                <span id="collapse-icon-left" class="material-symbols-outlined text-[20px]">keyboard_double_arrow_left</span>
-            </button>
-        </div>
-        <div class="p-md pt-4 lg:pt-md hide-on-collapse">
-            <button id="add-source-btn" onclick="openUploadModal()" class="w-full border border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent rounded-full py-sm font-label-md flex items-center justify-center gap-sm hover:bg-secondary/5 dark:hover:bg-dark-accent/10 transition-colors">
-                <span class="material-symbols-outlined text-[18px]">add</span>
-                <span>Add Sources</span>
-            </button>
-        </div>
-        <div class="px-md pb-sm flex justify-between items-center hide-on-collapse">
-            <div class="flex items-center gap-1">
-                <div class="relative">
-                    <button onclick="toggleSortMenu(event)" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
-                        <span class="material-symbols-outlined text-[18px]">sort</span>
-                    </button>
-                    <div id="sort-menu" class="hidden absolute left-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
-                        <button type="button" onclick="sortSources('az')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[16px]">sort_by_alpha</span> A-Z
-                        </button>
-                        <button type="button" onclick="sortSources('recent')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[16px]">schedule</span> Most Recent
-                        </button>
-                        <button type="button" onclick="sortSources('oldest')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[16px]">history</span> Oldest
-                        </button>
-                    </div>
-                </div>
-                <button id="refresh-sources-btn" onclick="refreshSourcesList()" title="Refresh sources" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-secondary dark:hover:text-dark-accent transition-colors">
-                    <span id="refresh-sources-icon" class="material-symbols-outlined text-[18px]">refresh</span>
+{# =========================================================================
+   TEMPLATE PARTIAL: components/workspace_sources_panel.html
+   DESCRIPTION:
+     Left collateral sidebar panel for document source management in workspace.
+     Includes:
+     - 'Add Sources' modal trigger button.
+     - Document sorting menu (A-Z, Most Recent, Oldest) and refresh trigger.
+     - 'Select All' checkbox toggler.
+     - Server-side loop over attached sources with animated spinners for
+       in-progress ingestion states (pending, processing, queued).
+     - Individual source action dropdown (Rename, Detach/Delete).
+     - Controlled client-side by static/js/workspace/sources.js.
+
+   CONTEXT PARAMETERS:
+     - sources (list[dict]): Uploaded source document entities in this notebook.
+   ========================================================================= #}
+<aside id="panel-sources" class="hidden lg:flex w-full lg:w-[var(--left-panel-width)] flex-shrink-0 flex-col bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
+    <div class="panel-header hidden lg:flex px-3 py-2 border-b border-paper dark:border-dark-border items-center justify-between">
+        <h2 class="font-label-md font-semibold dark:text-dark-text hide-on-collapse">Sources</h2>
+        <button onclick="togglePanel('left')" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
+            <span id="collapse-icon-left" class="material-symbols-outlined text-[20px]">keyboard_double_arrow_left</span>
+        </button>
+    </div>
+    <div class="p-md pt-4 lg:pt-md hide-on-collapse">
+        <button id="add-source-btn" onclick="openUploadModal()" class="w-full border border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent rounded-full py-sm font-label-md flex items-center justify-center gap-sm hover:bg-secondary/5 dark:hover:bg-dark-accent/10 transition-colors">
+            <span class="material-symbols-outlined text-[18px]">add</span>
+            <span>Add Sources</span>
+        </button>
+    </div>
+    <div class="px-md pb-sm flex justify-between items-center hide-on-collapse">
+        <div class="flex items-center gap-1">
+            <div class="relative">
+                <button onclick="toggleSortMenu(event)" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
+                    <span class="material-symbols-outlined text-[18px]">sort</span>
                 </button>
+                <div id="sort-menu" class="hidden absolute left-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                    <button type="button" onclick="sortSources('az')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">sort_by_alpha</span> A-Z
+                    </button>
+                    <button type="button" onclick="sortSources('recent')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">schedule</span> Most Recent
+                    </button>
+                    <button type="button" onclick="sortSources('oldest')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">history</span> Oldest
+                    </button>
+                </div>
             </div>
-            <button onclick="toggleSelectAllSources()" class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
+            <button id="refresh-sources-btn" onclick="refreshSourcesList()" title="Refresh sources" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-secondary dark:hover:text-dark-accent transition-colors">
+                <span id="refresh-sources-icon" class="material-symbols-outlined text-[18px]">refresh</span>
+            </button>
         </div>
-        
-        <div class="flex-1 overflow-y-auto px-md pb-md space-y-xs" id="sources-list">
-            {% for source in sources %}
-            <label onclick="openPanel('left')" title="{{ source.original_filename }}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="{{ source.id }}" data-filename="{{ source.original_filename|escape }}" data-created-at="{{ source.created_at or '' }}">
-                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
-                <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
-                    <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename">{{ source.original_filename }}</div>
-                    <div class="flex items-center gap-1 flex-shrink-0 relative">
-                        <button type="button" onclick="toggleSourceMenu(event, '{{ source.id }}')" class="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
-                            <span class="material-symbols-outlined text-[18px]">more_vert</span>
+        <button onclick="toggleSelectAllSources()" class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto px-md pb-md space-y-xs" id="sources-list">
+        {% for source in sources %}
+        <label onclick="openPanel('left')" title="{{ source.original_filename }}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="{{ source.id }}" data-filename="{{ source.original_filename|escape }}" data-created-at="{{ source.created_at or '' }}">
+            <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
+            <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
+                <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename">{{ source.original_filename }}</div>
+                <div class="flex items-center gap-1 flex-shrink-0 relative">
+                    <button type="button" onclick="toggleSourceMenu(event, '{{ source.id }}')" class="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
+                        <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                    </button>
+                    <div id="source-menu-{{ source.id }}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                        <button type="button" onclick="promptRenameSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                         </button>
-                        <div id="source-menu-{{ source.id }}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
-                            <button type="button" onclick="promptRenameSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
-                            </button>
-                            <button type="button" onclick="promptDeleteSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
-                                <span class="material-symbols-outlined text-[16px]">cancel</span> <span class="cancel-text">Remove / Cancel</span>
-                            </button>
-                        </div>
-                        <div class="source-status-container flex items-center">
-                            {% if source.ingestion_status in ["pending", "processing", "queued"] %}
-                                <svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <input type="checkbox" value="{{ source.id }}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">
-                            {% else %}
-                                <input checked class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="{{ source.id }}">
-                            {% endif %}
-                        </div>
+                        <button type="button" onclick="promptDeleteSource(event, '{{ source.id }}', '{{ source.original_filename|escape }}')" class="w-full px-3 py-1.5 text-left text-error dark:text-red-400 hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">cancel</span> <span class="cancel-text">Remove / Cancel</span>
+                        </button>
+                    </div>
+                    <div class="source-status-container flex items-center">
+                        {% if source.ingestion_status in ["pending", "processing", "queued"] %}
+                            <svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <input type="checkbox" value="{{ source.id }}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">
+                        {% else %}
+                            <input checked class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="{{ source.id }}">
+                        {% endif %}
                     </div>
                 </div>
-            </label>
-            {% endfor %}
-        </div>
-    </aside>
+            </div>
+        </label>
+        {% endfor %}
+    </div>
+</aside>

@@ -1,3 +1,15 @@
+"""
+Bring-Your-Own-Key (BYOK) Credential & Model Management Service
+
+Coordinates user-provided LLM API credentials, model preferences, and validation:
+    1. Cryptographic Key Persistence: Encrypts API keys using AES-256-GCM before DB write
+       and decrypts strictly in-memory during inference.
+    2. Provider & Model Catalogs: Maintains known model endpoints, tokens, and badges
+       for Groq, Google Gemini, OpenAI, Anthropic, OpenRouter, and Ollama/vLLM.
+    3. User Preferences: Stores top 1-5 active models and cascading fallback settings.
+    4. Fast Verification: Tests newly submitted keys with a 1-token probe request.
+"""
+
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from supabase import Client
@@ -10,9 +22,10 @@ from app.core.crypto import (
     extract_key_last4,
 )
 
-# Suppress verbose LiteLLM debug logs
+# Suppress verbose LiteLLM debug logs to preserve clean terminal and production logging
 litellm.suppress_debug_info = True
 
+# Default fallback model rankings offered to users without custom model configurations
 DEFAULT_PREFERRED_MODELS = [
     {
         "id": "groq/openai/gpt-oss-120b",
@@ -56,6 +69,7 @@ DEFAULT_PREFERRED_MODELS = [
     },
 ]
 
+# Comprehensive provider catalog used for UI provider tabs, key URLs, and model selection
 PROVIDER_CATALOG = [
     {
         "id": "groq",
@@ -130,9 +144,23 @@ PROVIDER_CATALOG = [
 ]
 
 
+# =========================================================================
+# 1. CREDENTIAL CRUD & DECRYPTION
+# =========================================================================
+
 def get_user_credentials(client: Client, user_id: str) -> List[Dict[str, Any]]:
     """
     Returns all configured API credentials for a user with keys safely masked.
+
+    Omits `api_key_encrypted` from the SELECT statement to prevent accidental exposure,
+    returning only non-sensitive metadata (`key_last4`, `is_valid`, etc.).
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated user.
+
+    Returns:
+        List[Dict[str, Any]]: Masked credential records.
     """
     try:
         res = client.table("user_llm_credentials").select(
@@ -151,7 +179,19 @@ def get_decrypted_user_key(
     custom_model_name: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
-    Retrieves and decrypts the user's API key strictly in-memory during inference.
+    Retrieves and decrypts a user's API key strictly in-memory during inference.
+
+    Fetches the ciphertext from `user_llm_credentials` and applies AES-256-GCM
+    authenticated decryption. The plaintext key is never written to disk or logs.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the user.
+        provider: Provider identifier (e.g. 'groq', 'openai', 'anthropic').
+        custom_model_name: Optional custom model name for provider disambiguation.
+
+    Returns:
+        Optional[Dict[str, Any]]: Dictionary with plaintext `api_key` and config, or None.
     """
     try:
         query = client.table("user_llm_credentials").select("*").eq("user_id", user_id).eq("provider", provider).eq("is_active", True)
@@ -190,7 +230,22 @@ def save_user_credential(
     is_valid: bool = True
 ) -> Dict[str, Any]:
     """
-    Encrypts and persists an API key in user_llm_credentials.
+    Encrypts and persists an API key in `user_llm_credentials`.
+
+    Encrypts the plaintext key via AES-256-GCM, extracts the last 4 characters for
+    user verification, and upserts the record in the database.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the user.
+        provider: Provider identifier (e.g. 'groq', 'google', 'openai').
+        raw_key: Plaintext API key string.
+        api_base: Optional custom API base endpoint URL.
+        custom_model_name: Optional custom model identifier.
+        is_valid: Boolean verification status from validation probe.
+
+    Returns:
+        Dict[str, Any]: Saved credential summary with masked details.
     """
     encrypted_key = encrypt_api_key(raw_key)
     last4 = extract_key_last4(raw_key)
@@ -235,7 +290,18 @@ def delete_user_credential(
     provider: str,
     custom_model_name: Optional[str] = None
 ) -> bool:
-    """Removes a stored credential record for the user."""
+    """
+    Removes a stored credential record for the user.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the user.
+        provider: Provider identifier to delete.
+        custom_model_name: Optional custom model name filter.
+
+    Returns:
+        bool: True if deletion succeeded, False on error.
+    """
     try:
         query = client.table("user_llm_credentials").delete().eq("user_id", user_id).eq("provider", provider)
         if custom_model_name:
@@ -247,6 +313,7 @@ def delete_user_credential(
         return False
 
 
+# Mapping of deprecated model identifiers to active production equivalents
 OBSOLETE_MODEL_MIGRATIONS = {
     "groq/llama-3.3-70b-versatile": "groq/openai/gpt-oss-120b",
     "groq/llama-3.1-8b-instant": "groq/openai/gpt-oss-20b",
@@ -256,8 +323,24 @@ OBSOLETE_MODEL_MIGRATIONS = {
 }
 
 
+# =========================================================================
+# 2. USER MODEL PREFERENCES & MIGRATIONS
+# =========================================================================
+
 def sanitize_preferred_models(models: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Sanitizes user preferred models against catalog and migrates deprecated IDs."""
+    """
+    Sanitizes user preferred models against catalog and migrates deprecated IDs.
+
+    Ensures that deprecated or renamed models (e.g. older Llama or Gemini versions)
+    are seamlessly mapped to their current equivalents without breaking user dropdowns.
+    Caps the returned list at 5 models.
+
+    Args:
+        models: List of model preference dictionaries or ID strings.
+
+    Returns:
+        List[Dict[str, Any]]: Sanitized list of up to 5 preferred model objects.
+    """
     catalog_map = {}
     for p in PROVIDER_CATALOG:
         for m in p.get("models", []):
@@ -287,6 +370,13 @@ def sanitize_preferred_models(models: List[Dict[str, Any]]) -> List[Dict[str, An
 def get_user_preferences(client: Client, user_id: str) -> Dict[str, Any]:
     """
     Retrieves user preferences for top 1-5 chat dropdown models and fallback settings.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated user.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing `active_model`, `preferred_models`, and `fallback_enabled`.
     """
     try:
         res = client.table("user_llm_preferences").select("*").eq("user_id", user_id).execute()
@@ -320,7 +410,19 @@ def save_user_preferences(
     preferred_models: List[Dict[str, Any]],
     fallback_enabled: bool = True
 ) -> Dict[str, Any]:
-    """Saves user's preferred top 3-5 models and fallback configuration."""
+    """
+    Saves user's preferred top 3-5 models and fallback configuration.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID string of the authenticated user.
+        active_model: ID string of the primary selected model.
+        preferred_models: List of model configuration objects (capped at 5).
+        fallback_enabled: Whether cascading fallback to free-tier is allowed.
+
+    Returns:
+        Dict[str, Any]: The persisted preferences payload.
+    """
     # Ensure top 3-5 models are stored
     capped_models = preferred_models[:5] if preferred_models else DEFAULT_PREFERRED_MODELS
     
@@ -340,6 +442,10 @@ def save_user_preferences(
         return payload
 
 
+# =========================================================================
+# 3. LIVE PROVIDER KEY VALIDATION PROBE
+# =========================================================================
+
 def validate_provider_key(
     provider: str,
     raw_key: str,
@@ -347,7 +453,19 @@ def validate_provider_key(
     model: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
-    Conducts a fast 1-token test call to verify API key validity without incurring significant latency or cost.
+    Conducts a fast 1-token test call to verify API key validity with minimal latency and zero cost.
+
+    Dispatches a minimal completion query (`ping`, `max_tokens=1`) through LiteLLM.
+    Categorizes errors into human-readable error explanations (Authentication, RateLimit, Timeout).
+
+    Args:
+        provider: Provider identifier (e.g. 'groq', 'google', 'openai', 'anthropic', 'custom').
+        raw_key: Plaintext API key submitted by the user.
+        api_base: Optional custom endpoint URL.
+        model: Optional specific model ID to test against.
+
+    Returns:
+        Tuple[bool, str]: (is_valid, status_message).
     """
     p = provider.lower().strip()
     test_model = model
@@ -393,3 +511,4 @@ def validate_provider_key(
         if "ConnectionError" in err_msg or "timeout" in err_msg.lower():
             return (False, "Connection timeout: Provider endpoint could not be reached.")
         return (False, f"Verification failed: {err_msg[:160]}")
+

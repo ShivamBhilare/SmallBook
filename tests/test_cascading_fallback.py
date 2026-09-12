@@ -1,8 +1,24 @@
-from unittest.mock import patch, MagicMock
+"""Cascading Fallback Resiliency Tests for SmallBook RAG Prompt Pipeline.
+
+Verifies:
+- Direct primary model execution when healthy (emitting used_model and chunk events).
+- Graceful provider failover when primary model throws RateLimitError (429),
+  dispatching a fallback_notice event and succeeding on secondary free-tier provider.
+"""
+
+from unittest.mock import MagicMock, patch
+
 from app.services.rag.promptllm import stream_resilient_llm_response
 
+
 def test_resilient_stream_primary_success():
-    # Mock LiteLLM completion returning chunks
+    """Tests that a healthy primary LLM model streams chunks without triggering fallback.
+
+    Pattern:
+        - Arrange: Mock LiteLLM completion returning two sequential text chunks ('Hello ', 'world!').
+        - Act: Consume the stream_resilient_llm_response generator into a list of events.
+        - Assert: Verify events contain 'used_model' and 'chunk', and concatenated content equals 'Hello world!'.
+    """
     mock_chunk_1 = MagicMock()
     mock_chunk_1.choices = [MagicMock(delta=MagicMock(content="Hello "))]
     mock_chunk_2 = MagicMock()
@@ -24,8 +40,17 @@ def test_resilient_stream_primary_success():
         content = "".join([e[1] for e in events if e[0] == "chunk"])
         assert content == "Hello world!"
 
+
 def test_resilient_stream_fallback_on_primary_failure():
-    # Primary model throws RateLimitError (429), secondary succeeds
+    """Tests automatic fallback cascade when primary model encounters a RateLimitError (429).
+
+    Pattern:
+        - Arrange: Mock completion to throw 429 on first invocation and succeed with mock_chunk on second;
+          mock developer API keys for fallback providers.
+        - Act: Consume stream_resilient_llm_response generator.
+        - Assert: Verify 'fallback_notice' event is emitted containing original_model='gpt-4o'
+          and error explanation, followed by completed chunk content from fallback provider.
+    """
     mock_chunk = MagicMock()
     mock_chunk.choices = [MagicMock(delta=MagicMock(content="Fallback answer"))]
 

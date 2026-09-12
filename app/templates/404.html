@@ -1,3 +1,20 @@
+{# =========================================================================
+   TEMPLATE: 404.html
+   DESCRIPTION:
+     Custom 404 Not Found error view for SmallBook. Rendered by the application
+     exception handler when invalid routes, unauthenticated/unauthorized notebooks,
+     or missing resources are accessed.
+
+   EXTENDS: base.html
+
+   CONTEXT PARAMETERS:
+     - title (str, optional): Browser title override (defaults to 'Page Not Found - SmallBook').
+     - request (Request): Starlette HTTP request context.
+
+   BLOCKS OVERRIDDEN:
+     - title: Browser tab title.
+     - content: Error icon, status headline, explanatory message, and dashboard return button.
+   ========================================================================= #}
 {% extends "base.html" %}
 
 {% block title %}{{ title | default('Page Not Found - SmallBook') }}{% endblock %}

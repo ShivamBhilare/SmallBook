@@ -1,19 +1,35 @@
+"""Quiz Persistence, Grading & Management Service.
+
+Provides CRUD routines for multiple-choice practice quizzes in Supabase,
+handles answer grading, calculates performance percentages, and logs user attempts.
+"""
+
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from supabase import Client
 
 from app.models.study_models import (
-    QuizGenerateSchema,
-    QuizAttemptSubmit,
+    QuestionResult,
     QuizAttemptResponse,
-    QuestionResult
+    QuizAttemptSubmit,
+    QuizGenerateSchema,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def list_notebook_quizzes(supabase: Client, notebook_id: str, user_id: str) -> List[Dict[str, Any]]:
-    """Fetches all quizzes for a given notebook with question counts."""
+    """Fetches all practice quizzes for a notebook with computed question counts.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        notebook_id: UUID of the target notebook.
+        user_id: UUID of the authenticated owner.
+
+    Returns:
+        List of quiz dictionaries with an attached 'questions_count' integer.
+    """
     try:
         res = (
             supabase.table("quizzes")
@@ -27,7 +43,7 @@ def list_notebook_quizzes(supabase: Client, notebook_id: str, user_id: str) -> L
         if not quizzes:
             return []
 
-        # Count questions per quiz
+        # Count questions per quiz in a single aggregated batch
         quiz_ids = [q["id"] for q in quizzes]
         questions_res = (
             supabase.table("quiz_questions")
@@ -51,7 +67,17 @@ def list_notebook_quizzes(supabase: Client, notebook_id: str, user_id: str) -> L
 
 
 def get_quiz_with_questions(supabase: Client, quiz_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    """Fetches a specific quiz and all its questions."""
+    """Fetches a specific quiz and all its child questions in sequential order.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        quiz_id: UUID of the target quiz.
+        user_id: UUID of the requesting owner.
+
+    Returns:
+        Quiz dictionary containing populated 'questions' list and 'questions_count',
+        or None if not found or unauthorized.
+    """
     try:
         quiz_res = (
             supabase.table("quizzes")
@@ -87,7 +113,25 @@ def save_generated_quiz(
     custom_prompt: Optional[str],
     quiz_data: QuizGenerateSchema
 ) -> Dict[str, Any]:
-    """Persists a newly generated quiz and its questions to Supabase."""
+    """Persists a newly generated practice quiz and its questions to Supabase.
+
+    Inserts parent quizzes row, checks foreign-key validity of referenced chunk IDs,
+    and batch-inserts child multiple-choice questions.
+
+    Args:
+        supabase: Authenticated or service-role Supabase client instance.
+        notebook_id: UUID of the notebook workspace.
+        user_id: UUID of the quiz owner.
+        source_id: UUID of the source document the quiz was derived from.
+        custom_prompt: Optional user instructions provided during generation.
+        quiz_data: Validated QuizGenerateSchema containing quiz title and questions.
+
+    Returns:
+        Created quiz dictionary including attached 'questions' and 'questions_count'.
+
+    Raises:
+        RuntimeError: If inserting the parent quiz record fails.
+    """
     # 1. Insert Quiz
     quiz_payload = {
         "notebook_id": notebook_id,
@@ -145,7 +189,24 @@ def grade_and_record_quiz_attempt(
     user_id: str,
     attempt: QuizAttemptSubmit
 ) -> QuizAttemptResponse:
-    """Grades user answers, calculates score, and records attempt in database."""
+    """Grades submitted quiz answers, computes score metrics, and logs the attempt.
+
+    Supports indexing submissions by question ID UUID or zero-based order string.
+    Persists attempt telemetry asynchronously to quiz_attempts table without
+    blocking on logging errors.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        quiz_id: UUID of the quiz being attempted.
+        user_id: UUID of the student user.
+        attempt: QuizAttemptSubmit containing a mapping of answers.
+
+    Returns:
+        QuizAttemptResponse detailing total score, percentage, and per-question breakdowns.
+
+    Raises:
+        ValueError: If the target quiz is not found.
+    """
     quiz = get_quiz_with_questions(supabase, quiz_id, user_id)
     if not quiz:
         raise ValueError("Quiz not found.")
@@ -162,11 +223,11 @@ def grade_and_record_quiz_attempt(
         q_id = str(q["id"])
         order_idx = str(q.get("order_index", 0))
         correct_ans = str(q.get("correct_answer", "")).strip().upper()
-        
+
         # User answer can be keyed by question ID or order index
         user_ans = (
-            attempt.user_answers.get(q_id) 
-            or attempt.user_answers.get(order_idx) 
+            attempt.user_answers.get(q_id)
+            or attempt.user_answers.get(order_idx)
             or ""
         ).strip().upper()
 
@@ -205,7 +266,16 @@ def grade_and_record_quiz_attempt(
 
 
 def delete_quiz(supabase: Client, quiz_id: str, user_id: str) -> bool:
-    """Deletes a quiz (cascade deletes child questions and attempts)."""
+    """Deletes a quiz and cascades removal to child questions and attempts.
+
+    Args:
+        supabase: Authenticated Supabase client instance.
+        quiz_id: UUID of the quiz to delete.
+        user_id: UUID of the owner.
+
+    Returns:
+        True if deleted successfully; False otherwise.
+    """
     try:
         res = (
             supabase.table("quizzes")

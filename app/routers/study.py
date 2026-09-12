@@ -1,40 +1,48 @@
+"""Study Tools Router Module.
+
+Exposes RESTful endpoints for generating AI-driven study tools (flashcard decks
+and multiple-choice practice quizzes), querying tool cooldowns, managing Markdown
+notes, scoring quiz submissions, and retrieving aggregated Studio artifacts.
+"""
+
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from supabase import Client
 
-from app.services.authentication.auth_service import login_required, get_supabase_client
-from app.models.study_models import (
-    StudyGenerateRequest,
-    QuizAttemptSubmit,
-    QuizAttemptResponse,
-    NoteCreateRequest,
-    NoteUpdateRequest
-)
 from app.core.redis_client import get_redis_client
+from app.models.study_models import (
+    NoteCreateRequest,
+    NoteUpdateRequest,
+    QuizAttemptResponse,
+    QuizAttemptSubmit,
+    StudyGenerateRequest,
+)
+from app.services.authentication.auth_service import get_supabase_client, login_required
 from app.services.study.concurrency import (
     acquire_study_lock,
     check_and_set_cooldown,
+    clear_cooldown,
     get_cooldown_remaining,
-    clear_cooldown
 )
 from app.services.study.flashcard_service import (
-    list_notebook_flashcard_sets,
+    delete_flashcard_set,
     get_flashcard_set_with_cards,
-    delete_flashcard_set
-)
-from app.services.study.quiz_service import (
-    list_notebook_quizzes,
-    get_quiz_with_questions,
-    grade_and_record_quiz_attempt,
-    delete_quiz
+    list_notebook_flashcard_sets,
 )
 from app.services.study.note_service import (
-    list_notebook_notes,
-    get_note_by_id,
     create_note,
+    delete_note,
+    get_note_by_id,
+    list_notebook_notes,
     update_note,
-    delete_note
+)
+from app.services.study.quiz_service import (
+    delete_quiz,
+    get_quiz_with_questions,
+    grade_and_record_quiz_attempt,
+    list_notebook_quizzes,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,7 +59,21 @@ def _dispatch_study_task(
     requested_model: Optional[str],
     num_items: Optional[int] = None
 ):
-    """Dispatches generation task to Celery with fast fallback to background thread."""
+    """Dispatches study generation task to Celery with background thread fallback.
+
+    Tries dispatching to Celery broker with a 2-second connection timeout. If Celery
+    is unavailable (e.g. in local development without active workers), falls back to a
+    daemonized background thread.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        user_id: UUID of the requesting user.
+        source_id: UUID of the source document.
+        tool_type: Tool type ('flashcards' or 'quiz').
+        custom_prompt: Optional custom generation prompt or focus topics.
+        requested_model: Optional specific LLM model ID.
+        num_items: Target number of items to generate.
+    """
     redis_client = get_redis_client()
     if redis_client:
         try:
@@ -85,15 +107,22 @@ def _dispatch_study_task(
 # GENERATION ENDPOINTS
 # ==============================================================================
 
+
 @router.get("/notebooks/{notebook_id}/study/cooldown")
 def get_study_cooldown_status(
     notebook_id: str,
     tool_type: Optional[str] = None,
-    user = Depends(login_required)
+    user=Depends(login_required)
 ):
-    """
-    Returns the remaining cooldown time for study tools (flashcards and quiz)
-    without mutating the cooldown timer. Allows UI to proactively show cooldown.
+    """Returns remaining cooldown time for study tools without mutating timers.
+
+    Args:
+        notebook_id: UUID of the notebook.
+        tool_type: Optional tool filter ('flashcards' or 'quiz').
+        user: Authenticated user object from dependency.
+
+    Returns:
+        Dictionary containing cooldown status, remaining seconds, and minutes.
     """
     user_id = str(user.id)
     rem_fc = get_cooldown_remaining(user_id, "flashcards")
@@ -127,16 +156,29 @@ def generate_study_tool(
     notebook_id: str,
     payload: StudyGenerateRequest,
     background_tasks: BackgroundTasks,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """
-    Asynchronously generates a Flashcard deck or Quiz for a selected source document.
+    """Enqueues asynchronous background generation for a flashcard deck or quiz.
+
     Enforces:
       1. Immediate fast-path 30-minute cooldown check (zero database latency).
-      2. Notebook and source ownership & linkage.
-      3. Active generation lock.
-      4. Non-blocking asynchronous worker execution.
+      2. Notebook and source document ownership verification.
+      3. Active concurrent generation locking.
+      4. Asynchronous worker task dispatch.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        payload: StudyGenerateRequest with tool_type, source_id, prompt, model, count.
+        background_tasks: FastAPI background task manager.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary with status 'queued' and confirmation message.
+
+    Raises:
+        HTTPException: 400 if source not linked; 404 if notebook/source missing; 429 if rate-limited or locked.
     """
     user_id = str(user.id)
 
@@ -204,11 +246,20 @@ def generate_study_tool(
 @router.get("/notebooks/{notebook_id}/study/items")
 def get_notebook_study_items(
     notebook_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """
-    Returns all generated flashcard decks, quizzes, and notes for a notebook to display in the Studio panel.
+    """Returns all flashcard decks, practice quizzes, and notes for the Studio panel.
+
+    Combines study artifacts into a chronological unified timeline.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary containing 'notes', 'flashcard_sets', 'quizzes', and unified 'artifacts'.
     """
     user_id = str(user.id)
     notes = list_notebook_notes(client, notebook_id, user_id)
@@ -266,13 +317,23 @@ def get_notebook_study_items(
 # NOTE ENDPOINTS
 # ==============================================================================
 
+
 @router.get("/notebooks/{notebook_id}/notes")
 def get_notebook_notes(
     notebook_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Fetches all saved notes for a notebook."""
+    """Fetches all saved notes for a specific notebook.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        List of note objects.
+    """
     user_id = str(user.id)
     return list_notebook_notes(client, notebook_id, user_id)
 
@@ -281,10 +342,23 @@ def get_notebook_notes(
 def create_notebook_note(
     notebook_id: str,
     payload: NoteCreateRequest,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Creates a new note for a notebook (e.g. from chat response or manual input)."""
+    """Creates a new note associated with a notebook workspace.
+
+    Args:
+        notebook_id: UUID of the notebook workspace.
+        payload: NoteCreateRequest with title, content, and optional source_message_id.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Created note dictionary with HTTP 201 status.
+
+    Raises:
+        HTTPException: 500 if database creation fails.
+    """
     user_id = str(user.id)
     try:
         note = create_note(
@@ -304,10 +378,22 @@ def create_notebook_note(
 @router.get("/api/notes/{note_id}")
 def get_note_endpoint(
     note_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Fetches a specific note by ID."""
+    """Fetches a specific note by ID.
+
+    Args:
+        note_id: UUID of the note.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Note dictionary.
+
+    Raises:
+        HTTPException: 404 if not found or unauthorized.
+    """
     note = get_note_by_id(client, note_id, str(user.id))
     if not note:
         raise HTTPException(status_code=404, detail="Note not found.")
@@ -318,10 +404,23 @@ def get_note_endpoint(
 def update_note_endpoint(
     note_id: str,
     payload: NoteUpdateRequest,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Updates title or content of an existing note."""
+    """Updates title and/or content of an existing note.
+
+    Args:
+        note_id: UUID of the note to update.
+        payload: NoteUpdateRequest with optional title or content.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Updated note dictionary.
+
+    Raises:
+        HTTPException: 404 if note not found or update fails.
+    """
     note = update_note(client, note_id, str(user.id), title=payload.title, content=payload.content)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found or update failed.")
@@ -331,10 +430,22 @@ def update_note_endpoint(
 @router.delete("/api/notes/{note_id}")
 def delete_note_endpoint(
     note_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Deletes a note."""
+    """Deletes a note.
+
+    Args:
+        note_id: UUID of the note to delete.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary with status and deletion message.
+
+    Raises:
+        HTTPException: 404 if note not found or deletion fails.
+    """
     success = delete_note(client, note_id, str(user.id))
     if not success:
         raise HTTPException(status_code=404, detail="Note not found or delete failed.")
@@ -345,13 +456,26 @@ def delete_note_endpoint(
 # FLASHCARD ENDPOINTS
 # ==============================================================================
 
+
 @router.get("/api/study/flashcards/{set_id}")
 def get_flashcard_deck(
     set_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Fetches a full flashcard deck with all cards."""
+    """Fetches a full flashcard deck with its child cards.
+
+    Args:
+        set_id: UUID of the flashcard deck.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Deck dictionary containing cards array.
+
+    Raises:
+        HTTPException: 404 if deck not found.
+    """
     deck = get_flashcard_set_with_cards(client, set_id, str(user.id))
     if not deck:
         raise HTTPException(status_code=404, detail="Flashcard deck not found.")
@@ -361,10 +485,22 @@ def get_flashcard_deck(
 @router.delete("/api/study/flashcards/{set_id}")
 def delete_flashcard_deck(
     set_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Deletes a flashcard deck."""
+    """Deletes a flashcard deck and cascades removal of child cards.
+
+    Args:
+        set_id: UUID of the flashcard deck.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary confirming deck deletion.
+
+    Raises:
+        HTTPException: 404 if deck not found.
+    """
     success = delete_flashcard_set(client, set_id, str(user.id))
     if not success:
         raise HTTPException(status_code=404, detail="Flashcard deck not found or delete failed.")
@@ -375,13 +511,26 @@ def delete_flashcard_deck(
 # QUIZ ENDPOINTS
 # ==============================================================================
 
+
 @router.get("/api/study/quizzes/{quiz_id}")
 def get_quiz(
     quiz_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Fetches a quiz with all questions."""
+    """Fetches a practice quiz and all its multiple-choice questions.
+
+    Args:
+        quiz_id: UUID of the quiz.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Quiz dictionary containing questions array.
+
+    Raises:
+        HTTPException: 404 if quiz not found.
+    """
     quiz = get_quiz_with_questions(client, quiz_id, str(user.id))
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found.")
@@ -392,10 +541,23 @@ def get_quiz(
 def submit_quiz_attempt(
     quiz_id: str,
     payload: QuizAttemptSubmit,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Submits user answers for a quiz, grades them, and saves the attempt."""
+    """Grades submitted quiz answers, calculates percentage score, and records attempt.
+
+    Args:
+        quiz_id: UUID of the quiz.
+        payload: QuizAttemptSubmit containing mapping of question answers.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        QuizAttemptResponse detailing total score, percentage, and per-question breakdowns.
+
+    Raises:
+        HTTPException: 404 if quiz not found; 500 on grading or logging error.
+    """
     try:
         return grade_and_record_quiz_attempt(client, quiz_id, str(user.id), payload)
     except ValueError as e:
@@ -408,10 +570,22 @@ def submit_quiz_attempt(
 @router.delete("/api/study/quizzes/{quiz_id}")
 def delete_quiz_endpoint(
     quiz_id: str,
-    user = Depends(login_required),
+    user=Depends(login_required),
     client: Client = Depends(get_supabase_client)
 ):
-    """Deletes a quiz."""
+    """Deletes a practice quiz and cascades removal of questions and attempts.
+
+    Args:
+        quiz_id: UUID of the quiz to delete.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary confirming quiz deletion.
+
+    Raises:
+        HTTPException: 404 if quiz not found.
+    """
     success = delete_quiz(client, quiz_id, str(user.id))
     if not success:
         raise HTTPException(status_code=404, detail="Quiz not found or delete failed.")

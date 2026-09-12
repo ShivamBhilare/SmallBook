@@ -1,12 +1,21 @@
 /**
- * SmallBook - Global Native UI Alert & Confirmation Modal System
- * Provides window.showAppAlert(), window.showAppConfirm(), window.closeAppAlert()
- * and transparently overrides window.alert() with styled in-app dialogs.
+ * @fileoverview Global Native UI Alert & Confirmation Dialog System.
+ * Exposes window.showAppAlert(), window.showAppConfirm(), and window.closeAppAlert(),
+ * transparently replacing intrusive native window.alert() calls with beautifully
+ * animated, accessible, theme-aware in-app modal dialogs.
  */
+
+/* ==========================================================================
+   GLOBAL ALERT MODAL CONTROLLER
+   ========================================================================== */
 
 (function initGlobalAlertModal() {
     let activeResolver = null;
 
+    /**
+     * Color tokens, icon identifiers, and fallback titles for modal variants.
+     * @type {Record<string, {box: string, icon: string, defaultTitle: string, btnText: string}>}
+     */
     const TYPE_CONFIG = {
         warning: {
             box: 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500/25 dark:border-amber-400/25 text-amber-600 dark:text-amber-400',
@@ -34,6 +43,20 @@
         }
     };
 
+    /**
+     * Resolves modal presentation properties based on message keywords and explicit options.
+     *
+     * @param {string|unknown} message - Message text or payload.
+     * @param {Object} [options={}] - Custom configuration overrides.
+     * @param {string} [options.type] - Alert type ('warning', 'error', 'success', 'info').
+     * @param {string} [options.title] - Modal title header.
+     * @param {string} [options.icon] - Material Symbol icon name.
+     * @param {string} [options.buttonText] - Confirm button label.
+     * @param {string} [options.subtitle] - Secondary informational text.
+     * @param {boolean} [options.confirm] - Whether to render a secondary Cancel button.
+     * @param {string} [options.cancelText] - Cancel button label.
+     * @returns {Object} Fully resolved modal properties.
+     */
     function resolveProps(message, options = {}) {
         const text = String(message ?? '');
         const lower = text.toLowerCase();
@@ -85,6 +108,12 @@
         };
     }
 
+    /**
+     * Injects resolved content into DOM modal elements and triggers entry animation.
+     *
+     * @param {Object} props - Resolved modal properties.
+     * @param {Function} resolve - Promise resolution callback.
+     */
     function displayModal(props, resolve) {
         activeResolver = resolve;
         const modal = document.getElementById('app-alert-modal');
@@ -131,7 +160,7 @@
             }
         }
 
-        // Show modal & trigger scale-in
+        // Show modal & trigger scale-in animation
         modal.classList.remove('hidden');
         requestAnimationFrame(() => {
             card.classList.remove('scale-95', 'opacity-0');
@@ -143,6 +172,11 @@
         }
     }
 
+    /**
+     * Animates modal exit transition, hides elements, and triggers active Promise resolver.
+     *
+     * @param {boolean} [result=true] - Resolution boolean (true for confirm, false for cancel).
+     */
     function closeAppAlert(result = true) {
         const modal = document.getElementById('app-alert-modal');
         const card = document.getElementById('app-alert-card');
@@ -161,6 +195,13 @@
         }, 160);
     }
 
+    /**
+     * Displays an in-app alert dialog.
+     *
+     * @param {string} message - Body text to display.
+     * @param {Object} [options={}] - Alert configuration options.
+     * @returns {Promise<boolean>} Resolves when dismissed.
+     */
     window.showAppAlert = function(message, options = {}) {
         return new Promise((resolve) => {
             const props = resolveProps(message, options);
@@ -172,6 +213,13 @@
         });
     };
 
+    /**
+     * Displays a confirmation dialog with Confirm and Cancel buttons.
+     *
+     * @param {string} message - Confirmation prompt text.
+     * @param {Object} [options={}] - Alert configuration options.
+     * @returns {Promise<boolean>} Resolves to true if confirmed, false if cancelled.
+     */
     window.showAppConfirm = function(message, options = {}) {
         return window.showAppAlert(message, { ...options, confirm: true });
     };
@@ -183,6 +231,9 @@
         window.showAppAlert(message);
     };
 
+    /**
+     * Binds click and keyboard events to alert modal controls.
+     */
     function initAlertEvents() {
         const confirmBtn = document.getElementById('app-alert-confirm-btn');
         const cancelBtn = document.getElementById('app-alert-cancel-btn');

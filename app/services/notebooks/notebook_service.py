@@ -1,3 +1,12 @@
+"""
+Notebook Workspace Data Access & Business Service
+
+Manages database persistence, lifecycle operations, and source count aggregations
+for user notebook workspaces stored in Supabase PostgreSQL tables.
+Enforces user ownership filters and converts PostgREST API errors into typed
+domain service exceptions.
+"""
+
 import logging
 from typing import List, Optional, Dict, Any
 from supabase import Client
@@ -6,20 +15,43 @@ from app.models.notebook_models import NotebookCreateSchema, NotebookUpdateSchem
 
 logger = logging.getLogger(__name__)
 
-# EXCEPTIONS
+
+# =========================================================================
+# 1. DOMAIN SERVICE EXCEPTIONS
+# =========================================================================
 
 class NotebookServiceError(Exception):
-    """Base exception for notebook-related failures."""
+    """Base exception for all notebook workspace service layer failures."""
     pass
+
 
 class DatabaseError(NotebookServiceError):
-    """Raised when a database connection or query fails."""
+    """Raised when a Supabase PostgreSQL query or connection execution fails."""
     pass
 
-# DATABASE SERVICES
+
+# =========================================================================
+# 2. NOTEBOOK WORKSPACE CRUD OPERATIONS
+# =========================================================================
 
 def get_user_notebooks(supabase: Client, user_id: str) -> List[Dict[str, Any]]:
-    """Fetch all notebooks owned by the current user."""
+    """
+    Fetches all notebook workspaces owned by the specified user.
+
+    Retrieves notebooks ordered chronologically by `updated_at` descending,
+    and performs a secondary batch query on `notebook_sources` to annotate
+    each notebook record with its active linked source document count (`sources_count`).
+
+    Args:
+        supabase: Scoped or service Supabase client.
+        user_id: Unique UUID string of the requesting user.
+
+    Returns:
+        List[Dict[str, Any]]: List of notebook dictionaries with `sources_count` attached.
+
+    Raises:
+        DatabaseError: If the PostgREST query fails or an unexpected exception occurs.
+    """
     try:
         response = (
             supabase.table("notebooks")
@@ -58,7 +90,20 @@ def get_user_notebooks(supabase: Client, user_id: str) -> List[Dict[str, Any]]:
 
 
 def get_notebook_by_id(supabase: Client, notebook_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a single notebook by ID, strictly enforcing user ownership."""
+    """
+    Fetches a single notebook workspace by ID, strictly enforcing user ownership.
+
+    Args:
+        supabase: Scoped or service Supabase client.
+        notebook_id: UUID string of the target notebook.
+        user_id: UUID string of the expected owner.
+
+    Returns:
+        Optional[Dict[str, Any]]: Notebook record dictionary if found and owned, else None.
+
+    Raises:
+        DatabaseError: If database communication fails.
+    """
     try:
         response = (
             supabase.table("notebooks")
@@ -80,7 +125,23 @@ def get_notebook_by_id(supabase: Client, notebook_id: str, user_id: str) -> Opti
 
 
 def create_notebook(supabase: Client, user_id: str, payload: NotebookCreateSchema) -> Dict[str, Any]:
-    """Create a new notebook and return the created record."""
+    """
+    Creates a new notebook workspace record for the user.
+
+    Dumps the schema excluding None values so default schema values (e.g. title
+    "Untitled SmallBook") are written cleanly to the PostgreSQL record.
+
+    Args:
+        supabase: Scoped or service Supabase client.
+        user_id: UUID string of the creating user.
+        payload: Validated notebook creation schema.
+
+    Returns:
+        Dict[str, Any]: Newly inserted notebook database record.
+
+    Raises:
+        DatabaseError: If insert fails or returns an empty payload.
+    """
     try:
         # exclude_none=True ensures the default "Untitled SmallBook" is passed to DB
         data = payload.model_dump(exclude_none=True)
@@ -103,9 +164,29 @@ def create_notebook(supabase: Client, user_id: str, payload: NotebookCreateSchem
 
 
 def update_notebook(
-    supabase: Client, notebook_id: str, user_id: str, payload: NotebookUpdateSchema
+    supabase: Client,
+    notebook_id: str,
+    user_id: str,
+    payload: NotebookUpdateSchema
 ) -> Optional[Dict[str, Any]]:
-    """Update a notebook, returning the updated record or None if not found."""
+    """
+    Updates an existing notebook workspace's metadata.
+
+    Uses `exclude_unset=True` to only update fields explicitly provided by the caller.
+    If no fields were supplied in the update payload, short-circuits to avoid a no-op DB write.
+
+    Args:
+        supabase: Scoped or service Supabase client.
+        notebook_id: UUID string of the target notebook.
+        user_id: UUID string of the authenticated owner.
+        payload: Validated notebook update schema.
+
+    Returns:
+        Optional[Dict[str, Any]]: The updated notebook record dictionary, or None if not found.
+
+    Raises:
+        DatabaseError: If database update fails.
+    """
     try:
         # exclude_unset=True ensures we only update fields the user explicitly sent
         data = payload.model_dump(exclude_unset=True)
@@ -136,7 +217,23 @@ def update_notebook(
 
 
 def delete_notebook(supabase: Client, notebook_id: str, user_id: str) -> bool:
-    """Delete a notebook and return True if successful, False if not found."""
+    """
+    Deletes a notebook workspace owned by the user.
+
+    Foreign key constraints with ON DELETE CASCADE in PostgreSQL automatically
+    clean up associated chat messages, notebook_sources references, and study records.
+
+    Args:
+        supabase: Scoped or service Supabase client.
+        notebook_id: UUID string of the target notebook.
+        user_id: UUID string of the owner.
+
+    Returns:
+        bool: True if a record was successfully deleted, False if no matching record existed.
+
+    Raises:
+        DatabaseError: If database delete command fails.
+    """
     try:
         response = (
             supabase.table("notebooks")
@@ -152,4 +249,4 @@ def delete_notebook(supabase: Client, notebook_id: str, user_id: str) -> bool:
         raise DatabaseError("Database failed to delete notebook.") from e
     except Exception as e:
         logger.exception(f"Unexpected error deleting notebook {notebook_id}")
-        raise DatabaseError("An unexpected error occurred during deletion.") from e
+        raise DatabaseError("An unexpected error occurred during deletion.") from e

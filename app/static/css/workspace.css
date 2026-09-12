@@ -1,9 +1,22 @@
+/**
+ * SmallBook - Notebook Workspace Stylesheet
+ * Controls tri-pane layout dimensions, responsive mobile tab switching, collapsible
+ * left/right panels, Markdown prose styling, WYSIWYG note editing, and 3D flashcard flips.
+ */
+
+/* ==========================================================================
+   CSS CUSTOM PROPERTY TOKENS
+   ========================================================================== */
+
 :root {
     --left-panel-width: 300px;
     --right-panel-width: 320px;
 }
 
-/* Mobile Tab Switching Logic */
+/* ==========================================================================
+   RESPONSIVE MOBILE VIEWPORT SWITCHING (< 1024px)
+   ========================================================================== */
+
 @media (max-width: 1023px) {
     #panel-sources:not(.active-tab),
     #panel-chat:not(.active-tab),
@@ -18,27 +31,61 @@
     }
 }
 
-/* Modal Overlay Styling */
+/* ==========================================================================
+   MOBILE CHAT RESPONSIVENESS & OVERFLOW CONTAINMENT
+   ========================================================================== */
+
+#chat-messages-container {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+}
+
+#chat-messages-container > div {
+    max-width: 100% !important;
+}
+
+.ai-text-content {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.ai-text-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* ==========================================================================
+   MODAL OVERLAY BLUR & BASE EFFECTS
+   ========================================================================== */
+
 #upload-modal {
     backdrop-filter: blur(4px);
 }
 
-/* Collapsible Panel Styles */
+/* ==========================================================================
+   COLLAPSIBLE ASIDE PANELS (Sources & Studio)
+   ========================================================================== */
+
 #panel-sources, #panel-studio {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 body.is-resizing #panel-sources, body.is-resizing #panel-studio {
     transition: none !important;
 }
+
 aside.collapsed {
     width: 72px !important;
 }
+
 aside.collapsed .hide-on-collapse {
     display: none !important;
 }
+
 aside.collapsed .panel-header {
     justify-content: center !important;
 }
+
 aside.collapsed .p-md, aside.collapsed .px-md {
     padding-left: 8px !important;
     padding-right: 8px !important;
@@ -65,7 +112,10 @@ aside.collapsed .study-tool-tile { border-color: transparent !important; backgro
 aside.collapsed .study-tool-content,
 aside.collapsed .study-tool-actions { display: none !important; }
 
-/* Markdown Styling Fallbacks */
+/* ==========================================================================
+   TYPOGRAPHY & MARKDOWN PROSE STYLING
+   ========================================================================== */
+
 .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
 .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
 .prose li { margin-bottom: 0.35rem; }
@@ -86,7 +136,10 @@ aside.collapsed .study-tool-actions { display: none !important; }
 .dark .prose th { background-color: rgba(255,255,255,0.05); }
 .prose strong { font-weight: 600; color: inherit; }
 
-/* Visual WYSIWYG Note Editor Placeholder & Styles */
+/* ==========================================================================
+   WYSIWYG NOTE EDITOR STYLES
+   ========================================================================== */
+
 #note-content-input:empty:before {
     content: attr(data-placeholder);
     color: rgba(140, 140, 140, 0.6);
@@ -128,7 +181,10 @@ aside.collapsed .study-tool-actions { display: none !important; }
     margin: 0.4rem 0 0.2rem 0;
 }
 
-/* 3D Flashcard Flip Styles */
+/* ==========================================================================
+   3D FLASHCARD PERSPECTIVE & FLIP ANIMATION
+   ========================================================================== */
+
 .flashcard-scene {
     perspective: 1000px;
 }

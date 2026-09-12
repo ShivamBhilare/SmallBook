@@ -1,8 +1,14 @@
 /**
- * SmallBook - Theme Management & Session Sign-Out
+ * @fileoverview Theme Management & Session Sign-Out Module.
+ * Controls dark/light mode toggles, persists user theme preferences in localStorage,
+ * synchronizes Material Symbol icons across DOM elements, handles BFCache page restoration,
+ * and coordinates global session logout flows.
  */
 
-// Initial Theme Check to prevent FOUC
+/* ==========================================================================
+   INITIAL THEME INITIALIZATION (Prevents Flash of Unstyled Content - FOUC)
+   ========================================================================== */
+
 (function applyInitialTheme() {
     const stored = localStorage.getItem('theme');
     if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -12,6 +18,13 @@
     }
 })();
 
+/* ==========================================================================
+   THEME SYNCHRONIZATION & TOGGLE FUNCTIONS
+   ========================================================================== */
+
+/**
+ * Synchronizes theme icons in the DOM based on current document class state.
+ */
 function syncThemeUI() {
     const isDark = document.documentElement.classList.contains('dark');
     document.querySelectorAll('.theme-icon').forEach(icon => {
@@ -19,6 +32,10 @@ function syncThemeUI() {
     });
 }
 
+/**
+ * Toggles the document root between light and dark modes, persists setting,
+ * and updates UI indicator icons.
+ */
 function toggleTheme() {
     document.documentElement.classList.toggle('dark');
     const isDark = document.documentElement.classList.contains('dark');
@@ -26,14 +43,20 @@ function toggleTheme() {
     syncThemeUI();
 }
 
-// Sync icons on page load
+// Sync icons on initial page load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', syncThemeUI);
 } else {
     syncThemeUI();
 }
 
-// Fast theme restoration and BFCache handling on Back/Forward navigation
+/* ==========================================================================
+   BFCACHE & BACK/FORWARD NAVIGATION RESTORATION
+   ========================================================================== */
+
+/**
+ * Fast theme restoration and BFCache handling on Back/Forward navigation.
+ */
 window.addEventListener('pageshow', (event) => {
     const storedTheme = localStorage.getItem('theme');
     if (storedTheme === 'dark') {
@@ -48,7 +71,15 @@ window.addEventListener('pageshow', (event) => {
     }
 });
 
-// Global user session sign-out
+/* ==========================================================================
+   GLOBAL USER LOGOUT
+   ========================================================================== */
+
+/**
+ * Initiates user session sign-out via the backend API and redirects to sign-in.
+ *
+ * @returns {Promise<void>}
+ */
 async function signOut() {
     try {
         await fetch('/auth/api/sign-out', { method: 'POST' });
