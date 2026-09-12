@@ -300,10 +300,15 @@ async def api_sign_out(request: Request, response: Response, client: Client = De
 
 
 @router.post("/api/forgot-password")
-async def api_forgot_password(data: ForgotPasswordSchema, client: Client = Depends(get_supabase_client)):
+async def api_forgot_password(
+    request: Request,
+    data: ForgotPasswordSchema,
+    client: Client = Depends(get_supabase_client)
+):
     """Triggers password reset email delivery via Supabase Auth.
 
     Args:
+        request: FastAPI HTTP request instance.
         data: Validated ForgotPasswordSchema containing target email.
         client: Supabase client instance.
 
@@ -314,7 +319,8 @@ async def api_forgot_password(data: ForgotPasswordSchema, client: Client = Depen
         HTTPException: If reset request fails.
     """
     try:
-        send_password_reset(client=client, email=data.email)
+        redirect_url = f"{str(request.base_url).rstrip('/')}/auth/update-password"
+        send_password_reset(client=client, email=data.email, redirect_to=redirect_url)
         return {
             "status": "success",
             "message": "If an account exists with that email, a password reset link has been sent."

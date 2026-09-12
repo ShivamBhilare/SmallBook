@@ -320,3 +320,45 @@ def get_optional_current_user(
         return None
 
 
+# =========================================================================
+# 5. PUBLIC ASSETS & STORAGE HELPERS
+# =========================================================================
+
+SUPABASE_PUBLIC_LOGO_URL = (
+    f"{SUPABASE_URL}/storage/v1/object/public/assets/SmallBooklogo.png"
+    if SUPABASE_URL
+    else "https://vizwxdshoovaupmdccuu.supabase.co/storage/v1/object/public/assets/SmallBooklogo.png"
+)
+
+
+def ensure_supabase_public_logo() -> str:
+    """
+    Ensures that the public 'assets' bucket exists in Supabase Storage and that
+    SmallBooklogo.png is uploaded and publicly accessible for transactional emails.
+
+    Returns:
+        str: Permanent HTTPS public URL to SmallBooklogo.png.
+    """
+    logo_filename = "SmallBooklogo.png"
+    fallback_url = SUPABASE_PUBLIC_LOGO_URL
+    try:
+        service_client = get_service_role_client()
+        existing_buckets = [b.name for b in service_client.storage.list_buckets()]
+        if "assets" not in existing_buckets:
+            service_client.storage.create_bucket("assets", options={"public": True})
+
+        logo_path = os.path.join("app", "static", "images", logo_filename)
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                file_bytes = f.read()
+            service_client.storage.from_("assets").upload(
+                path=logo_filename,
+                file=file_bytes,
+                file_options={"content-type": "image/png", "upsert": "true"}
+            )
+        return service_client.storage.from_("assets").get_public_url(logo_filename)
+    except Exception:
+        return fallback_url
+
+
+

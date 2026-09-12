@@ -44,6 +44,20 @@
     </script>
 
     <!-- =========================================================================
+         SUPABASE AUTH HASH ROUTER (Password Recovery & Confirmation)
+         ========================================================================= -->
+    <script>
+        (function() {
+            var hash = window.location.hash;
+            if (hash && hash.includes('type=recovery')) {
+                if (!window.location.pathname.startsWith('/auth/update-password')) {
+                    window.location.replace('/auth/update-password' + hash);
+                }
+            }
+        })();
+    </script>
+
+    <!-- =========================================================================
          TAILWIND CSS DESIGN SYSTEM CONFIGURATION
          ========================================================================= -->
     <script id="tailwind-config">

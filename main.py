@@ -19,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import app.core.celery_app  # Initialize Celery app and broker configuration
 from app.routers.auth import router as auth_router
 from app.routers.chat import router as chat_router
+from app.routers.dev_emails import router as dev_emails_router
 from app.routers.llm_settings import router as llm_settings_router
 from app.routers.notebooks import router as notebooks_router
 from app.routers.sources import global_sources_router, router as sources_router
@@ -69,6 +70,7 @@ app.include_router(global_sources_router)
 app.include_router(chat_router)
 app.include_router(llm_settings_router)
 app.include_router(study_router)
+app.include_router(dev_emails_router)
 
 # ==============================================================================
 # GLOBAL EXCEPTION HANDLERS & HTTP MIDDLEWARE

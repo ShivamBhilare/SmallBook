@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{% block email_title %}SmallBook{% endblock %}</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style type="text/css">
+        /* Client-specific Resets */
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #faf9f5; color: #1b1c1a; }
+        
+        /* Mobile Fluid Typography & Spacing */
+        @media screen and (max-width: 600px) {
+            .email-container { width: 100% !important; padding: 12px !important; }
+            .card-content { padding: 24px 18px !important; }
+            .headline { font-size: 20px !important; line-height: 28px !important; }
+            .btn-cta { width: 100% !important; text-align: center !important; }
+        }
+    </style>
+</head>
+<body class="email-bg" style="margin: 0; padding: 0; background-color: #faf9f5; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1b1c1a;">
+    
+    <!-- Hidden Preheader snippet for email inboxes -->
+    <div style="display: none; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all; font-family: sans-serif;">
+        {% block preheader %}Important account notification from SmallBook.{% endblock %}
+        &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+    </div>
+
+    <!-- Outer Table Wrapper -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-bg" style="background-color: #faf9f5;">
+        <tr>
+            <td align="center" style="padding: 36px 12px 48px 12px;">
+                
+                <!-- Main Container (Max 580px) -->
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container" style="max-width: 580px; width: 100%;">
+                    
+                    <!-- Header: Logo & Brand Name -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 24px;">
+                            <a href="{{ site_url|default('http://127.0.0.1:8000') }}" target="_blank" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px;">
+                                <table border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            <!-- SmallBook Icon Badge -->
+                                            <div style="height: 42px; width: 42px; background-color: #ffffff; border: 1px solid #e3e2df; border-radius: 10px; text-align: center; line-height: 42px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); overflow: hidden;">
+                                                <img src="{{ logo_url|default('https://vizwxdshoovaupmdccuu.supabase.co/storage/v1/object/public/assets/SmallBooklogo.png') }}" alt="SmallBook" width="34" height="34" style="vertical-align: middle; margin: 4px auto; border-radius: 6px; object-fit: contain; display: block; border: 0;">
+                                            </div>
+                                        </td>
+                                        <td style="padding-left: 12px; vertical-align: middle;">
+                                            <span class="text-main" style="font-size: 21px; font-weight: 700; color: #1b1c1a; letter-spacing: -0.5px; text-decoration: none;">SmallBook</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Primary Content Card -->
+                    <tr>
+                        <td>
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" class="card-bg" style="background-color: #ffffff; border: 1px solid #e3e2df; border-radius: 20px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03); overflow: hidden;">
+                                <tr>
+                                    <td class="card-content" style="padding: 36px 32px 32px 32px;">
+                                        {% block content %}{% endblock %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Email Footer -->
+                    <tr>
+                        <td align="center" style="padding-top: 28px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center" class="text-subtle" style="font-size: 12px; line-height: 18px; color: #767872; font-family: 'Inter', sans-serif;">
+                                        <p style="margin: 0 0 8px 0;">
+                                            Grounded AI Research Notebook &bull; Multi-Model BYOK Intelligence
+                                        </p>
+                                        <p style="margin: 0 0 12px 0;">
+                                            &copy; 2026 SmallBook. Built for rigorous thinkers and learners.
+                                        </p>
+                                        <p style="margin: 0; font-size: 11px;">
+                                            <a href="{{ site_url|default('http://127.0.0.1:8000') }}" class="text-subtle" style="color: #767872; text-decoration: underline; margin: 0 6px;">Home</a>
+                                            &bull;
+                                            <a href="{{ site_url|default('http://127.0.0.1:8000') }}/notebooks/dashboard" class="text-subtle" style="color: #767872; text-decoration: underline; margin: 0 6px;">Dashboard</a>
+                                            &bull;
+                                            <a href="{{ site_url|default('http://127.0.0.1:8000') }}/#features" class="text-subtle" style="color: #767872; text-decoration: underline; margin: 0 6px;">Features</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

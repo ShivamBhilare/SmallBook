@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/SmallBooklogo.png">
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#000000",
+                        "secondary": "#9c4323",
+                        "dark-bg": "#09090b",
+                        "dark-panel": "#18181b",
+                        "dark-panel-hover": "#27272a",
+                        "dark-border": "#3f3f46",
+                        "dark-text": "#f4f4f5",
+                        "dark-text-muted": "#a1a1aa",
+                        "dark-accent": "#E57754"
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-[#faf9f5] dark:bg-dark-bg text-[#1b1c1a] dark:text-dark-text min-h-screen flex flex-col font-sans" 
+      x-data="emailPreviewStudio('{{ active_type }}')">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white dark:bg-dark-panel border-b border-[#e3e2df] dark:border-dark-border sticky top-0 z-50 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
+        <div class="flex items-center gap-3">
+            <a href="/notebooks/dashboard" class="flex items-center gap-2.5">
+                <img src="/static/images/SmallBooklogo.png" alt="SmallBook" class="h-9 w-9 object-contain rounded-md">
+                <span class="font-bold text-lg tracking-tight text-[#1b1c1a] dark:text-dark-text">SmallBook</span>
+            </a>
+            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-secondary/10 dark:bg-dark-accent/20 text-secondary dark:text-dark-accent">
+                Email Studio
+            </span>
+        </div>
+
+        <!-- Controls: Viewport, Theme & Copy -->
+        <div class="flex items-center gap-2 sm:gap-3">
+            <!-- Viewport Switcher -->
+            <div class="hidden sm:flex items-center bg-[#f4f4f0] dark:bg-dark-panel-hover p-1 rounded-full border border-[#e3e2df] dark:border-dark-border text-xs">
+                <button @click="viewport = 'desktop'" 
+                        :class="viewport === 'desktop' ? 'bg-white dark:bg-dark-bg text-secondary dark:text-dark-accent shadow-xs font-semibold' : 'text-[#767872] dark:text-dark-text-muted hover:text-black dark:hover:text-white'" 
+                        class="px-3 py-1 rounded-full flex items-center gap-1.5 transition-all">
+                    <span class="material-symbols-outlined text-[16px]">desktop_windows</span>
+                    <span>Desktop (600px)</span>
+                </button>
+                <button @click="viewport = 'mobile'" 
+                        :class="viewport === 'mobile' ? 'bg-white dark:bg-dark-bg text-secondary dark:text-dark-accent shadow-xs font-semibold' : 'text-[#767872] dark:text-dark-text-muted hover:text-black dark:hover:text-white'" 
+                        class="px-3 py-1 rounded-full flex items-center gap-1.5 transition-all">
+                    <span class="material-symbols-outlined text-[16px]">smartphone</span>
+                    <span>Mobile (375px)</span>
+                </button>
+            </div>
+
+            <!-- Theme Badge -->
+            <div class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f4f0] dark:bg-dark-panel-hover border border-[#e3e2df] dark:border-dark-border text-xs text-[#767872] dark:text-dark-text-muted">
+                <span class="material-symbols-outlined text-[16px] text-amber-500">light_mode</span>
+                <span>Warm Paper Theme</span>
+            </div>
+
+            <!-- Raw Supabase HTML Toggle -->
+            <button @click="showRawCode = !showRawCode" 
+                    :class="showRawCode ? 'bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg' : 'bg-white dark:bg-dark-panel text-[#464742] dark:text-dark-text border border-[#e3e2df] dark:border-dark-border'"
+                    class="h-9 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-semibold transition-all">
+                <span class="material-symbols-outlined text-[18px]">code</span>
+                <span x-text="showRawCode ? 'View Preview' : 'Raw GoTrue HTML'"></span>
+            </button>
+
+            <!-- 1-Click Copy Button -->
+            <button @click="copySupabaseHtml()" 
+                    class="h-9 px-4 rounded-full bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-xs font-semibold hover:opacity-90 flex items-center gap-1.5 transition-all shadow-xs">
+                <span class="material-symbols-outlined text-[16px]" x-text="copied ? 'check' : 'content_copy'"></span>
+                <span x-text="copied ? 'Copied to Clipboard!' : 'Copy for Supabase'"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Email Template Tabs Bar -->
+    <nav class="bg-white dark:bg-dark-panel border-b border-[#e3e2df] dark:border-dark-border px-4 sm:px-6 overflow-x-auto">
+        <div class="flex items-center gap-1 sm:gap-4 min-w-max">
+            <template x-for="(item, key) in emailTypes" :key="key">
+                <button @click="selectEmailType(key)" 
+                        :class="currentType === key ? 'border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent font-semibold' : 'border-transparent text-[#767872] dark:text-dark-text-muted hover:text-[#1b1c1a] dark:hover:text-white'"
+                        class="py-3 px-3 border-b-2 text-xs sm:text-sm flex items-center gap-2 transition-colors whitespace-nowrap">
+                    <span class="material-symbols-outlined text-[18px]" 
+                          x-text="key === 'verify' ? 'mark_email_read' : (key === 'reset' ? 'lock_reset' : (key === 'magic_link' ? 'magic_button' : 'forward_to_inbox'))"></span>
+                    <span x-text="item.title"></span>
+                </button>
+            </template>
+        </div>
+    </nav>
+
+    <!-- Main Workspace Area -->
+    <main class="flex-1 flex flex-col items-center justify-start p-4 sm:p-8 bg-[#f4f4f0] dark:bg-dark-bg/60 overflow-y-auto">
+        
+        <!-- Live Preview Mode -->
+        <div x-show="!showRawCode" class="w-full flex flex-col items-center">
+            <!-- Viewport Info Header -->
+            <div class="mb-4 text-xs text-[#767872] dark:text-dark-text-muted flex items-center gap-2">
+                <span>Viewport:</span>
+                <span class="font-semibold text-[#1b1c1a] dark:text-dark-text" x-text="viewport === 'desktop' ? 'Desktop Preview (Max 600px width)' : 'Mobile Phone Preview (375px width)'"></span>
+                <span>&bull;</span>
+                <span>Theme:</span>
+                <span class="font-semibold text-[#1b1c1a] dark:text-dark-text">Warm Paper (#faf9f5)</span>
+            </div>
+
+            <!-- Device Mockup Frame -->
+            <div :style="viewport === 'desktop' ? 'width: 100%; max-width: 640px;' : 'width: 100%; max-width: 395px;'" 
+                 class="bg-white dark:bg-dark-panel rounded-3xl shadow-2xl border border-[#e3e2df] dark:border-dark-border overflow-hidden transition-all duration-300">
+                <!-- Device Top Bezel / Bar -->
+                <div class="bg-[#efeeea] dark:bg-dark-panel-hover px-4 py-2 border-b border-[#e3e2df] dark:border-dark-border flex items-center justify-between text-xs text-[#767872] dark:text-dark-text-muted">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                    </div>
+                    <span class="truncate max-w-[200px]" x-text="'Inbox Preview: ' + emailTypes[currentType]?.title"></span>
+                    <span class="material-symbols-outlined text-[16px]">mail</span>
+                </div>
+
+                <!-- Live Iframe -->
+                <iframe id="email-preview-iframe" 
+                        :src="'/dev/emails/render/' + currentType" 
+                        class="w-full min-h-[680px] sm:min-h-[750px] border-none block"
+                        title="Email Live Preview"></iframe>
+            </div>
+        </div>
+
+        <!-- Raw HTML Source Code Mode -->
+        <div x-show="showRawCode" x-cloak class="w-full max-w-4xl">
+            <div class="bg-white dark:bg-dark-panel rounded-2xl border border-[#e3e2df] dark:border-dark-border shadow-xl overflow-hidden">
+                <div class="px-5 py-3.5 border-b border-[#e3e2df] dark:border-dark-border bg-[#faf9f5] dark:bg-dark-panel-hover flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold text-[#1b1c1a] dark:text-dark-text" x-text="emailTypes[currentType]?.title + ' — Supabase GoTrue Template'"></h3>
+                        <p class="text-xs text-[#767872] dark:text-dark-text-muted mt-0.5">Copy and paste this into Supabase Dashboard &rarr; Authentication &rarr; Email Templates</p>
+                    </div>
+                    <button @click="copySupabaseHtml()" class="px-3.5 py-1.5 rounded-full bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg text-xs font-semibold hover:opacity-90 flex items-center gap-1.5 transition-all">
+                        <span class="material-symbols-outlined text-[15px]" x-text="copied ? 'check' : 'content_copy'"></span>
+                        <span x-text="copied ? 'Copied!' : 'Copy Code'"></span>
+                    </button>
+                </div>
+                <div class="p-4 bg-[#141413] text-gray-200 overflow-x-auto max-h-[600px] text-xs font-mono leading-relaxed">
+                    <pre><code x-text="rawHtml">Loading template source...</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Instructions Accordion -->
+        <div class="w-full max-w-4xl mt-8" x-data="{ instructionsOpen: false }">
+            <div class="bg-white dark:bg-dark-panel border border-[#e3e2df] dark:border-dark-border rounded-2xl overflow-hidden shadow-xs">
+                <button @click="instructionsOpen = !instructionsOpen" class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-[#faf9f5] dark:hover:bg-dark-panel-hover transition-colors">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px]">help</span>
+                        <span class="font-semibold text-sm text-[#1b1c1a] dark:text-dark-text">How do I add these templates to my Supabase project?</span>
+                    </div>
+                    <span class="material-symbols-outlined text-[#767872] transition-transform duration-200" :class="instructionsOpen ? 'rotate-180' : ''">expand_more</span>
+                </button>
+                <div x-show="instructionsOpen" x-transition class="px-5 pb-5 pt-1 text-xs text-[#464742] dark:text-dark-text-muted space-y-2 border-t border-[#e3e2df] dark:border-dark-border">
+                    <ol class="list-decimal pl-4 space-y-1.5 mt-2">
+                        <li>Log in to your <strong><a href="https://supabase.com/dashboard" target="_blank" class="text-secondary dark:text-dark-accent underline">Supabase Dashboard</a></strong> and select your project.</li>
+                        <li>In the left sidebar, navigate to <strong>Authentication &rarr; Email Templates</strong>.</li>
+                        <li>Choose the template corresponding to your active tab (e.g. <em>Confirm signup</em> or <em>Reset password</em>).</li>
+                        <li>Click <strong>"Copy for Supabase"</strong> at the top right of this studio.</li>
+                        <li>Paste the copied HTML into the <strong>Message Body (HTML)</strong> textarea in Supabase and click <strong>Save</strong>.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification for Copy -->
+    <div x-show="showToast" x-cloak x-transition.opacity.duration.200ms class="fixed bottom-6 right-6 z-50 bg-[#141413] text-white dark:bg-dark-text dark:text-dark-bg px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-emerald-400">check_circle</span>
+        <span>Copied Supabase HTML to clipboard!</span>
+    </div>
+
+    <script>
+        function emailPreviewStudio(initialType) {
+            return {
+                currentType: initialType || 'verify',
+                viewport: 'desktop',
+                showRawCode: false,
+                copied: false,
+                showToast: false,
+                rawHtml: '',
+                emailTypes: {
+                    verify: { title: 'Confirm Registration' },
+                    reset: { title: 'Password Reset' },
+                    magic_link: { title: 'Magic Link / OTP' },
+                    change_email: { title: 'Change Email' }
+                },
+
+                init() {
+                    this.loadRawHtml();
+                },
+
+                selectEmailType(type) {
+                    this.currentType = type;
+                    this.loadRawHtml();
+                    this.reloadIframe();
+                },
+
+                reloadIframe() {
+                    const iframe = document.getElementById('email-preview-iframe');
+                    if (iframe) {
+                        iframe.src = '/dev/emails/render/' + this.currentType;
+                    }
+                },
+
+                async loadRawHtml() {
+                    try {
+                        const res = await fetch('/dev/emails/raw/' + this.currentType);
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.rawHtml = data.html || '';
+                        }
+                    } catch (e) {
+                        this.rawHtml = 'Error loading template source.';
+                    }
+                },
+
+                async copySupabaseHtml() {
+                    if (!this.rawHtml) await this.loadRawHtml();
+                    try {
+                        await navigator.clipboard.writeText(this.rawHtml);
+                        this.copied = true;
+                        this.showToast = true;
+                        setTimeout(() => { this.copied = false; }, 2500);
+                        setTimeout(() => { this.showToast = false; }, 3000);
+                    } catch (e) {
+                        console.error('Failed to copy to clipboard', e);
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>
