@@ -142,6 +142,17 @@ async def add_no_cache_headers(request: Request, call_next):
 
 
 # ==============================================================================
+# HEALTHCHECK ENDPOINT (Used by Docker, load balancers, and monitoring)
+# ==============================================================================
+
+
+@app.get("/health")
+async def health_check():
+    """Healthcheck endpoint verifying the FastAPI service is active and responsive."""
+    return {"status": "ok", "service": "smallbook"}
+
+
+# ==============================================================================
 # ROOT & LANDING PAGE ENDPOINTS
 # ==============================================================================
 

@@ -1,0 +1,95 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. REDIS BROKER & RESULT BACKEND
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: smallbook_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. FASTAPI WEB APPLICATION (Serves Jinja2 Frontend & REST API)
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smallbook-app:latest
+    container_name: smallbook_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ----------------------------------------------------------------------------
+  # 3. CELERY DISTRIBUTED BACKGROUND WORKER (Document Ingestion & Embeddings)
+  # ----------------------------------------------------------------------------
+  celery_worker:
+    # Reuses the exact same image built by web service (Zero duplicate builds/unpacking)
+    image: smallbook-app:latest
+    container_name: smallbook_celery
+    restart: unless-stopped
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=3
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    # NVIDIA GPU Hardware Acceleration via WSL 2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ----------------------------------------------------------------------------
+  # 4. NGROK FIXED DOMAIN TUNNEL (100% Free Permanent HTTPS URL)
+  # ----------------------------------------------------------------------------
+  tunnel:
+    image: ngrok/ngrok:latest
+    container_name: smallbook_tunnel
+    restart: unless-stopped
+    command: http web:8000 --url=${NGROK_DOMAIN}
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+    name: smallbook_redis_data
+  hf_cache:
+    name: smallbook_hf_cache
