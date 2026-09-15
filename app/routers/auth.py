@@ -5,6 +5,7 @@ along with JSON API endpoints for user credential validation, registration, sess
 issuance, and profile introspection via Supabase Auth.
 """
 
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
@@ -37,18 +38,48 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # Setup templates directory location
 templates = Jinja2Templates(directory="app/templates")
 
+
+def _resolve_redirect_base_url(request: Request = None) -> str:
+    """Resolves the canonical public base URL for authentication redirect links.
+
+    Prioritizes reverse-proxy headers (x-forwarded-host, x-forwarded-proto),
+    ngrok host headers, environment variables, and falls back to request.base_url.
+    """
+    if request:
+        forwarded_host = request.headers.get("x-forwarded-host")
+        if forwarded_host:
+            forwarded_proto = request.headers.get("x-forwarded-proto", "https")
+            return f"{forwarded_proto}://{forwarded_host}".rstrip("/")
+
+        host = request.headers.get("host")
+        if host and "ngrok" in host:
+            return f"https://{host}".rstrip("/")
+
+        return str(request.base_url).rstrip("/")
+
+    ngrok_domain = os.getenv("NGROK_DOMAIN")
+    if ngrok_domain:
+        return f"https://{ngrok_domain}".rstrip("/")
+    return "http://localhost:8000"
+
+
 # ==============================================================================
 # HTML PAGE RENDERERS & FORM HANDLERS
 # ==============================================================================
 
 
 @router.get("/sign-in", response_class=HTMLResponse)
-async def read_sign_in(request: Request, user=Depends(get_optional_current_user)):
+async def read_sign_in(
+    request: Request,
+    user=Depends(get_optional_current_user),
+    verified: Optional[bool] = None
+):
     """Renders the sign-in page or redirects already-authenticated users to dashboard.
 
     Args:
         request: FastAPI HTTP request instance.
         user: Authenticated user object if active session exists.
+        verified: Optional boolean flag indicating email was just verified.
 
     Returns:
         HTMLResponse rendering sign-in form or HTTP 307 redirect to dashboard.
@@ -58,7 +89,7 @@ async def read_sign_in(request: Request, user=Depends(get_optional_current_user)
     return templates.TemplateResponse(
         request=request,
         name="sign_in.html",
-        context={"title": "Sign In"}
+        context={"title": "Sign In", "verified": verified}
     )
 
 
@@ -183,6 +214,43 @@ async def read_verify_email(request: Request, email: Optional[str] = None):
     )
 
 
+@router.get("/callback", response_class=HTMLResponse)
+@router.get("/confirm", response_class=HTMLResponse)
+async def read_auth_callback(
+    request: Request,
+    code: Optional[str] = None,
+    error: Optional[str] = None,
+    error_code: Optional[str] = None,
+    error_description: Optional[str] = None
+):
+    """Handles verification and authentication redirect callbacks from Supabase.
+
+    Renders auth_callback.html which extracts tokens from URL hash fragments or
+    query parameters, displays verification status, and redirects the user to sign-in.
+
+    Args:
+        request: FastAPI HTTP request instance.
+        code: Optional authorization code from PKCE flow.
+        error: Optional error code returned by Supabase.
+        error_code: Optional sub-error code (e.g. otp_expired).
+        error_description: Human-readable error description from Supabase.
+
+    Returns:
+        HTMLResponse rendering email verification callback view.
+    """
+    return templates.TemplateResponse(
+        request=request,
+        name="auth_callback.html",
+        context={
+            "title": "Email Verified - SmallBook",
+            "code": code or "",
+            "error": error or "",
+            "error_code": error_code or "",
+            "error_description": error_description or ""
+        }
+    )
+
+
 # ==============================================================================
 # JSON API ENDPOINTS
 # ==============================================================================
@@ -230,12 +298,18 @@ async def api_sign_in(data: SignInSchema, response: Response, client: Client = D
 
 
 @router.post("/api/sign-up")
-async def api_sign_up(data: SignUpSchema, response: Response, client: Client = Depends(get_supabase_client)):
+async def api_sign_up(
+    data: SignUpSchema,
+    response: Response,
+    request: Request = None,
+    client: Client = Depends(get_supabase_client)
+):
     """Registers a new user account with Supabase Auth.
 
     Args:
         data: Validated SignUpSchema containing email, password, and full name.
         response: FastAPI response object for setting session cookie if auto-confirmed.
+        request: Optional incoming FastAPI HTTP request for canonical redirect resolution.
         client: Supabase client instance.
 
     Returns:
@@ -246,11 +320,13 @@ async def api_sign_up(data: SignUpSchema, response: Response, client: Client = D
         HTTPException: If user registration fails in Supabase.
     """
     try:
+        redirect_url = f"{_resolve_redirect_base_url(request)}/auth/callback" if request else None
         auth_res = sign_up_user(
             client=client,
             email=data.email,
             password=data.password,
-            full_name=data.fullname
+            full_name=data.fullname,
+            redirect_to=redirect_url
         )
 
         # Check if immediate session was established (when auto-confirm is enabled)
@@ -319,7 +395,7 @@ async def api_forgot_password(
         HTTPException: If reset request fails.
     """
     try:
-        redirect_url = f"{str(request.base_url).rstrip('/')}/auth/update-password"
+        redirect_url = f"{_resolve_redirect_base_url(request)}/auth/update-password"
         send_password_reset(client=client, email=data.email, redirect_to=redirect_url)
         return {
             "status": "success",
@@ -330,11 +406,16 @@ async def api_forgot_password(
 
 
 @router.post("/api/resend-verification")
-async def api_resend_verification(data: ForgotPasswordSchema, client: Client = Depends(get_supabase_client)):
+async def api_resend_verification(
+    data: ForgotPasswordSchema,
+    request: Request = None,
+    client: Client = Depends(get_supabase_client)
+):
     """Resends email confirmation link to unverified users.
 
     Args:
         data: Validated ForgotPasswordSchema containing recipient email.
+        request: Optional incoming FastAPI HTTP request for canonical redirect resolution.
         client: Supabase client instance.
 
     Returns:
@@ -346,7 +427,8 @@ async def api_resend_verification(data: ForgotPasswordSchema, client: Client = D
     try:
         if not data.email:
             raise HTTPException(status_code=400, detail="Email is required.")
-        resend_verification_email(client=client, email=data.email)
+        redirect_url = f"{_resolve_redirect_base_url(request)}/auth/callback" if request else None
+        resend_verification_email(client=client, email=data.email, redirect_to=redirect_url)
         return {
             "status": "success",
             "message": "Verification link has been resent. Please check your inbox."

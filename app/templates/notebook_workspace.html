@@ -26,7 +26,7 @@
 {% extends "base.html" %}
 
 {% block title %}SmallBook - Notebook Workspace{% endblock %}
-{% block body_classes %}h-screen overflow-hidden relative{% endblock %}
+{% block body_classes %}h-dvh max-h-dvh overflow-hidden relative flex flex-col{% endblock %}
 
 {% block extra_head %}
 <!-- Markdown, Math, and Sanitization Libraries -->
@@ -45,15 +45,26 @@
 <!-- Workspace Modals -->
 {% include "components/workspace_modals.html" %}
 
-<!-- Mobile/Tablet Tabs -->
-<div class="lg:hidden flex w-full border-b border-paper dark:border-dark-border bg-surface dark:bg-dark-panel px-4 pt-2 z-40 flex-shrink-0">
-    <button id="tab-sources" role="tab" onclick="switchTab('sources')" class="flex-1 pb-2 font-label-md text-on-surface-variant dark:text-dark-text-muted border-b-2 border-transparent aria-selected:border-secondary aria-selected:text-secondary dark:aria-selected:text-dark-accent dark:aria-selected:border-dark-accent transition-colors" aria-selected="false">Sources</button>
-    <button id="tab-chat" role="tab" onclick="switchTab('chat')" class="flex-1 pb-2 font-label-md text-on-surface-variant dark:text-dark-text-muted border-b-2 border-transparent aria-selected:border-secondary aria-selected:text-secondary dark:aria-selected:text-dark-accent dark:aria-selected:border-dark-accent transition-colors" aria-selected="true">Chat</button>
-    <button id="tab-studio" role="tab" onclick="switchTab('studio')" class="flex-1 pb-2 font-label-md text-on-surface-variant dark:text-dark-text-muted border-b-2 border-transparent aria-selected:border-secondary aria-selected:text-secondary dark:aria-selected:text-dark-accent dark:aria-selected:border-dark-accent transition-colors" aria-selected="false">Studio</button>
+<!-- Mobile/Tablet Segmented Tabs (Sleek, Compact Pill Bar) -->
+<div class="lg:hidden flex w-full border-b border-paper dark:border-dark-border bg-surface-container-lowest/90 dark:bg-dark-panel/90 backdrop-blur-sm px-3 py-1.5 z-40 flex-shrink-0 justify-center">
+    <div class="flex w-full max-w-md bg-surface-variant/50 dark:bg-dark-bg p-1 rounded-xl border border-paper dark:border-dark-border items-center gap-1 text-xs">
+        <button id="tab-sources" role="tab" onclick="switchTab('sources')" class="flex-1 py-1.5 px-2 font-medium rounded-lg text-on-surface-variant dark:text-dark-text-muted transition-all flex items-center justify-center gap-1.5 aria-selected:bg-surface-container-lowest dark:aria-selected:bg-dark-panel aria-selected:text-secondary dark:aria-selected:text-dark-accent aria-selected:shadow-xs aria-selected:font-semibold" aria-selected="false">
+            <span class="material-symbols-outlined text-[16px]">folder_open</span>
+            <span>Sources</span>
+        </button>
+        <button id="tab-chat" role="tab" onclick="switchTab('chat')" class="flex-1 py-1.5 px-2 font-medium rounded-lg text-on-surface-variant dark:text-dark-text-muted transition-all flex items-center justify-center gap-1.5 aria-selected:bg-surface-container-lowest dark:aria-selected:bg-dark-panel aria-selected:text-secondary dark:aria-selected:text-dark-accent aria-selected:shadow-xs aria-selected:font-semibold" aria-selected="true">
+            <span class="material-symbols-outlined text-[16px]">forum</span>
+            <span>Chat</span>
+        </button>
+        <button id="tab-studio" role="tab" onclick="switchTab('studio')" class="flex-1 py-1.5 px-2 font-medium rounded-lg text-on-surface-variant dark:text-dark-text-muted transition-all flex items-center justify-center gap-1.5 aria-selected:bg-surface-container-lowest dark:aria-selected:bg-dark-panel aria-selected:text-secondary dark:aria-selected:text-dark-accent aria-selected:shadow-xs aria-selected:font-semibold" aria-selected="false">
+            <span class="material-symbols-outlined text-[16px]">auto_fix_high</span>
+            <span>Studio</span>
+        </button>
+    </div>
 </div>
 
 <!-- Workspace Layout -->
-<main class="flex-1 flex overflow-hidden w-full px-2 lg:px-3 py-2 lg:py-3 relative">
+<main class="flex-1 flex overflow-hidden w-full px-1.5 py-1.5 lg:px-3 lg:py-3 relative min-h-0">
     
     <!-- Left Panel: Sources -->
     {% include "components/workspace_sources_panel.html" %}

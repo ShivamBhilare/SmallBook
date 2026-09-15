@@ -1,0 +1,147 @@
+{# =========================================================================
+   TEMPLATE: auth_callback.html
+   DESCRIPTION:
+     Authentication and email verification callback handler for SmallBook.
+     Intercepts redirect callbacks from Supabase GoTrue (both hash fragments
+     and search parameters), displays verification confirmation, and smoothly
+     transitions the user to the sign-in page.
+
+   EXTENDS: base.html
+
+   CONTEXT PARAMETERS:
+     - request (Request): Starlette HTTP request context.
+     - code (str, optional): Authorization code from PKCE flow.
+     - error (str, optional): Error code from Supabase.
+     - error_code (str, optional): Sub-error code (e.g. otp_expired).
+     - error_description (str, optional): Error description string.
+
+   BLOCKS OVERRIDDEN:
+     - title: Browser tab title ('Email Verified - SmallBook').
+     - navbar: Minimalist top branding navigation with theme toggle.
+     - content: Centered confirmation and redirect card.
+     - extra_scripts: Inline or external callback handler controller.
+   ========================================================================= #}
+{% extends "base.html" %}
+
+{% block title %}Email Verified - SmallBook{% endblock %}
+
+{% block navbar %}
+<nav class="w-full px-4 lg:px-8 py-4 flex justify-between items-center z-50">
+    <a href="/" class="flex items-center gap-sm cursor-pointer">
+        <img alt="SmallBook Logo" class="h-9 w-9 object-contain rounded-md" src="/static/images/SmallBooklogo.png">
+        <span class="text-headline-md font-headline-md font-bold text-primary dark:text-dark-text tracking-tight">SmallBook</span>
+    </a>
+    <button onclick="toggleTheme()" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
+        <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+    </button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<main class="flex-1 flex items-center justify-center p-3.5 sm:p-4" x-data="authCallbackState('{{ error|default("") }}', '{{ error_description|default("") }}')">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl custom-shadow p-6 sm:p-8 text-center relative">
+        
+        <!-- Loading / Verifying State -->
+        <template x-if="state === 'verifying'">
+            <div class="py-6">
+                <div class="h-14 w-14 rounded-full bg-secondary/10 dark:bg-dark-accent/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[32px] animate-spin">progress_activity</span>
+                </div>
+                <h1 class="text-xl sm:text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-2">Verifying your email...</h1>
+                <p class="text-body-sm text-on-surface-variant dark:text-dark-text-muted">Please wait a moment while we confirm your account activation.</p>
+            </div>
+        </template>
+
+        <!-- Success State -->
+        <template x-if="state === 'success'">
+            <div class="py-4 animate-fade-in">
+                <div class="h-16 w-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-4 text-green-600 dark:text-green-400">
+                    <span class="material-symbols-outlined text-[36px]">check_circle</span>
+                </div>
+                
+                <h1 class="text-xl sm:text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-2">Email Verified Successfully!</h1>
+                <p class="text-body-sm text-on-surface-variant dark:text-dark-text-muted mb-6">
+                    Your account has been activated. You can now sign in to start exploring your research notebooks.
+                </p>
+
+                <div class="bg-surface-bright dark:bg-dark-bg p-3.5 rounded-xl border border-paper dark:border-dark-border mb-6 text-xs text-on-surface-variant dark:text-dark-text-muted flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent animate-spin">sync</span>
+                    <span>Redirecting to sign-in in <strong class="text-on-surface dark:text-dark-text" x-text="countdown"></strong> seconds...</span>
+                </div>
+
+                <a :href="'/auth/sign-in?verified=true' + (userEmail ? '&email=' + encodeURIComponent(userEmail) : '')" class="w-full inline-block bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full py-3 font-label-md hover:opacity-80 transition-opacity">
+                    Sign In Now
+                </a>
+            </div>
+        </template>
+
+        <!-- Error State -->
+        <template x-if="state === 'error'">
+            <div class="py-4 animate-fade-in">
+                <div class="h-16 w-16 rounded-full bg-error/10 border border-error/20 flex items-center justify-center mx-auto mb-4 text-error">
+                    <span class="material-symbols-outlined text-[36px]">error</span>
+                </div>
+                
+                <h1 class="text-xl sm:text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-2">Verification Link Invalid</h1>
+                <p class="text-body-sm text-on-surface-variant dark:text-dark-text-muted mb-6" x-text="errorMessage || 'This verification link has expired or has already been used.'"></p>
+
+                <div class="flex flex-col gap-3">
+                    <a href="/auth/verify-email" class="w-full inline-block bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg rounded-full py-3 font-label-md hover:opacity-80 transition-opacity">
+                        Resend Verification Link
+                    </a>
+                    <a href="/auth/sign-in" class="inline-flex items-center justify-center gap-1 font-medium text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors text-body-sm py-1">
+                        <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                        Back to Sign In
+                    </a>
+                </div>
+            </div>
+        </template>
+
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function authCallbackState(serverError = '', serverErrorDesc = '') {
+    return {
+        state: 'verifying', // 'verifying' | 'success' | 'error'
+        errorMessage: serverErrorDesc || serverError || '',
+        userEmail: '',
+        countdown: 2,
+        timer: null,
+
+        init() {
+            // Parse tokens and params from both URL hash and search query
+            const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+            const hashParams = new URLSearchParams(hash);
+            const searchParams = new URLSearchParams(window.location.search);
+
+            const error = hashParams.get('error') || searchParams.get('error') || serverError;
+            const errorDesc = hashParams.get('error_description') || searchParams.get('error_description') || serverErrorDesc;
+            const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+            const type = hashParams.get('type') || searchParams.get('type');
+
+            if (error) {
+                this.state = 'error';
+                this.errorMessage = decodeURIComponent(errorDesc || error).replace(/\+/g, ' ');
+                return;
+            }
+
+            // If an access token or confirmation type is present, verification succeeded
+            this.state = 'success';
+            
+            // Start graceful countdown redirect
+            this.timer = setInterval(() => {
+                this.countdown--;
+                if (this.countdown <= 0) {
+                    clearInterval(this.timer);
+                    const emailParam = this.userEmail ? '&email=' + encodeURIComponent(this.userEmail) : '';
+                    window.location.href = `/auth/sign-in?verified=true${emailParam}`;
+                }
+            }, 1000);
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -45,16 +45,16 @@
         </nav>
 
         <!-- Right Header Actions -->
-        <div class="flex items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-1.5 sm:gap-3">
             <!-- Theme Toggle -->
-            <button onclick="toggleTheme()" aria-label="Toggle theme" class="h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/70 dark:hover:bg-dark-panel-hover transition-colors">
-                <span class="material-symbols-outlined text-[20px] theme-icon">dark_mode</span>
+            <button onclick="toggleTheme()" aria-label="Toggle theme" class="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-secondary dark:hover:text-dark-accent hover:bg-surface-variant/70 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[19px] sm:text-[20px] theme-icon">dark_mode</span>
             </button>
 
             {% if user %}
             <!-- Authenticated User Action -->
-            <a href="/notebooks/dashboard" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[13px] sm:text-[14px] font-semibold px-3.5 sm:px-4 py-2 rounded-full hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm">
-                <span class="material-symbols-outlined text-[18px]">dashboard</span>
+            <a href="/notebooks/dashboard" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[12px] sm:text-[14px] font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm">
+                <span class="material-symbols-outlined text-[17px] sm:text-[18px]">dashboard</span>
                 <span class="hidden xs:inline">Dashboard</span>
             </a>
             {% else %}
@@ -62,22 +62,30 @@
             <a href="/auth/sign-in" class="hidden sm:inline-flex text-[14px] font-medium text-on-surface dark:text-dark-text hover:text-secondary dark:hover:text-dark-accent px-3 py-1.5 transition-colors">
                 Sign In
             </a>
-            <a href="/auth/sign-up" class="bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[13px] sm:text-[14px] font-semibold px-3.5 sm:px-4 py-2 rounded-full hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm">
+            <a href="/auth/sign-up" class="hidden xs:inline-flex bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[12px] sm:text-[14px] font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:opacity-90 transition-all items-center gap-1 shadow-sm">
                 <span>Get Started</span>
-                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                <span class="material-symbols-outlined text-[15px] sm:text-[16px]">arrow_forward</span>
             </a>
             {% endif %}
 
             <!-- Mobile Hamburger Toggle Button -->
-            <button @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle navigation menu" class="md:hidden h-9 w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/70 dark:hover:bg-dark-panel-hover transition-colors">
-                <span class="material-symbols-outlined text-[22px]" x-text="mobileMenuOpen ? 'close' : 'menu'">menu</span>
+            <button @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle navigation menu" class="md:hidden h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/70 dark:hover:bg-dark-panel-hover transition-colors">
+                <span class="material-symbols-outlined text-[20px] sm:text-[22px]" x-text="mobileMenuOpen ? 'close' : 'menu'">menu</span>
             </button>
         </div>
     </div>
 
     <!-- Mobile Navigation Dropdown Menu -->
-    <div x-show="mobileMenuOpen" x-cloak x-transition.opacity.duration.200ms class="md:hidden border-t border-paper dark:border-dark-border bg-surface/95 dark:bg-dark-panel/95 backdrop-blur-md px-4 py-4 space-y-3">
-        <nav class="flex flex-col space-y-1.5 text-[15px] font-medium text-on-surface dark:text-dark-text">
+    <div x-show="mobileMenuOpen" x-cloak x-transition.opacity.duration.200ms class="md:hidden border-t border-paper dark:border-dark-border bg-surface/95 dark:bg-dark-panel/95 backdrop-blur-md px-4 py-3 space-y-3">
+        {% if not user %}
+        <div class="pb-2 border-b border-paper dark:border-dark-border flex flex-col gap-2">
+            <a @click="mobileMenuOpen = false" href="/auth/sign-up" class="w-full text-center py-2.5 rounded-xl bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg text-[14px] font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-sm">
+                <span>Get Started Free</span>
+                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </a>
+        </div>
+        {% endif %}
+        <nav class="flex flex-col space-y-1 text-[14px] font-medium text-on-surface dark:text-dark-text">
             <a @click="mobileMenuOpen = false" href="#features" class="px-3 py-2 rounded-lg hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover flex items-center justify-between">
                 <span>Features</span>
                 <span class="material-symbols-outlined text-[18px] text-on-surface-variant dark:text-dark-text-muted">chevron_right</span>
@@ -104,9 +112,6 @@
             <a @click="mobileMenuOpen = false" href="/auth/sign-in" class="w-full text-center py-2.5 rounded-xl border border-paper dark:border-dark-border text-[14px] font-medium text-on-surface dark:text-dark-text hover:bg-surface-variant/40 dark:hover:bg-dark-panel-hover transition-colors">
                 Sign In
             </a>
-            <a @click="mobileMenuOpen = false" href="/auth/sign-up" class="w-full text-center py-2.5 rounded-xl bg-secondary dark:bg-dark-accent text-white dark:text-dark-bg text-[14px] font-semibold hover:opacity-90 transition-opacity">
-                Create Free Account
-            </a>
             {% else %}
             <a @click="mobileMenuOpen = false" href="/notebooks/dashboard" class="w-full text-center py-2.5 rounded-xl bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg text-[14px] font-semibold hover:opacity-90 transition-opacity">
                 Go to Dashboard
@@ -122,20 +127,20 @@
     <!-- ================================================= -->
     <!-- HERO SECTION                                      -->
     <!-- ================================================= -->
-    <section class="relative pt-10 pb-16 sm:pt-16 sm:pb-20 md:pt-20 md:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
+    <section class="relative pt-6 pb-10 sm:pt-16 sm:pb-20 md:pt-20 md:pb-28 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
         <!-- Ambient Background Glow -->
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[550px] h-[220px] sm:h-[350px] bg-secondary/10 dark:bg-dark-accent/10 blur-[80px] sm:blur-[120px] rounded-full pointer-events-none -z-10"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:w-[550px] h-[200px] sm:h-[350px] bg-secondary/10 dark:bg-dark-accent/10 blur-[70px] sm:blur-[120px] rounded-full pointer-events-none -z-10"></div>
 
         <!-- Pill Badge -->
-        <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface-variant dark:text-dark-text-muted text-xs sm:text-[13px] font-medium mb-6 shadow-sm max-w-full flex-wrap justify-center text-center">
+        <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface-variant dark:text-dark-text-muted text-[11px] sm:text-[13px] font-medium mb-3 sm:mb-6 shadow-sm max-w-full flex-wrap justify-center text-center">
             <span class="flex h-2 w-2 rounded-full bg-secondary dark:bg-dark-accent animate-pulse shrink-0"></span>
-            <span>Grounded AI Study & Research Assistant</span>
+            <span>Grounded AI Research</span>
             <span class="text-on-surface-variant/40 dark:text-dark-text-muted/40 hidden xs:inline">•</span>
             <span class="text-secondary dark:text-dark-accent font-semibold">Multi-Model BYOK</span>
         </div>
 
         <!-- Main Headline -->
-        <h1 class="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-on-surface dark:text-dark-text max-w-4xl mx-auto leading-[1.18] sm:leading-[1.15] mb-5 sm:mb-6">
+        <h1 class="text-[26px] xs:text-[32px] sm:text-5xl md:text-6xl font-extrabold tracking-tight text-on-surface dark:text-dark-text max-w-4xl mx-auto leading-[1.2] sm:leading-[1.15] mb-3 sm:mb-6">
             Your Research, Strictly Grounded.
             <span class="block mt-1 sm:mt-2 bg-gradient-to-r from-secondary via-orange-600 to-amber-700 dark:from-dark-accent dark:via-orange-400 dark:to-amber-300 bg-clip-text text-transparent">
                 AI That Backs Up Every Word.
@@ -143,17 +148,17 @@
         </h1>
 
         <!-- Subtitle -->
-        <p class="text-[15px] sm:text-lg md:text-xl text-on-surface-variant dark:text-dark-text-muted max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-1">
+        <p class="text-[13px] xs:text-[14px] sm:text-lg md:text-xl text-on-surface-variant dark:text-dark-text-muted max-w-2xl mx-auto mb-6 sm:mb-10 leading-relaxed px-1">
             Upload your documents and interrogate them using top models like Claude, GPT-4o, and Gemini. Get exact chunk citations, switch between custom chat modes, and turn reading into instant flashcards and quizzes.
         </p>
 
-        <!-- CTA Buttons -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-10 sm:mb-12 w-full max-w-md sm:max-w-none mx-auto">
-            <a href="/auth/sign-up" class="w-full sm:w-auto bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg font-semibold text-[15px] px-7 py-3.5 rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
-                <span>Start Researching Free</span>
+        <!-- CTA Buttons (Immediately visible above the fold on mobile) -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-4 mb-8 sm:mb-12 w-full max-w-xs sm:max-w-none mx-auto">
+            <a href="/auth/sign-up" class="w-full sm:w-auto bg-[#141413] dark:bg-dark-text text-white dark:text-dark-bg font-semibold text-[14px] sm:text-[15px] px-6 py-3 sm:px-7 sm:py-3.5 rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                <span>Get Started Free</span>
                 <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
             </a>
-            <a href="#preview" class="w-full sm:w-auto bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface dark:text-dark-text font-medium text-[15px] px-6 py-3.5 rounded-full hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover transition-colors flex items-center justify-center gap-2">
+            <a href="#preview" class="w-full sm:w-auto bg-surface-container-low dark:bg-dark-panel border border-paper dark:border-dark-border text-on-surface dark:text-dark-text font-medium text-[14px] sm:text-[15px] px-5 py-2.5 sm:px-6 sm:py-3.5 rounded-full hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover transition-colors flex items-center justify-center gap-2">
                 <span class="material-symbols-outlined text-[18px] text-secondary dark:text-dark-accent">play_circle</span>
                 <span>Try Interactive Demo</span>
             </a>

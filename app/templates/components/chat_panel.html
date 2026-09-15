@@ -15,7 +15,7 @@
    ========================================================================= #}
 <section id="panel-chat" class="active-tab flex-1 flex flex-col min-w-0 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl overflow-hidden relative">
     <!-- Chat Header -->
-    <div class="pt-2 px-3 pb-0 lg:px-4 lg:py-2.5 lg:border-b border-paper dark:border-dark-border flex items-center justify-between z-10 bg-surface-container-lowest dark:bg-dark-panel">
+    <div class="py-1.5 px-3 lg:py-2.5 lg:px-4 border-b border-paper dark:border-dark-border flex items-center justify-between z-10 bg-surface-container-lowest dark:bg-dark-panel">
         <h2 class="font-label-md font-semibold dark:text-dark-text hidden lg:block">Chat</h2>
         
         <div class="flex items-center gap-1 ml-auto">
@@ -44,24 +44,24 @@
                 </p>
             </div>
         </div>
-        <!-- Bottom Spacer: Ensures bottom of chat messages are never clipped by floating input bar -->
-        <div id="chat-bottom-spacer" class="h-28 sm:h-36 w-full flex-shrink-0 pointer-events-none"></div>
+        <!-- Bottom Spacer: Dynamic height accommodating safe area so last message is never covered -->
+        <div id="chat-bottom-spacer" class="h-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:h-36 w-full flex-shrink-0 pointer-events-none"></div>
     </div>
     
-    <!-- Input Area (Pinned to Bottom) -->
-    <div class="absolute bottom-0 left-0 w-full p-3 lg:p-5 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/95 to-transparent dark:from-dark-panel dark:via-dark-panel/95 pointer-events-none z-10">
-        <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-3.5 sm:pl-6 pr-2 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 max-w-3xl mx-auto pointer-events-auto">
+    <!-- Input Area (Pinned to Bottom with Dynamic Safe Area Protection) -->
+    <div class="absolute bottom-0 left-0 w-full px-2.5 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:px-5 lg:py-4 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/95 to-transparent dark:from-dark-panel dark:via-dark-panel/95 pointer-events-none z-10">
+        <div class="relative custom-shadow rounded-full bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors pl-3 sm:pl-6 pr-1.5 sm:pr-2 py-1 sm:py-2 flex items-center gap-1 sm:gap-2 max-w-3xl mx-auto pointer-events-auto">
             
             <!-- Text Area (Center) -->
-            <textarea id="chat-input" class="flex-1 bg-transparent border-none resize-none focus:ring-0 font-body-md py-1 px-0 dark:text-dark-text dark:placeholder-dark-text-muted outline-none text-sm sm:text-base leading-normal max-h-[120px] self-center" placeholder="Ask a question about your sources..." rows="1"></textarea>
+            <textarea id="chat-input" class="flex-1 bg-transparent border-none resize-none focus:ring-0 font-body-md py-1 px-0 dark:text-dark-text dark:placeholder-dark-text-muted outline-none text-[15px] sm:text-base leading-normal max-h-[120px] self-center" placeholder="Ask a question about your sources..." rows="1"></textarea>
             
             <!-- Right Actions -->
             <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
                 <!-- Custom Model Dropdown (Populated Dynamically via User Preferences) -->
                 <div class="relative" id="model-dropdown-container">
-                    <button type="button" onclick="toggleModelDropdown(event)" class="bg-transparent border-none text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-1 sm:py-1.5 px-2 sm:px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-1 transition-colors">
-                        <span id="selected-model-name" class="max-w-[85px] sm:max-w-[130px] truncate">Groq GPT-OSS 120B</span>
-                        <span class="material-symbols-outlined text-[16px]">expand_more</span>
+                    <button type="button" onclick="toggleModelDropdown(event)" class="bg-transparent border-none text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted cursor-pointer py-1 sm:py-1.5 px-2 sm:px-3 rounded-full hover:bg-surface-variant dark:hover:bg-dark-panel-hover font-medium flex items-center gap-0.5 sm:gap-1 transition-colors">
+                        <span id="selected-model-name" class="max-w-[75px] xs:max-w-[95px] sm:max-w-[130px] truncate">Groq GPT-OSS 120B</span>
+                        <span class="material-symbols-outlined text-[15px] sm:text-[16px]">expand_more</span>
                     </button>
                     <!-- Dropdown Menu -->
                     <div id="model-dropdown-menu" class="hidden absolute bottom-full right-0 mb-2 w-56 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-xl overflow-hidden z-50 py-1 text-xs">
@@ -78,9 +78,9 @@
                 </div>
 
                 <!-- Sources Count Chip (Shown when input is empty) -->
-                <div id="sources-chip" title="Selected sources used for retrieval. Click to view sources." onclick="if(window.innerWidth < 1024) switchTab('sources'); else openPanel('left');" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover hover:bg-surface-variant/80 dark:hover:bg-dark-border/60 px-2.5 py-1 rounded-full cursor-pointer transition-all select-none">
-                    <span class="material-symbols-outlined text-[15px] text-secondary dark:text-dark-accent">description</span>
-                    <span id="sources-count" class="text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">0</span>
+                <div id="sources-chip" title="Selected sources used for retrieval. Click to view sources." onclick="if(window.innerWidth < 1024) switchTab('sources'); else openPanel('left');" class="flex items-center gap-1 bg-surface-variant dark:bg-dark-panel-hover hover:bg-surface-variant/80 dark:hover:bg-dark-border/60 px-2 sm:px-2.5 py-1 rounded-full cursor-pointer transition-all select-none">
+                    <span class="material-symbols-outlined text-[14px] sm:text-[15px] text-secondary dark:text-dark-accent">description</span>
+                    <span id="sources-count" class="text-[11px] sm:text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">0</span>
                 </div>
 
                 <!-- Send Button (Shown when input has text) -->
@@ -93,16 +93,16 @@
 </section>
 
 <!-- Clear Chat History Modal Overlay (Consistent with SmallBook app modal styling) -->
-<div id="clear-chat-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
-    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+<div id="clear-chat-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4 relative">
         <div class="flex justify-between items-start">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-error/10 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0 text-error dark:text-red-400">
-                    <span class="material-symbols-outlined text-[22px]">delete_sweep</span>
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-error/10 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0 text-error dark:text-red-400">
+                    <span class="material-symbols-outlined text-[20px] sm:text-[22px]">delete_sweep</span>
                 </div>
                 <div>
-                    <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Clear Chat</h3>
-                    <p class="text-xs text-on-surface-variant dark:text-dark-text-muted mt-0.5">This action cannot be undone.</p>
+                    <h3 class="text-base sm:text-headline-sm font-semibold text-on-surface dark:text-dark-text">Clear Chat</h3>
+                    <p class="text-[11px] sm:text-xs text-on-surface-variant dark:text-dark-text-muted mt-0.5">This action cannot be undone.</p>
                 </div>
             </div>
             <button type="button" onclick="closeClearChatModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
@@ -110,19 +110,19 @@
             </button>
         </div>
         
-        <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
+        <p class="text-xs sm:text-label-md text-on-surface-variant dark:text-dark-text-muted leading-relaxed">
             Are you sure you want to clear all conversation history and citations for this notebook?
         </p>
 
-        <div class="flex flex-col gap-2.5 mt-2">
+        <div class="flex flex-col gap-2.5 mt-1 sm:mt-2">
             <!-- Confirm Clear Button -->
-            <button id="btn-confirm-clear-chat" onclick="confirmClearChatHistory()" class="w-full bg-error hover:bg-error/90 text-white font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all font-medium shadow-sm">
-                <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+            <button id="btn-confirm-clear-chat" onclick="confirmClearChatHistory()" class="w-full bg-error hover:bg-error/90 text-white font-label-md py-2 sm:py-2.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all font-medium shadow-sm text-xs sm:text-sm">
+                <span class="material-symbols-outlined text-[17px] sm:text-[18px]">delete_sweep</span>
                 <span id="clear-chat-btn-text">Clear History</span>
             </button>
 
             <!-- Cancel Button -->
-            <button type="button" onclick="closeClearChatModal()" class="w-full py-1.5 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+            <button type="button" onclick="closeClearChatModal()" class="w-full py-1.5 font-label-md text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
                 Cancel
             </button>
         </div>
@@ -130,13 +130,13 @@
 </div>
 
 <!-- Configure Chat Modal (Consistent with SmallBook app modal styling) -->
-<div id="configure-chat-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
-    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-lg custom-shadow p-6 flex flex-col gap-5 text-on-surface dark:text-dark-text max-h-[90vh] overflow-y-auto">
+<div id="configure-chat-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-3 sm:p-4">
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-lg custom-shadow p-4 sm:p-6 flex flex-col gap-4 sm:gap-5 text-on-surface dark:text-dark-text max-h-[90dvh] overflow-y-auto">
         <!-- Modal Header -->
         <div class="flex justify-between items-start pb-1">
             <div>
-                <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Configure Chat</h3>
-                <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted mt-0.5">Customize prompt mode and response length for this notebook</p>
+                <h3 class="text-base sm:text-headline-sm font-semibold text-on-surface dark:text-dark-text">Configure Chat</h3>
+                <p class="text-xs sm:text-label-md text-on-surface-variant dark:text-dark-text-muted mt-0.5">Customize prompt mode and response length for this notebook</p>
             </div>
             <button type="button" onclick="closeConfigureChatModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                 <span class="material-symbols-outlined text-[20px]">close</span>

@@ -16,19 +16,19 @@
    CONTEXT PARAMETERS: None (Client-side partial populated dynamically via JS).
    ========================================================================= #}
 <!-- Upload Modal Overlay (Hidden by default) -->
-<div id="upload-modal" class="hidden fixed inset-0 z-[100] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
+<div id="upload-modal" class="hidden fixed inset-0 z-[100] bg-black/40 dark:bg-black/70 flex items-center justify-center p-3 sm:p-4">
     <!-- Modal Content -->
-    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-2xl custom-shadow flex flex-col overflow-hidden max-h-[85vh]">
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-2xl custom-shadow flex flex-col overflow-hidden max-h-[90dvh] sm:max-h-[85vh]">
         <!-- Modal Header -->
-        <div class="p-6 pb-3 flex justify-between items-start border-b border-paper dark:border-dark-border">
+        <div class="p-4 sm:p-6 pb-2.5 sm:pb-3 flex justify-between items-start border-b border-paper dark:border-dark-border">
             <div class="w-full">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text">Add Documents</h2>
+                    <h2 class="text-base sm:text-headline-md font-semibold text-on-surface dark:text-dark-text">Add Documents</h2>
                     <button onclick="closeUploadModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:text-primary dark:hover:text-dark-text hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-all">
-                        <span class="material-symbols-outlined">close</span>
+                        <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
-                <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mt-1">Upload new PDFs or link existing files from your library</p>
+                <p class="text-on-surface-variant dark:text-dark-text-muted text-xs sm:text-label-md mt-0.5 sm:mt-1">Upload new PDFs or link existing files from your library</p>
                 
                 <!-- Navigation Tabs -->
                 <div class="flex items-center gap-1.5 sm:gap-2 mt-3 bg-surface-bright dark:bg-dark-bg p-1 rounded-xl border border-paper dark:border-dark-border">
@@ -45,15 +45,15 @@
         </div>
         
         <!-- Tab 1 View: Drag & Drop Zone -->
-        <div id="tab-content-upload" class="p-6">
-            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-8 sm:p-10 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer relative overflow-hidden" id="drop-zone">
+        <div id="tab-content-upload" class="p-3.5 sm:p-6">
+            <div class="border-2 border-dashed border-outline-variant dark:border-dark-border rounded-xl p-4 sm:p-10 flex flex-col items-center justify-center text-center bg-surface-bright/50 dark:bg-dark-panel-hover hover:bg-surface-variant/30 dark:hover:bg-dark-border transition-colors cursor-pointer relative overflow-hidden" id="drop-zone">
                 
                 <!-- Default Drop Zone Content -->
                 <div id="drop-zone-content" class="w-full flex flex-col items-center transition-opacity duration-300">
-                    <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-2">drop your files</h3>
-                    <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md mb-6">pdf documents only</p>
+                    <h3 class="text-sm sm:text-headline-md font-medium text-on-surface dark:text-dark-text mb-1 sm:mb-2">drop your files</h3>
+                    <p class="text-on-surface-variant dark:text-dark-text-muted text-xs sm:text-label-md mb-3 sm:mb-6">pdf documents only</p>
                     
-                    <button type="button" class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-5 py-2 sm:px-6 sm:py-2.5 font-label-md flex items-center gap-2 hover:opacity-80 transition-opacity text-xs sm:text-sm">
+                    <button type="button" class="bg-[#141413] dark:bg-dark-text text-on-primary dark:text-dark-bg rounded-full px-4 py-2 sm:px-6 sm:py-2.5 font-label-md flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition-opacity text-xs sm:text-sm">
                         <span class="material-symbols-outlined text-[16px] sm:text-[18px]">upload</span>
                         Upload files
                     </button>
@@ -120,34 +120,34 @@
 </div>
 
 <!-- Delete Source Modal Overlay (Hidden by default) -->
-<div id="delete-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
-    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+<div id="delete-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4 relative">
         <div class="flex justify-between items-start">
-            <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Remove Source</h3>
+            <h3 class="text-base sm:text-headline-sm font-semibold text-on-surface dark:text-dark-text">Remove Source</h3>
             <button onclick="closeDeleteModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                 <span class="material-symbols-outlined text-[20px]">close</span>
             </button>
         </div>
         
-        <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted">
-            Remove <span id="delete-modal-filename" class="font-semibold text-on-surface dark:text-dark-text truncate inline-block max-w-[240px] align-bottom"></span>?
+        <p class="text-xs sm:text-label-md text-on-surface-variant dark:text-dark-text-muted">
+            Remove <span id="delete-modal-filename" class="font-semibold text-on-surface dark:text-dark-text truncate inline-block max-w-[200px] sm:max-w-[240px] align-bottom"></span>?
         </p>
 
-        <div class="flex flex-col gap-2.5 mt-2">
+        <div class="flex flex-col gap-2 sm:gap-2.5 mt-1 sm:mt-2">
             <!-- Active / Primary button: Remove from Notebook -->
-            <button id="btn-delete-notebook" onclick="confirmDeleteSource('notebook')" class="w-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:opacity-90 transition-opacity font-medium">
+            <button id="btn-delete-notebook" onclick="confirmDeleteSource('notebook')" class="w-full bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md py-2 sm:py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:opacity-90 transition-opacity font-medium text-xs sm:text-sm">
                 <span class="material-symbols-outlined text-[18px]">bookmark_remove</span>
                 <span>Remove from Notebook</span>
             </button>
             
             <!-- Secondary button: Delete from Library -->
-            <button id="btn-delete-library" onclick="confirmDeleteSource('library')" class="w-full border border-error/50 text-error dark:border-red-400/50 dark:text-red-400 font-label-md py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:bg-error/10 dark:hover:bg-red-400/10 transition-colors font-medium">
+            <button id="btn-delete-library" onclick="confirmDeleteSource('library')" class="w-full border border-error/50 text-error dark:border-red-400/50 dark:text-red-400 font-label-md py-2 sm:py-2.5 px-4 rounded-full flex items-center justify-center gap-2 hover:bg-error/10 dark:hover:bg-red-400/10 transition-colors font-medium text-xs sm:text-sm">
                 <span class="material-symbols-outlined text-[18px]">delete_forever</span>
                 <span>Delete from Library</span>
             </button>
 
             <!-- Cancel button -->
-            <button onclick="closeDeleteModal()" class="w-full py-1.5 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+            <button onclick="closeDeleteModal()" class="w-full py-1.5 font-label-md text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
                 Cancel
             </button>
         </div>
@@ -155,25 +155,25 @@
 </div>
 
 <!-- Rename Source Modal Overlay (Hidden by default) -->
-<div id="rename-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-4">
-    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-6 flex flex-col gap-4 relative">
+<div id="rename-source-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-sm custom-shadow p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4 relative">
         <div class="flex justify-between items-start">
-            <h3 class="text-headline-sm font-semibold text-on-surface dark:text-dark-text">Rename Source</h3>
+            <h3 class="text-base sm:text-headline-sm font-semibold text-on-surface dark:text-dark-text">Rename Source</h3>
             <button onclick="closeRenameModal()" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover transition-colors">
                 <span class="material-symbols-outlined text-[20px]">close</span>
             </button>
         </div>
 
-        <div class="flex flex-col gap-2">
-            <label for="rename-input" class="text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">Document Name</label>
-            <input type="text" id="rename-input" onkeydown="if(event.key==='Enter') confirmRenameSource()" class="w-full px-3.5 py-2.5 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl text-on-surface dark:text-dark-text focus:outline-none focus:border-secondary dark:focus:border-dark-accent text-sm" placeholder="Enter file name...">
+        <div class="flex flex-col gap-1.5 sm:gap-2">
+            <label for="rename-input" class="text-xs sm:text-label-sm font-medium text-on-surface-variant dark:text-dark-text-muted">Document Name</label>
+            <input type="text" id="rename-input" onkeydown="if(event.key==='Enter') confirmRenameSource()" class="w-full px-3.5 py-2 bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border rounded-xl text-on-surface dark:text-dark-text focus:outline-none focus:border-secondary dark:focus:border-dark-accent text-xs sm:text-sm" placeholder="Enter file name...">
         </div>
 
-        <div class="flex items-center justify-end gap-2 mt-2">
-            <button onclick="closeRenameModal()" class="px-4 py-2 font-label-md text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
+        <div class="flex items-center justify-end gap-2 mt-1 sm:mt-2">
+            <button onclick="closeRenameModal()" class="px-3.5 py-1.5 font-label-md text-xs sm:text-sm text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text transition-colors">
                 Cancel
             </button>
-            <button onclick="confirmRenameSource()" class="bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md px-5 py-2 rounded-full hover:opacity-90 transition-opacity font-medium">
+            <button onclick="confirmRenameSource()" class="bg-secondary dark:bg-dark-accent text-on-primary dark:text-dark-bg font-label-md px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity font-medium text-xs sm:text-sm">
                 Save
             </button>
         </div>
@@ -183,8 +183,8 @@
 <!-- ========================================================================= -->
 <!-- STUDY TOOL GENERATOR MODAL (FLASHCARDS & QUIZZES)                         -->
 <!-- ========================================================================= -->
-<div id="study-generator-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-md custom-shadow flex flex-col overflow-hidden max-h-[90vh]">
+<div id="study-generator-modal" class="hidden fixed inset-0 z-[110] bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="relative bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl w-full max-w-md custom-shadow flex flex-col overflow-hidden max-h-[90dvh] sm:max-h-[90vh]">
         <!-- Header -->
         <div class="p-4 sm:p-5 pb-3 border-b border-paper dark:border-dark-border flex justify-between items-center">
             <div class="flex items-center gap-2.5">

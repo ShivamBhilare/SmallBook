@@ -34,14 +34,14 @@
 {% endblock %}
 
 {% block content %}
-<main class="flex-1 flex items-center justify-center p-4" x-data="verifyEmailState('{{ email|default("") }}')">
-    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl custom-shadow p-8 text-center relative">
+<main class="flex-1 flex items-center justify-center p-3.5 sm:p-4" x-data="verifyEmailState('{{ email|default("") }}')">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-2xl custom-shadow p-5 sm:p-8 text-center relative">
         
-        <div class="h-16 w-16 bg-surface-variant dark:bg-dark-panel-hover rounded-full flex items-center justify-center mx-auto mb-6">
-            <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[32px]">mark_email_unread</span>
+        <div class="h-12 w-12 sm:h-16 sm:w-16 bg-surface-variant dark:bg-dark-panel-hover rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+            <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[26px] sm:text-[32px]">mark_email_unread</span>
         </div>
         
-        <h1 class="text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-3">Check your email</h1>
+        <h1 class="text-xl sm:text-headline-lg font-bold text-on-surface dark:text-dark-text tracking-tight mb-2 sm:mb-3">Check your email</h1>
         
         <p class="text-body-md text-on-surface-variant dark:text-dark-text-muted mb-6">
             We've sent a verification link to <br>

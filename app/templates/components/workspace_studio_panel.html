@@ -31,22 +31,22 @@
             
             <div class="flex-1 overflow-y-auto flex flex-col pb-md pt-2 lg:pt-0">
                 <!-- Studio Features -->
-                <div class="p-md hide-on-collapse">
-                    <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest mb-sm">Study Tools</h3>
+                <div class="px-3 pt-3 pb-1 lg:p-md hide-on-collapse">
+                    <h3 class="text-[11px] font-semibold text-on-surface-variant dark:text-dark-text-muted uppercase tracking-widest mb-1.5 sm:mb-sm">Study Tools</h3>
                 </div>
-                <div class="px-md mb-sm">
-                    <div class="features-grid grid grid-cols-3 gap-sm">
-                        <div onclick="handleFeatureItemClick('flashcards')" title="Create Flashcards" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
-                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent group-hover:scale-110 transition-transform">style</span>
-                            <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Flashcards</span>
+                <div class="px-3 lg:px-md mb-2 sm:mb-sm">
+                    <div class="features-grid grid grid-cols-3 gap-2 sm:gap-sm">
+                        <div onclick="handleFeatureItemClick('flashcards')" title="Create Flashcards" class="feature-item p-2 sm:p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-1 text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px] sm:text-[24px] group-hover:scale-110 transition-transform">style</span>
+                            <span class="feature-item-text text-[9px] sm:text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Flashcards</span>
                         </div>
-                        <div onclick="handleFeatureItemClick('quiz')" title="Create Quiz" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
-                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent group-hover:scale-110 transition-transform">school</span>
-                            <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Quiz</span>
+                        <div onclick="handleFeatureItemClick('quiz')" title="Create Quiz" class="feature-item p-2 sm:p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-1 text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px] sm:text-[24px] group-hover:scale-110 transition-transform">school</span>
+                            <span class="feature-item-text text-[9px] sm:text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Quiz</span>
                         </div>
-                        <div onclick="handleFeatureItemClick('notes')" title="New Note & Scratchpad" class="feature-item p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-xs text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
-                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent group-hover:scale-110 transition-transform">edit_note</span>
-                            <span class="feature-item-text text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Notes</span>
+                        <div onclick="handleFeatureItemClick('notes')" title="New Note & Scratchpad" class="feature-item p-2 sm:p-sm bg-surface-bright dark:bg-dark-panel border border-paper dark:border-dark-border rounded-lg flex flex-col items-center justify-center gap-1 text-center cursor-pointer hover:border-secondary dark:hover:border-dark-accent transition-colors group">
+                            <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px] sm:text-[24px] group-hover:scale-110 transition-transform">edit_note</span>
+                            <span class="feature-item-text text-[9px] sm:text-[10px] font-label-sm uppercase tracking-wider dark:text-dark-text font-semibold">Notes</span>
                         </div>
                     </div>
                 </div>
@@ -120,8 +120,8 @@
                 </div>
 
                 <!-- 3D Card Scene -->
-                <div class="flashcard-scene flex-1 flex items-center justify-center min-h-[220px] my-2">
-                    <div id="studio-flashcard" class="flashcard-card cursor-pointer w-full h-full min-h-[210px] max-h-[300px]" onclick="flipFlashcard()">
+                <div class="flashcard-scene flex-1 flex items-center justify-center min-h-[175px] sm:min-h-[220px] my-1.5 sm:my-2">
+                    <div id="studio-flashcard" class="flashcard-card cursor-pointer w-full h-full min-h-[170px] sm:min-h-[210px] max-h-[300px]" onclick="flipFlashcard()">
                         <!-- FRONT -->
                         <div class="flashcard-face flashcard-front bg-surface-bright dark:bg-dark-bg border border-paper dark:border-dark-border p-4 sm:p-5 flex flex-col justify-between shadow-sm rounded-xl">
                             <div class="flex items-center justify-between text-[11px] text-on-surface-variant dark:text-dark-text-muted font-medium">

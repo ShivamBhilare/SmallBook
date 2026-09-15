@@ -25,35 +25,35 @@
 {% block content %}
 <div x-data="notebookDashboard()" @open-create-modal.window="isCreateModalOpen = true" class="flex flex-col min-h-screen">
     
-    <div class="bg-surface-container-low dark:bg-dark-panel w-full border-b border-paper dark:border-dark-border py-3 px-4 sm:px-6 lg:px-margin z-40">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
+    <div class="bg-surface-container-low dark:bg-dark-panel w-full border-b border-paper dark:border-dark-border py-2 sm:py-2.5 px-3 sm:px-6 lg:px-8 z-40">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-4">
             
             <!-- Search Bar -->
-            <div class="w-full md:max-w-md flex items-center bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full px-4 py-2 sm:py-1.5 focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors group">
-                <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted text-[20px] mr-2">search</span>
-                <input type="text" x-model="searchQuery" class="w-full bg-transparent border-none focus:ring-0 text-[14px] text-on-surface dark:text-dark-text placeholder:text-on-surface-variant/60 dark:placeholder:text-dark-text-muted outline-none" placeholder="Search notebooks...">
+            <div class="w-full md:max-w-md flex items-center bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full px-3.5 py-1.5 focus-within:border-secondary dark:focus-within:border-dark-accent transition-colors group">
+                <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted text-[18px] sm:text-[20px] mr-2">search</span>
+                <input type="text" x-model="searchQuery" class="w-full bg-transparent border-none focus:ring-0 text-[13px] sm:text-[14px] text-on-surface dark:text-dark-text placeholder:text-on-surface-variant/60 dark:placeholder:text-dark-text-muted outline-none py-0.5" placeholder="Search notebooks...">
                 <button x-show="searchQuery" @click="searchQuery = ''" class="text-on-surface-variant dark:text-dark-text-muted hover:text-on-surface dark:hover:text-dark-text ml-1" title="Clear search">
                     <span class="material-symbols-outlined text-[16px]">close</span>
                 </button>
             </div>
             
             <!-- Filters & Views -->
-            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div class="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
                 <!-- Grid/List View Toggles -->
-                <div class="flex items-center gap-1 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full p-1 shrink-0">
-                    <button @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-surface-variant/80 dark:bg-dark-panel-hover text-primary dark:text-dark-text custom-shadow' : 'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover/50'" class="h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-full transition-all" aria-label="Grid view">
-                        <span class="material-symbols-outlined text-[18px]">grid_view</span>
+                <div class="flex items-center gap-1 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full p-0.5 sm:p-1 shrink-0">
+                    <button @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-surface-variant/80 dark:bg-dark-panel-hover text-primary dark:text-dark-text custom-shadow' : 'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover/50'" class="h-7 w-7 sm:h-7 sm:w-7 flex items-center justify-center rounded-full transition-all" aria-label="Grid view">
+                        <span class="material-symbols-outlined text-[17px] sm:text-[18px]">grid_view</span>
                     </button>
-                    <button @click="viewMode = 'list'" :class="viewMode === 'list' ? 'bg-surface-variant/80 dark:bg-dark-panel-hover text-primary dark:text-dark-text custom-shadow' : 'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover/50'" class="h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-full transition-all" aria-label="List view">
-                        <span class="material-symbols-outlined text-[18px]">view_list</span>
+                    <button @click="viewMode = 'list'" :class="viewMode === 'list' ? 'bg-surface-variant/80 dark:bg-dark-panel-hover text-primary dark:text-dark-text custom-shadow' : 'text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/50 dark:hover:bg-dark-panel-hover/50'" class="h-7 w-7 sm:h-7 sm:w-7 flex items-center justify-center rounded-full transition-all" aria-label="List view">
+                        <span class="material-symbols-outlined text-[17px] sm:text-[18px]">view_list</span>
                     </button>
                 </div>
                 
                 <!-- Sort Dropdown -->
                 <div class="relative" x-data="{ sortOpen: false }">
-                    <button @click="sortOpen = !sortOpen" class="flex items-center gap-1.5 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border px-4 py-2 sm:py-1.5 rounded-full text-[13px] sm:text-[14px] font-medium text-on-surface dark:text-dark-text hover:border-secondary dark:hover:border-dark-accent transition-colors">
+                    <button @click="sortOpen = !sortOpen" class="flex items-center gap-1 bg-surface-container-lowest dark:bg-dark-bg border border-paper dark:border-dark-border px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[12px] sm:text-[14px] font-medium text-on-surface dark:text-dark-text hover:border-secondary dark:hover:border-dark-accent transition-colors">
                         <span x-text="sortBy === 'recent' ? 'Most Recent' : (sortBy === 'oldest' ? 'Oldest' : 'Title A-Z')"></span>
-                        <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                        <span class="material-symbols-outlined text-[16px] sm:text-[18px]">expand_more</span>
                     </button>
                     <!-- Dropdown Menu -->
                     <div x-show="sortOpen" @click.outside="sortOpen = false" x-transition.opacity.duration.200ms x-cloak class="absolute right-0 top-full mt-2 w-40 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-xl shadow-lg z-50 overflow-hidden py-1">
@@ -66,45 +66,45 @@
         </div>
     </div>
 
-    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-margin py-6 sm:py-8 lg:py-12 relative">
+    <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 lg:py-12 relative">
         
         <!-- Error Banner -->
-        <div x-show="errorMessage" x-cloak x-transition class="mb-6 p-4 rounded-xl bg-error/10 border border-error/20 text-error flex items-center gap-3">
-            <span class="material-symbols-outlined">error</span>
-            <p x-text="errorMessage" class="font-body-md"></p>
+        <div x-show="errorMessage" x-cloak x-transition class="mb-4 sm:mb-6 p-3 sm:p-4 rounded-xl bg-error/10 border border-error/20 text-error flex items-center gap-3">
+            <span class="material-symbols-outlined text-[20px]">error</span>
+            <p x-text="errorMessage" class="font-body-md text-xs sm:text-sm"></p>
             <button @click="errorMessage = ''" class="ml-auto hover:bg-error/20 p-1 rounded-full transition-colors">
-                <span class="material-symbols-outlined text-[20px]">close</span>
+                <span class="material-symbols-outlined text-[18px]">close</span>
             </button>
         </div>
 
-        <div class="flex items-center justify-between mb-6 sm:mb-8">
-            <div class="flex items-center gap-2.5 sm:gap-3">
-                <h1 class="font-semibold text-[22px] sm:text-[26px] lg:text-[32px] tracking-tight text-on-surface dark:text-dark-text">Recent Notebooks</h1>
-                <span x-show="!isLoading && notebooks.length > 0" class="text-xs sm:text-sm font-medium bg-surface-variant dark:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted px-2.5 py-0.5 rounded-full" x-text="filteredNotebooks.length"></span>
+        <div class="flex items-center justify-between mb-4 sm:mb-8">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <h1 class="font-semibold text-[18px] sm:text-[24px] lg:text-[30px] tracking-tight text-on-surface dark:text-dark-text">Recent Notebooks</h1>
+                <span x-show="!isLoading && notebooks.length > 0" class="text-[11px] sm:text-xs font-medium bg-surface-variant dark:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted px-2 py-0.5 rounded-full" x-text="filteredNotebooks.length"></span>
             </div>
         </div>
         
-        <div x-show="isLoading" x-cloak class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
+        <div x-show="isLoading" x-cloak class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 animate-pulse">
             <template x-for="i in 4" :key="i">
-                <div class="h-[190px] sm:h-[220px] rounded-xl bg-surface-variant/30 dark:bg-dark-panel-hover/30 border border-paper dark:border-dark-border p-5"></div>
+                <div class="h-[140px] sm:h-[220px] rounded-xl bg-surface-variant/30 dark:bg-dark-panel-hover/30 border border-paper dark:border-dark-border p-4 sm:p-5"></div>
             </template>
         </div>
         
-        <div x-show="!isLoading" x-cloak :class="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6' : 'flex flex-col gap-3 sm:gap-4'">
+        <div x-show="!isLoading" x-cloak :class="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6' : 'flex flex-col gap-2.5 sm:gap-4'">
             
             <!-- Create New Card -->
-            <button @click="isCreateModalOpen = true" :class="viewMode === 'grid' ? 'min-h-[190px] sm:h-[220px] flex-col justify-center items-center text-center p-5' : 'min-h-[76px] sm:h-24 flex-row items-center justify-start px-4 sm:px-6'" class="group rounded-xl border-2 border-dashed border-outline-variant dark:border-dark-border hover:border-secondary dark:hover:border-dark-accent bg-surface-bright/50 dark:bg-dark-panel/50 flex gap-3 sm:gap-4 transition-colors">
-                <div class="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-surface-variant dark:bg-dark-panel-hover group-hover:bg-secondary/10 dark:group-hover:bg-dark-accent/20 flex items-center justify-center transition-colors shrink-0">
-                    <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent text-[22px] sm:text-[24px]">add</span>
+            <button @click="isCreateModalOpen = true" :class="viewMode === 'grid' ? 'min-h-[140px] sm:min-h-[220px] flex-col justify-center items-center text-center p-4 sm:p-5' : 'min-h-[64px] sm:h-24 flex-row items-center justify-start px-4 sm:px-6'" class="group rounded-xl border-2 border-dashed border-outline-variant dark:border-dark-border hover:border-secondary dark:hover:border-dark-accent bg-surface-bright/50 dark:bg-dark-panel/50 flex gap-2.5 sm:gap-4 transition-colors">
+                <div class="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-surface-variant dark:bg-dark-panel-hover group-hover:bg-secondary/10 dark:group-hover:bg-dark-accent/20 flex items-center justify-center transition-colors shrink-0">
+                    <span class="material-symbols-outlined text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent text-[20px] sm:text-[24px]">add</span>
                 </div>
-                <span class="font-label-md text-sm sm:text-base text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors font-medium">Create New Notebook</span>
+                <span class="font-label-md text-xs sm:text-base text-on-surface-variant dark:text-dark-text-muted group-hover:text-secondary dark:group-hover:text-dark-accent transition-colors font-medium">Create New Notebook</span>
             </button>
             
             <!-- Dynamic Notebook Cards (Matches Image Layout exactly) -->
             <template x-for="notebook in filteredNotebooks" :key="notebook.id">
                 <div @click="window.location.href = `/notebooks/workspace/${notebook.id}`" 
-                     :class="viewMode === 'grid' ? 'min-h-[190px] sm:h-[220px] flex-col' : 'min-h-[76px] sm:h-24 flex-row items-center'" 
-                     class="group relative rounded-xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border p-4 sm:p-5 flex justify-between hover-custom-shadow hover:border-secondary dark:hover:border-dark-accent transition-all cursor-pointer">
+                     :class="viewMode === 'grid' ? 'min-h-[140px] sm:min-h-[220px] flex-col' : 'min-h-[64px] sm:h-24 flex-row items-center'" 
+                     class="group relative rounded-xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border p-3.5 sm:p-5 flex justify-between hover-custom-shadow hover:border-secondary dark:hover:border-dark-accent transition-all cursor-pointer">
                     
                     <!-- Grid Layout Inner Content -->
                     <div x-show="viewMode === 'grid'" class="flex flex-col h-full w-full">

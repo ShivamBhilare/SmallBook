@@ -38,17 +38,17 @@
          x-transition:leave="ease-in duration-200" 
          x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
          x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
-         class="relative w-full max-w-4xl max-h-[85vh] flex flex-col rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border shadow-2xl overflow-hidden z-10">
+         class="relative w-full max-w-4xl max-h-[90dvh] sm:max-h-[85vh] flex flex-col rounded-2xl bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border shadow-2xl overflow-hidden z-10">
         
         <!-- Modal Header -->
-        <div class="px-6 py-5 border-b border-paper dark:border-dark-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-bright/50 dark:bg-dark-bg/50">
-            <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/20 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[22px]">library_books</span>
+        <div class="px-4 py-3 sm:px-6 sm:py-4 border-b border-paper dark:border-dark-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-surface-bright/50 dark:bg-dark-bg/50">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-secondary/10 dark:bg-dark-accent/20 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-secondary dark:text-dark-accent text-[20px] sm:text-[22px]">library_books</span>
                 </div>
                 <div>
-                    <h2 class="text-headline-md font-semibold text-on-surface dark:text-dark-text" id="library-modal-title">Sources Library</h2>
-                    <p class="text-label-md text-on-surface-variant dark:text-dark-text-muted">
+                    <h2 class="text-sm sm:text-headline-md font-semibold text-on-surface dark:text-dark-text" id="library-modal-title">Sources Library</h2>
+                    <p class="text-[11px] sm:text-label-md text-on-surface-variant dark:text-dark-text-muted">
                         <span x-text="sources.length"></span> <span x-text="sources.length === 1 ? 'source document' : 'source documents'"></span> uploaded across your notebooks
                     </p>
                 </div>

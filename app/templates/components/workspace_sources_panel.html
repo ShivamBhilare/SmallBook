@@ -21,13 +21,13 @@
             <span id="collapse-icon-left" class="material-symbols-outlined text-[20px]">keyboard_double_arrow_left</span>
         </button>
     </div>
-    <div class="p-md pt-4 lg:pt-md hide-on-collapse">
-        <button id="add-source-btn" onclick="openUploadModal()" class="w-full border border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent rounded-full py-sm font-label-md flex items-center justify-center gap-sm hover:bg-secondary/5 dark:hover:bg-dark-accent/10 transition-colors">
+    <div class="p-3 pt-3 lg:p-md hide-on-collapse">
+        <button id="add-source-btn" onclick="openUploadModal()" class="w-full border border-secondary dark:border-dark-accent text-secondary dark:text-dark-accent rounded-full py-1.5 sm:py-sm font-label-md flex items-center justify-center gap-sm hover:bg-secondary/5 dark:hover:bg-dark-accent/10 transition-colors text-xs sm:text-sm">
             <span class="material-symbols-outlined text-[18px]">add</span>
             <span>Add Sources</span>
         </button>
     </div>
-    <div class="px-md pb-sm flex justify-between items-center hide-on-collapse">
+    <div class="px-3 pb-2 lg:px-md lg:pb-sm flex justify-between items-center hide-on-collapse">
         <div class="flex items-center gap-1">
             <div class="relative">
                 <button onclick="toggleSortMenu(event)" class="h-8 w-8 flex items-center justify-center rounded-full text-on-surface-variant dark:text-dark-text-muted hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover hover:text-primary dark:hover:text-dark-text transition-colors" title="Sort Documents">
@@ -52,14 +52,14 @@
         <button onclick="toggleSelectAllSources()" class="text-label-sm text-secondary dark:text-dark-accent hover:opacity-80 transition-opacity">Select All</button>
     </div>
     
-    <div class="flex-1 overflow-y-auto px-md pb-md space-y-xs" id="sources-list">
+    <div class="flex-1 overflow-y-auto px-2.5 pb-3 lg:px-md lg:pb-md space-y-1" id="sources-list">
         {% for source in sources %}
-        <label onclick="openPanel('left')" title="{{ source.original_filename }}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="{{ source.id }}" data-filename="{{ source.original_filename|escape }}" data-created-at="{{ source.created_at or '' }}">
+        <label onclick="openPanel('left')" title="{{ source.original_filename }}" class="pdf-item flex items-center gap-sm p-2 hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="{{ source.id }}" data-filename="{{ source.original_filename|escape }}" data-created-at="{{ source.created_at or '' }}">
             <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 flex-shrink-0">picture_as_pdf</span>
             <div class="pdf-item-content flex-1 min-w-0 flex items-center gap-sm justify-between">
-                <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename">{{ source.original_filename }}</div>
+                <div class="font-label-md truncate group-hover:text-primary dark:group-hover:text-dark-text dark:text-dark-text source-filename text-xs sm:text-sm">{{ source.original_filename }}</div>
                 <div class="flex items-center gap-1 flex-shrink-0 relative">
-                    <button type="button" onclick="toggleSourceMenu(event, '{{ source.id }}')" class="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
+                    <button type="button" onclick="toggleSourceMenu(event, '{{ source.id }}')" class="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 rounded-full hover:bg-surface-variant/80 dark:hover:bg-dark-panel-hover text-on-surface-variant dark:text-dark-text-muted transition-opacity flex items-center justify-center" title="Source options">
                         <span class="material-symbols-outlined text-[18px]">more_vert</span>
                     </button>
                     <div id="source-menu-{{ source.id }}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">

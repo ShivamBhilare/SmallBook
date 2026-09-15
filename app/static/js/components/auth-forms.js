@@ -13,14 +13,27 @@
  *
  * @returns {Object} Alpine data object managing sign-in state.
  */
-function signInForm() {
+function signInForm(initialSuccess = '') {
     return {
         email: '',
         password: '',
         showPassword: false,
         loading: false,
         errorMsg: '',
-        successMsg: '',
+        successMsg: initialSuccess || '',
+
+        /**
+         * Initializes form state, checking for verified account signals and prefilled email.
+         */
+        init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('verified') === 'true') {
+                this.successMsg = 'Email verified successfully! Please sign in with your credentials.';
+            }
+            if (urlParams.get('email')) {
+                this.email = urlParams.get('email');
+            }
+        },
 
         /**
          * Submits sign-in credentials to backend and handles redirect on success.

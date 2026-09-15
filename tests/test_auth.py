@@ -14,12 +14,69 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from app.models.auth_models import ForgotPasswordSchema
-from app.routers.auth import api_resend_verification
-from app.services.authentication.auth_service import resend_verification_email
+from app.models.auth_models import ForgotPasswordSchema, SignUpSchema
+from app.routers.auth import api_resend_verification, api_sign_up
+from app.services.authentication.auth_service import resend_verification_email, sign_up_user
+from fastapi import HTTPException, Response
 from main import app
 
 client = TestClient(app)
+
+
+def test_sign_up_user_service():
+    """Verifies that sign_up_user correctly configures options and email_redirect_to."""
+    mock_supabase = MagicMock()
+    mock_supabase.auth.sign_up.return_value = MagicMock(session=None)
+
+    # With redirect_to and full_name
+    sign_up_user(
+        client=mock_supabase,
+        email="newuser@example.com",
+        password="Password123!",
+        full_name="New User",
+        redirect_to="http://localhost:8000/auth/callback"
+    )
+    mock_supabase.auth.sign_up.assert_called_with({
+        "email": "newuser@example.com",
+        "password": "Password123!",
+        "options": {
+            "data": {"full_name": "New User"},
+            "email_redirect_to": "http://localhost:8000/auth/callback"
+        }
+    })
+
+    # Without redirect_to or full_name
+    sign_up_user(
+        client=mock_supabase,
+        email="plain@example.com",
+        password="Password123!"
+    )
+    mock_supabase.auth.sign_up.assert_called_with({
+        "email": "plain@example.com",
+        "password": "Password123!",
+        "options": {
+            "data": {}
+        }
+    })
+
+
+def test_api_sign_up_endpoint():
+    """Tests that api_sign_up endpoint passes redirect_to without unexpected keyword argument errors."""
+    mock_supabase = MagicMock()
+    mock_supabase.auth.sign_up.return_value = MagicMock(session=None)
+
+    payload = SignUpSchema(
+        email="testregister@example.com",
+        password="SecurePassword123!",
+        fullname="Test Register"
+    )
+    response = Response()
+    res = asyncio.run(api_sign_up(data=payload, response=response, request=None, client=mock_supabase))
+
+    assert res["status"] == "success"
+    assert res["session"] is False
+    assert "Account created" in res["message"]
+    mock_supabase.auth.sign_up.assert_called_once()
 
 
 def test_resend_verification_email_service():
@@ -127,3 +184,44 @@ def test_read_landing_alias():
     assert resp.status_code == 200
     assert "SmallBook" in resp.text
     assert "/auth/sign-up" in resp.text
+
+
+def test_read_auth_callback():
+    """Verifies GET /auth/callback renders the verification callback landing card.
+
+    Pattern:
+        - Arrange: TestClient ready.
+        - Act: Issue GET request to '/auth/callback'.
+        - Assert: Verify HTTP 200, title, and Alpine authCallbackState controller.
+    """
+    resp = client.get("/auth/callback")
+    assert resp.status_code == 200
+    assert "Email Verified" in resp.text
+    assert "authCallbackState" in resp.text
+    assert "Sign In Now" in resp.text
+
+
+def test_read_auth_confirm_alias():
+    """Verifies GET /auth/confirm serves as an alias for the callback view.
+
+    Pattern:
+        - Arrange: TestClient ready.
+        - Act: Issue GET request to '/auth/confirm'.
+        - Assert: Verify HTTP 200 and callback view markup.
+    """
+    resp = client.get("/auth/confirm")
+    assert resp.status_code == 200
+    assert "authCallbackState" in resp.text
+
+
+def test_read_sign_in_verified():
+    """Verifies GET /auth/sign-in?verified=true reflects verification confirmation.
+
+    Pattern:
+        - Arrange: TestClient ready.
+        - Act: Issue GET request to '/auth/sign-in?verified=true'.
+        - Assert: Verify HTTP 200 and verified banner rendering.
+    """
+    resp = client.get("/auth/sign-in?verified=true")
+    assert resp.status_code == 200
+    assert "Email verified successfully" in resp.text

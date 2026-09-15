@@ -110,7 +110,13 @@ def get_service_role_client() -> Client:
 # 2. AUTHENTICATION CORE ACTIONS
 # =========================================================================
 
-def sign_up_user(client: Client, email: str, password: str, full_name: Optional[str] = None):
+def sign_up_user(
+    client: Client,
+    email: str,
+    password: str,
+    full_name: Optional[str] = None,
+    redirect_to: Optional[str] = None
+):
     """
     Registers a new user account with Supabase Auth (GoTrue).
 
@@ -119,15 +125,20 @@ def sign_up_user(client: Client, email: str, password: str, full_name: Optional[
         email: New user's email address.
         password: Plaintext password meeting security criteria.
         full_name: Optional user display name stored in user_metadata.
+        redirect_to: Optional URL to redirect to after email confirmation.
 
     Returns:
         AuthResponse: Supabase authentication response containing user object and session.
     """
     data = {"full_name": full_name} if full_name else {}
+    options: dict = {"data": data}
+    if redirect_to:
+        options["email_redirect_to"] = redirect_to
+
     response = client.auth.sign_up({
         "email": email,
         "password": password,
-        "options": {"data": data}
+        "options": options
     })
     return response
 
@@ -184,18 +195,22 @@ def send_password_reset(client: Client, email: str, redirect_to: Optional[str] =
     return client.auth.reset_password_for_email(email, options=options)
 
 
-def resend_verification_email(client: Client, email: str):
+def resend_verification_email(client: Client, email: str, redirect_to: Optional[str] = None):
     """
     Resends the initial account confirmation / email verification link.
 
     Args:
         client: The per-request Supabase client.
         email: The target user account email.
+        redirect_to: Optional URL to redirect to after email confirmation.
 
     Returns:
         Any: Supabase auth resend confirmation.
     """
-    return client.auth.resend({"type": "signup", "email": email})
+    payload = {"type": "signup", "email": email}
+    if redirect_to:
+        payload["options"] = {"email_redirect_to": redirect_to}
+    return client.auth.resend(payload)
 
 
 def update_user_password(
