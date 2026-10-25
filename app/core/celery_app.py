@@ -13,6 +13,13 @@ from celery import Celery
 
 load_dotenv()
 
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+try:
+    import litellm
+    litellm.telemetry = False
+except ImportError:
+    pass
+
 # Redis URL for broker queues and async task result backend persistence
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 

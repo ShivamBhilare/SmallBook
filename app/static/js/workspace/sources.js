@@ -37,6 +37,8 @@ function resetUploadUI() {
     document.getElementById('upload-success-icon').classList.add('hidden');
     document.getElementById('upload-title').innerText = "Uploading...";
     document.getElementById('upload-subtitle').innerText = "Please wait";
+    const pBar = document.getElementById('upload-progress-bar');
+    if (pBar) pBar.style.width = '0%';
     switchUploadTab('upload');
 }
 
@@ -211,16 +213,26 @@ function selectAllLibraryChecklist() {
  * @param {boolean} [isChecked=true] - Whether the source checkbox is initially checked.
  * @returns {string} HTML markup string.
  */
-function buildSourceItemHtml(sourceId, filename, isPending = false, nowIso = new Date().toISOString(), isChecked = true) {
+function buildSourceItemHtml(sourceId, filename, isPending = false, nowIso = new Date().toISOString(), isChecked = true, status = 'completed', errorMsg = '') {
     const safeFilename = escapeHtml(filename);
+    const safeErrorMsg = escapeHtml(errorMsg || 'Processing failed');
     const checkedAttr = isChecked ? 'checked' : '';
-    const statusHtml = isPending
-        ? `<svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+
+    let statusHtml = '';
+    if (isPending || ['pending', 'processing', 'queued'].includes(status)) {
+        statusHtml = `
+            <svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">`
-        : `<input ${checkedAttr} class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">`;
+            <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">`;
+    } else if (status === 'failed') {
+        statusHtml = `
+            <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 cursor-pointer source-error-icon hover:scale-110 transition-transform" onclick="showSourceError(event, '${sourceId}', '${safeErrorMsg}')" title="Ingestion Failed: ${safeErrorMsg}. Click to retry.">error</span>
+            <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">`;
+    } else {
+        statusHtml = `<input ${checkedAttr} class="source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0" type="checkbox" value="${sourceId}">`;
+    }
 
     return `
         <label onclick="openPanel('left')" title="${safeFilename}" class="pdf-item flex items-center gap-sm p-sm hover:bg-surface-variant dark:hover:bg-dark-panel-hover rounded-md cursor-pointer transition-colors group relative" data-source-id="${sourceId}" data-filename="${safeFilename}" data-created-at="${nowIso}">
@@ -232,6 +244,9 @@ function buildSourceItemHtml(sourceId, filename, isPending = false, nowIso = new
                         <span class="material-symbols-outlined text-[18px]">more_vert</span>
                     </button>
                     <div id="source-menu-${sourceId}" class="source-menu hidden absolute right-0 top-full mt-1 w-36 bg-surface-container-lowest dark:bg-dark-panel border border-paper dark:border-dark-border rounded-md shadow-lg z-50 py-1 text-sm">
+                        <button type="button" onclick="retrySourceIngestion(event, '${sourceId}')" class="w-full px-3 py-1.5 text-left text-secondary dark:text-dark-accent hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">refresh</span> Retry Ingestion
+                        </button>
                         <button type="button" onclick="promptRenameSource(event, '${sourceId}', '${safeFilename}')" class="w-full px-3 py-1.5 text-left text-on-surface dark:text-dark-text hover:bg-surface-variant dark:hover:bg-dark-panel-hover flex items-center gap-2">
                             <span class="material-symbols-outlined text-[16px]">edit</span> Rename Source
                         </button>
@@ -352,6 +367,72 @@ fileInput.addEventListener('change', function() {
 });
 
 /**
+ * Performs a single file upload using XMLHttpRequest to track accurate upload progress
+ * and support generous timeouts on low-speed internet connections.
+ *
+ * @param {string} notebookId - Notebook identifier.
+ * @param {File} file - PDF file to upload.
+ * @param {number} index - Current file index (0-based).
+ * @param {number} total - Total files count.
+ * @returns {Promise<Object>} Resolves to server JSON response on success.
+ */
+function uploadSingleFileWithProgress(notebookId, file, index, total) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `/notebooks/${notebookId}/sources/upload`, true);
+        xhr.timeout = 180000; // 3-minute timeout for slow internet
+
+        const progressBar = document.getElementById('upload-progress-bar');
+        const uploadTitle = document.getElementById('upload-title');
+        const uploadSubtitle = document.getElementById('upload-subtitle');
+
+        if (uploadTitle) uploadTitle.innerText = `Uploading ${index + 1} of ${total}`;
+        if (uploadSubtitle) uploadSubtitle.innerText = `${file.name} (0%)`;
+        if (progressBar) progressBar.style.width = '0%';
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                if (progressBar) progressBar.style.width = `${percent}%`;
+                if (uploadSubtitle) {
+                    uploadSubtitle.innerText = `${file.name} • ${percent}% (${formatBytesJs(e.loaded)} / ${formatBytesJs(e.total)})`;
+                }
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const result = JSON.parse(xhr.responseText);
+                    resolve(result);
+                } catch (e) {
+                    resolve({});
+                }
+            } else {
+                let errorMsg = 'Failed to upload source.';
+                try {
+                    const errData = JSON.parse(xhr.responseText);
+                    if (errData.detail) errorMsg = errData.detail;
+                } catch (_) {}
+                reject(new Error(errorMsg));
+            }
+        };
+
+        xhr.onerror = () => {
+            reject(new Error('Network error during upload. Please check your internet connection.'));
+        };
+
+        xhr.ontimeout = () => {
+            reject(new Error('Upload timed out after 3 minutes due to low connection speed. Please retry.'));
+        };
+
+        const formData = new FormData();
+        formData.append('file', file);
+        xhr.send(formData);
+    });
+}
+
+/**
  * Uploads selected PDF files sequentially to the notebook upload API.
  *
  * @param {FileList|Array<File>} files - Files to upload.
@@ -379,26 +460,14 @@ async function uploadFiles(files) {
             continue;
         }
 
-        document.getElementById('upload-title').innerText = `Uploading ${i + 1} of ${files.length}`;
-        document.getElementById('upload-subtitle').innerText = file.name;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
-            const response = await fetch(`/notebooks/${notebookId}/sources/upload`, {
-                method: 'POST',
-                body: formData
-            });
-            let result = await response.json();
-            if (!response.ok) throw new Error(result.detail || 'Failed to upload source.');
-
+            const result = await uploadSingleFileWithProgress(notebookId, file, i, files.length);
             const filename = result.filename || file.name;
             const sourceId = result.source_id || '';
             const nowIso = new Date().toISOString();
             const sourcesList = document.getElementById('sources-list');
             if (sourcesList) {
-                sourcesList.insertAdjacentHTML('beforeend', buildSourceItemHtml(sourceId, filename, true, nowIso));
+                sourcesList.insertAdjacentHTML('beforeend', buildSourceItemHtml(sourceId, filename, true, nowIso, true, 'pending'));
             }
             successCount++;
         } catch (error) {
@@ -619,13 +688,13 @@ function pollSourceStatus() {
 
     spinners.forEach(spinner => {
         const labelEl = spinner.closest('label');
-        const sourceId = labelEl.dataset.sourceId;
+        const sourceId = labelEl ? labelEl.dataset.sourceId : null;
         if (!sourceId) return;
 
         fetch(`/notebooks/${notebookId}/sources/${sourceId}/status`)
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'completed' || data.status === 'failed') {
+                if (data.status === 'completed') {
                     const container = spinner.closest('.source-status-container');
                     if (container) {
                         spinner.remove();
@@ -639,6 +708,26 @@ function pollSourceStatus() {
                         if (cancelSpan) cancelSpan.innerText = "Remove Source";
                         const cancelIcon = labelEl.querySelector('button[onclick^="promptDelete"] .material-symbols-outlined');
                         if (cancelIcon) cancelIcon.innerText = "delete";
+                    }
+                } else if (data.status === 'failed') {
+                    const container = spinner.closest('.source-status-container');
+                    if (container) {
+                        const filename = labelEl.dataset.filename || 'Document';
+                        const errMsg = data.error_message || 'Processing timed out or failed';
+                        const safeErr = escapeHtml(errMsg);
+                        container.innerHTML = `
+                            <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 cursor-pointer source-error-icon hover:scale-110 transition-transform" onclick="showSourceError(event, '${sourceId}', '${safeErr}')" title="Ingestion Failed: ${safeErr}. Click to retry.">error</span>
+                            <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">
+                        `;
+                        const cancelSpan = labelEl.querySelector('.cancel-text');
+                        if (cancelSpan) cancelSpan.innerText = "Remove Source";
+                        const cancelIcon = labelEl.querySelector('button[onclick^="promptDelete"] .material-symbols-outlined');
+                        if (cancelIcon) cancelIcon.innerText = "delete";
+
+                        showAppAlert(`Document "${filename}" failed processing:\n${errMsg}\n\nYou can retry anytime from the options menu.`, {
+                            title: 'Ingestion Failed',
+                            type: 'error'
+                        });
                     }
                 }
             })
@@ -686,7 +775,9 @@ async function refreshSourcesList() {
             const isPending = ['pending', 'processing', 'queued'].includes(source.ingestion_status);
             const createdIso = source.created_at || new Date().toISOString();
             const isChecked = hadSourcesBefore ? checkedSourceIds.has(sourceId) : true;
-            sourcesList.insertAdjacentHTML('beforeend', buildSourceItemHtml(sourceId, filename, isPending, createdIso, isChecked));
+            const status = source.ingestion_status || 'completed';
+            const errorMsg = source.ingestion_error || '';
+            sourcesList.insertAdjacentHTML('beforeend', buildSourceItemHtml(sourceId, filename, isPending, createdIso, isChecked, status, errorMsg));
         });
 
         if (typeof updateSourcesCount === 'function') {
@@ -704,3 +795,81 @@ async function refreshSourcesList() {
     }
 }
 window.refreshSourcesList = refreshSourcesList;
+
+/**
+ * Retries ingestion for a document that failed or timed out.
+ *
+ * @param {Event|null} event - DOM event if triggered from a click.
+ * @param {string} sourceId - Source UUID.
+ * @returns {Promise<void>}
+ */
+async function retrySourceIngestion(event, sourceId) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const notebookId = getNotebookIdFromUrl();
+    if (!notebookId || !sourceId) return;
+
+    // Close any open menus
+    document.querySelectorAll('.source-menu').forEach(m => m.classList.add('hidden'));
+
+    const labelEl = document.querySelector(`.pdf-item[data-source-id="${sourceId}"]`);
+    const container = labelEl ? labelEl.querySelector('.source-status-container') : null;
+    if (container) {
+        container.innerHTML = `
+            <svg class="animate-spin h-5 w-5 text-secondary dark:text-dark-accent source-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded border-outline-variant dark:border-dark-border dark:bg-dark-bg text-secondary dark:text-dark-accent focus:ring-secondary dark:focus:ring-dark-accent flex-shrink-0">
+        `;
+    }
+
+    try {
+        const res = await fetch(`/notebooks/${notebookId}/sources/${sourceId}/retry`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || 'Failed to retry ingestion');
+        }
+        showAppAlert('Ingestion restarted for this document.', { title: 'Retry Triggered', type: 'info' });
+    } catch (err) {
+        console.error('Error retrying ingestion:', err);
+        showAppAlert(err.message || 'Failed to retry ingestion.', { title: 'Retry Failed', type: 'error' });
+        if (container) {
+            container.innerHTML = `
+                <span class="material-symbols-outlined text-[20px] text-error dark:text-red-400 cursor-pointer source-error-icon" onclick="showSourceError(event, '${sourceId}', '${escapeHtml(err.message)}')" title="Ingestion Failed">error</span>
+                <input type="checkbox" value="${sourceId}" class="hidden source-checkbox rounded">
+            `;
+        }
+    }
+}
+window.retrySourceIngestion = retrySourceIngestion;
+
+/**
+ * Prompts user with error details and provides one-click retry.
+ *
+ * @param {Event|null} event - Click event.
+ * @param {string} sourceId - Source UUID.
+ * @param {string} errorMsg - Ingestion failure description.
+ */
+async function showSourceError(event, sourceId, errorMsg) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const confirmed = await window.showAppConfirm(
+        `This document encountered an error during processing:\n\n"${errorMsg || 'Timeout or connection failure'}"\n\nWould you like to retry processing now?`,
+        {
+            title: 'Ingestion Error',
+            confirmText: 'Retry Processing',
+            cancelText: 'Dismiss'
+        }
+    );
+    if (confirmed) {
+        retrySourceIngestion(null, sourceId);
+    }
+}
+window.showSourceError = showSourceError;

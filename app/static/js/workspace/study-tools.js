@@ -352,7 +352,25 @@ async function loadNotebookStudyTools(isFromPolling = false) {
                 }
             }
 
-            // If all finished, stop polling
+            // Check for timed out pending generations (180s)
+            const now = Date.now();
+            const TIMEOUT_MS = 180000;
+            let timedOutCount = 0;
+            for (const [key, gen] of Object.entries(pendingStudyGenerations)) {
+                if (now - (gen.timestamp || now) > TIMEOUT_MS) {
+                    delete pendingStudyGenerations[key];
+                    timedOutCount++;
+                }
+            }
+            if (timedOutCount > 0) {
+                showAppAlert('Study tool generation timed out after 3 minutes due to slow network or high server load. Please try again.', {
+                    title: 'Generation Timed Out',
+                    type: 'warning',
+                    icon: 'hourglass_disabled'
+                });
+            }
+
+            // If all finished or timed out, stop polling
             if (Object.keys(pendingStudyGenerations).length === 0 && studyToolsPollInterval) {
                 clearInterval(studyToolsPollInterval);
                 studyToolsPollInterval = null;

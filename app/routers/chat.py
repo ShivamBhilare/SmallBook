@@ -189,6 +189,7 @@ def send_chat_message(
                     )
                 except Exception as e:
                     print(f"Retrieval warning: {e}")
+                    yield f"data: {json.dumps({'type': 'fallback_notice', 'notice': 'Source retrieval timed out due to slow network. Answering from general knowledge without document citations.'})}\n\n"
 
             retrieval_time_ms = (time.perf_counter() - t0) * 1000
 

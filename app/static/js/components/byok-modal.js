@@ -35,6 +35,10 @@ document.addEventListener('alpine:init', () => {
          * Initializes component state on mount.
          */
         init() {
+            // Avoid unauthenticated background requests on auth/login or landing pages
+            if (window.location.pathname.startsWith('/auth') || window.location.pathname === '/' || window.location.pathname === '/landing') {
+                return;
+            }
             this.fetchInitialData();
         },
 

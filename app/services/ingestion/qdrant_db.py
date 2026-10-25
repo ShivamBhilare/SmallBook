@@ -9,11 +9,15 @@ and similarity search queries within Qdrant Cloud for SmallBook:
 """
 
 import os
+import time
+import logging
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
 from app.models.ingestion_models import ChildChunk
 from app.services.ingestion.config import ACTIVE_MODEL, DEFAULT_BATCH_SIZE
+
+logger = logging.getLogger(__name__)
 
 # Global embedding model cache to eliminate repeated weights loading
 _embedding_model = None
@@ -53,9 +57,11 @@ class QdrantManager:
         """Initializes the QdrantClient connection and verifies target collection existence."""
         global _qdrant_client
         if _qdrant_client is None:
+            timeout_sec = float(os.environ.get("QDRANT_TIMEOUT", "60.0"))
             _qdrant_client = QdrantClient(
                 url=os.environ.get("QDRANT_URL"),
                 api_key=os.environ.get("QDRANT_API_KEY"),
+                timeout=timeout_sec,
             )
         self.client = _qdrant_client
         self.collection_name = "smallbook_child_chunks"
@@ -135,15 +141,32 @@ class QdrantManager:
                 )
             )
 
-        # 3. Upsert to Qdrant Cloud in 250-point batches (Wait=False for asynchronous worker speed)
-        batch_size = 250
+        # 3. Upsert to Qdrant Cloud in smaller batches with retries to prevent timeouts on slow internet
+        batch_size = int(os.environ.get("QDRANT_BATCH_SIZE", "50"))
+        max_retries = 3
+
         for i in range(0, len(points), batch_size):
             batch = points[i:i + batch_size]
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=batch,
-                wait=False
-            )
+            last_err = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    self.client.upsert(
+                        collection_name=self.collection_name,
+                        points=batch,
+                        wait=False
+                    )
+                    last_err = None
+                    break
+                except Exception as exc:
+                    last_err = exc
+                    logger.warning(
+                        f"Qdrant upsert attempt {attempt}/{max_retries} failed for batch {i // batch_size + 1}: {exc}"
+                    )
+                    if attempt < max_retries:
+                        time.sleep(1.5 * attempt)
+            if last_err is not None:
+                logger.error(f"Failed to upsert batch {i // batch_size + 1} to Qdrant after {max_retries} attempts.")
+                raise last_err
 
     def delete_by_source_id(self, source_id: str):
         """

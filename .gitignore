@@ -12,8 +12,14 @@ wheels/
 #Enironment variables
 .env
 
-#Documents
+# Documents
 *.md
 polish.md
+docs/
+
+# IDE & Editors
+.vscode/
+.idea/
+
 
 

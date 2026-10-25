@@ -8,14 +8,26 @@ resource deletion (Storage files, Celery tasks, parent chunks, and Qdrant vector
 """
 
 import hashlib
+import logging
 import uuid
 from typing import Optional
 from fastapi import UploadFile, HTTPException, status, BackgroundTasks
 from supabase import Client
 
+logger = logging.getLogger(__name__)
+
 # Maximum permissible document upload size (50 MB) to safeguard server memory during extraction
 MAX_FILE_SIZE = 50 * 1024 * 1024 
 STORAGE_BUCKET = "user-documents"
+
+
+def _run_process_pdf_fallback(source_id: str, user_id: str):
+    """Executes process_pdf_task directly when Celery broker is unreachable."""
+    try:
+        from app.services.ingestion.celery_tasks import process_pdf_task
+        process_pdf_task.apply(args=[source_id, user_id])
+    except Exception as err:
+        logger.error(f"Fallback direct execution of process_pdf_task failed for source {source_id}: {err}")
 
 
 # =========================================================================
@@ -44,17 +56,44 @@ def _async_storage_upload_and_trigger_celery(
         user_id: UUID of the owning user.
         job_id: Optional UUID of the associated `ingestion_jobs` tracker record.
     """
-    # 1. Supabase Storage Upload via privileged service role client
-    try:
-        from app.services.authentication.auth_service import get_service_role_client
-        service_client = get_service_role_client()
-        service_client.storage.from_(STORAGE_BUCKET).upload(
-            path=storage_path, 
-            file=file_bytes, 
-            file_options={"content-type": "application/pdf"}
-        )
-    except Exception as e:
-        print(f"❌ Background storage upload failed for source {source_id}: {e}")
+    # 1. Supabase Storage Upload via privileged service role client with retries
+    upload_success = False
+    last_upload_err = None
+    from app.services.authentication.auth_service import get_service_role_client
+    service_client = get_service_role_client()
+
+    import time
+    for attempt in range(1, 4):
+        try:
+            service_client.storage.from_(STORAGE_BUCKET).upload(
+                path=storage_path, 
+                file=file_bytes, 
+                file_options={"content-type": "application/pdf"}
+            )
+            upload_success = True
+            break
+        except Exception as e:
+            last_upload_err = e
+            logger.warning(f"Storage upload attempt {attempt}/3 failed for source {source_id}: {e}")
+            if attempt < 3:
+                time.sleep(1.5 * attempt)
+
+    if not upload_success:
+        err_msg = f"Storage upload failed after retries: {str(last_upload_err)}"
+        logger.error(err_msg)
+        try:
+            from datetime import datetime, timezone
+            service_client.table("ingestion_jobs").update({
+                "status": "failed",
+                "error_message": err_msg,
+                "completed_at": datetime.now(timezone.utc).isoformat()
+            }).eq("source_id", source_id).execute()
+            service_client.table("sources").update({
+                "ingestion_status": "failed",
+                "ingestion_error": err_msg
+            }).eq("id", source_id).execute()
+        except Exception as db_err:
+            logger.error(f"Failed to record storage upload failure in database: {db_err}")
         return
 
     # 2. Celery Handoff (Asynchronous Processing with Direct Fallback)
@@ -72,11 +111,8 @@ def _async_storage_upload_and_trigger_celery(
                 service_client.table("ingestion_jobs").update({"celery_task_id": celery_task.id}).eq("id", job_id).execute()
             service_client.table("ingestion_jobs").update({"celery_task_id": celery_task.id}).eq("source_id", source_id).execute()
     except Exception as e:
-        print(f"⚠️ Warning: Redis/Celery connection failed ({e}). Falling back to direct background thread execution...")
-        try:
-            process_pdf_task.apply(args=[source_id, user_id])
-        except Exception as fallback_err:
-            print(f"❌ Ingestion task execution failed during fallback: {fallback_err}")
+        logger.warning(f"Redis/Celery connection failed ({e}). Falling back to direct background thread execution...")
+        _run_process_pdf_fallback(source_id, user_id)
 
 
 # =========================================================================
@@ -505,4 +541,66 @@ def delete_source_permanently(
     else:
         _async_cleanup_source_resources(storage_path, source_id)
 
-    return True
+    return True
+
+
+def retry_source_ingestion(
+    client: Client,
+    user_id: str,
+    notebook_id: str,
+    source_id: str,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> dict:
+    """
+    Restarts background extraction and vectorization for a failed or stalled source document.
+
+    Resets the ingestion status and error messages, and re-enqueues the Celery processing task.
+
+    Args:
+        client: Active Supabase client.
+        user_id: UUID of the requesting owner.
+        notebook_id: UUID of the notebook workspace.
+        source_id: UUID of the document to retry.
+        background_tasks: Optional FastAPI BackgroundTasks registry.
+
+    Returns:
+        dict: Acknowledgment payload with status 'queued'.
+
+    Raises:
+        HTTPException: 404 if source not found or unauthorized.
+    """
+    src_res = client.table("sources").select("*").eq("id", source_id).eq("user_id", user_id).execute()
+    if not src_res.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found or permission denied.")
+
+    # 1. Reset status in DB
+    client.table("sources").update({
+        "ingestion_status": "pending",
+        "ingestion_error": None
+    }).eq("id", source_id).execute()
+
+    client.table("ingestion_jobs").update({
+        "status": "queued",
+        "error_message": None
+    }).eq("source_id", source_id).execute()
+
+    # 2. Dispatch task
+    try:
+        from app.services.ingestion.celery_tasks import process_pdf_task
+        task = process_pdf_task.apply_async(args=[source_id, user_id], connect_timeout=10, retry=True)
+        if getattr(task, "id", None):
+            client.table("ingestion_jobs").update({"celery_task_id": task.id}).eq("source_id", source_id).execute()
+    except Exception as e:
+        print(f"⚠️ Redis/Celery connection failed on retry ({e}). Falling back to background task...")
+        from app.services.ingestion.celery_tasks import process_pdf_task
+        if background_tasks is not None:
+            background_tasks.add_task(process_pdf_task.apply, args=[source_id, user_id])
+        else:
+            process_pdf_task.apply(args=[source_id, user_id])
+
+    return {
+        "status": "queued",
+        "source_id": source_id,
+        "message": "Ingestion retry initiated."
+    }
+

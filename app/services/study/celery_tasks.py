@@ -19,6 +19,27 @@ from app.services.study.quiz_service import save_generated_quiz
 logger = logging.getLogger(__name__)
 
 
+import time
+
+def _save_with_retry(save_func, *args, max_attempts: int = 3, **kwargs):
+    last_err = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return save_func(*args, **kwargs)
+        except Exception as e:
+            last_err = e
+            if attempt < max_attempts:
+                sleep_sec = 2 ** attempt
+                logger.warning(
+                    f"Database save failed on attempt {attempt}/{max_attempts}: {e}. "
+                    f"Retrying in {sleep_sec}s..."
+                )
+                time.sleep(sleep_sec)
+            else:
+                logger.error(f"Database save failed permanently after {max_attempts} attempts: {e}")
+                raise last_err
+
+
 @shared_task(name="generate_study_tool_task", bind=True)
 def generate_study_tool_task(
     self,
@@ -64,7 +85,8 @@ def generate_study_tool_task(
                 num_items=num_items,
                 requested_model=requested_model
             )
-            saved_set = save_generated_flashcard_set(
+            saved_set = _save_with_retry(
+                save_generated_flashcard_set,
                 supabase=supabase,
                 notebook_id=notebook_id,
                 user_id=user_id,
@@ -84,7 +106,8 @@ def generate_study_tool_task(
                 num_items=num_items,
                 requested_model=requested_model
             )
-            saved_quiz = save_generated_quiz(
+            saved_quiz = _save_with_retry(
+                save_generated_quiz,
                 supabase=supabase,
                 notebook_id=notebook_id,
                 user_id=user_id,

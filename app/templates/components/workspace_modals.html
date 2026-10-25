@@ -65,6 +65,9 @@
                     <span id="upload-success-icon" class="hidden material-symbols-outlined text-[40px] text-green-600 dark:text-green-400 mb-4">check_circle</span>
                     <h3 class="text-headline-md font-medium text-on-surface dark:text-dark-text mb-1" id="upload-title">Uploading...</h3>
                     <p class="text-on-surface-variant dark:text-dark-text-muted text-label-md" id="upload-subtitle">Please wait</p>
+                    <div id="upload-progress-bar-container" class="w-48 bg-surface-variant dark:bg-dark-bg border border-paper dark:border-dark-border rounded-full h-2 mt-3 overflow-hidden">
+                        <div id="upload-progress-bar" class="bg-secondary dark:bg-dark-accent h-full transition-all duration-150 rounded-full" style="width: 0%"></div>
+                    </div>
                 </div>
 
                 <!-- Hidden file input -->

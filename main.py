@@ -10,6 +10,14 @@ from dotenv import load_dotenv
 # 1. Load environment variables before any internal package imports execute
 load_dotenv()
 
+import os
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+try:
+    import litellm
+    litellm.telemetry = False
+except ImportError:
+    pass
+
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles

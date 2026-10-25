@@ -22,7 +22,12 @@ from app.services.ingestion.chunker import HierarchicalChunker
 from app.services.ingestion.qdrant_db import QdrantManager
 
 
-@shared_task(name="process_pdf_task", bind=True)
+@shared_task(
+    name="process_pdf_task",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=5
+)
 def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
     """
     Celery background worker task for complete PDF document ingestion.
@@ -30,6 +35,7 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
     Coordinates document retrieval, Markdown extraction, parent-child token chunking,
     database chunk insertion, and vector database indexing.
     Safely deletes temporary files on both success and error branches.
+    Automatically retries transient network/timeout errors with exponential backoff.
 
     Args:
         self: Bound Celery task instance for inspecting task ID and request state.
@@ -57,7 +63,10 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
         if task_id:
             update_payload["celery_task_id"] = task_id
 
-        supabase.table("ingestion_jobs").update(update_payload).eq("source_id", source_id).execute()
+        try:
+            supabase.table("ingestion_jobs").update(update_payload).eq("source_id", source_id).execute()
+        except Exception:
+            pass
         
         # 2. Fetch file metadata
         source_res = supabase.table("sources").select("*").eq("id", source_id).execute()
@@ -83,7 +92,10 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
 
         md_text = pdf_extracter(tmp_pdf_path)
         if tmp_pdf_path and os.path.exists(tmp_pdf_path):
-            os.remove(tmp_pdf_path)
+            try:
+                os.remove(tmp_pdf_path)
+            except Exception:
+                pass
             tmp_pdf_path = None
 
         # 5. Hierarchical Chunking
@@ -93,9 +105,14 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
         if not parents:
             raise ValueError("No extractable text content found in document. Please verify the PDF contains selectable text.")
 
-        # 6. Save Parent Chunks to Supabase in Batches (prevent PostgREST payload limits)
+        # 6. Save Parent Chunks to Supabase in Batches (ensure idempotence on retries)
         CHUNK_BATCH_SIZE = 250
         if parents:
+            try:
+                supabase.table("document_chunks").delete().eq("source_id", source_id).execute()
+            except Exception:
+                pass
+
             parent_records = [
                 {
                     "id": p.id,
@@ -109,22 +126,29 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
                 batch = parent_records[i : i + CHUNK_BATCH_SIZE]
                 supabase.table("document_chunks").insert(batch).execute()
 
-        # 7. Embed & Upload Child Chunks to Qdrant
+        # 7. Embed & Upload Child Chunks to Qdrant (with internal batching & retries)
         if children:
             qdrant = QdrantManager()
             qdrant.embed_and_upsert(children)
 
         # 8. Mark Job as Completed
         completed_iso = datetime.now(timezone.utc).isoformat()
-        supabase.table("ingestion_jobs").update({
-            "status": "completed",
-            "completed_at": completed_iso
-        }).eq("source_id", source_id).execute()
+        try:
+            supabase.table("ingestion_jobs").update({
+                "status": "completed",
+                "completed_at": completed_iso,
+                "error_message": None
+            }).eq("source_id", source_id).execute()
+        except Exception:
+            pass
         
-        source_update_payload = {"ingestion_status": "completed"}
+        source_update_payload = {"ingestion_status": "completed", "ingestion_error": None}
         if page_count is not None:
             source_update_payload["page_count"] = page_count
-        supabase.table("sources").update(source_update_payload).eq("id", source_id).execute()
+        try:
+            supabase.table("sources").update(source_update_payload).eq("id", source_id).execute()
+        except Exception:
+            pass
 
     except Exception as e:
         if tmp_pdf_path and os.path.exists(tmp_pdf_path):
@@ -133,15 +157,37 @@ def process_pdf_task(self, source_id: str, user_id: Optional[str] = None):
             except Exception:
                 pass
 
-        # Log failure securely
         error_msg = str(e)
-        supabase.table("ingestion_jobs").update({
-            "status": "failed",
-            "error_message": error_msg,
-            "completed_at": datetime.now(timezone.utc).isoformat()
-        }).eq("source_id", source_id).execute()
-        supabase.table("sources").update({
-            "ingestion_status": "failed",
-            "ingestion_error": error_msg
-        }).eq("id", source_id).execute()
+        retries = getattr(self.request, "retries", 0) if hasattr(self, "request") else 0
+        max_retries = getattr(self, "max_retries", 3)
+
+        # If retries remain, attempt retry with exponential backoff
+        if retries < max_retries:
+            countdown = min(30, 2 ** retries * 3)
+            try:
+                supabase.table("ingestion_jobs").update({
+                    "status": "processing",
+                    "error_message": f"Retrying ({retries + 1}/{max_retries}) after: {error_msg}"
+                }).eq("source_id", source_id).execute()
+            except Exception:
+                pass
+            raise self.retry(exc=e, countdown=countdown)
+
+        # All retries exhausted: mark permanently failed
+        try:
+            supabase.table("ingestion_jobs").update({
+                "status": "failed",
+                "error_message": error_msg,
+                "completed_at": datetime.now(timezone.utc).isoformat()
+            }).eq("source_id", source_id).execute()
+        except Exception:
+            pass
+
+        try:
+            supabase.table("sources").update({
+                "ingestion_status": "failed",
+                "ingestion_error": error_msg
+            }).eq("id", source_id).execute()
+        except Exception:
+            pass
         raise e

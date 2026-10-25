@@ -715,10 +715,17 @@ async function submitChatMessage() {
                         else if (data.type === 'fallback_notice') {
                             const noticeDiv = document.createElement('div');
                             noticeDiv.className = 'mb-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-1.5 animate-fade-in';
-                            noticeDiv.innerHTML = `
-                                <span class="material-symbols-outlined text-[15px]">swap_horiz</span>
-                                <span><strong>Switched to ${escapeHtml(data.fallback_label || data.fallback_model)}</strong>: ${escapeHtml(data.reason || 'Fallback active')}</span>
-                            `;
+                            if (data.notice) {
+                                noticeDiv.innerHTML = `
+                                    <span class="material-symbols-outlined text-[15px]">info</span>
+                                    <span>${escapeHtml(data.notice)}</span>
+                                `;
+                            } else {
+                                noticeDiv.innerHTML = `
+                                    <span class="material-symbols-outlined text-[15px]">swap_horiz</span>
+                                    <span><strong>Switched to ${escapeHtml(data.fallback_label || data.fallback_model)}</strong>: ${escapeHtml(data.reason || 'Fallback active')}</span>
+                                `;
+                            }
                             if (bubbleData && bubbleData.textContainer && bubbleData.textContainer.parentElement) {
                                 bubbleData.textContainer.parentElement.insertBefore(noticeDiv, bubbleData.textContainer);
                             }
@@ -772,12 +779,42 @@ async function submitChatMessage() {
         }
     } catch (err) {
         console.error('Chat error:', err);
-        appendErrorMessage(loadingId, err.message || 'Network error');
+        if (bubbleData && bubbleData.textContainer) {
+            const existingText = accumulatedText ? formatMarkdownText(accumulatedText) : '';
+            bubbleData.textContainer.innerHTML = `
+                ${existingText}
+                <div class="mt-2.5 p-3 rounded-xl bg-error/10 border border-error/20 text-error text-xs leading-relaxed flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">error</span>
+                        <span><strong>Generation interrupted:</strong> ${escapeHtml(err.message || 'Connection lost')}</span>
+                    </div>
+                    <button type="button" onclick="retrySpecificPrompt(${JSON.stringify(text)})" class="px-2.5 py-1 rounded bg-error/20 hover:bg-error/30 text-error text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer">
+                        <span class="material-symbols-outlined text-[13px]">refresh</span> Retry
+                    </button>
+                </div>
+            `;
+        } else {
+            appendErrorMessage(loadingId, err.message || 'Network error');
+        }
     } finally {
         if (sendBtn) sendBtn.disabled = false;
         input.focus();
     }
 }
+
+/**
+ * Retries dispatching a specific user prompt that previously failed.
+ *
+ * @param {string} promptText - User query string.
+ */
+function retrySpecificPrompt(promptText) {
+    const input = document.getElementById('chat-input');
+    if (input && promptText) {
+        input.value = promptText;
+        submitChatMessage();
+    }
+}
+window.retrySpecificPrompt = retrySpecificPrompt;
 
 /**
  * Opens the clear chat history confirmation modal.

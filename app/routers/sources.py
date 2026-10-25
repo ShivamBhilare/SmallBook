@@ -200,7 +200,7 @@ def get_source_status(
         client: Supabase client instance.
 
     Returns:
-        Dictionary containing current 'status' string (e.g., 'processing', 'completed', 'failed').
+        Dictionary containing current 'status', 'error_message', and 'page_count'.
 
     Raises:
         HTTPException: 404 if notebook, source, or job record not found.
@@ -209,15 +209,60 @@ def get_source_status(
     if not nb_check.data:
         raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
 
-    src_check = client.table("sources").select("id").eq("id", source_id).eq("user_id", user.id).execute()
+    src_check = client.table("sources").select("*").eq("id", source_id).eq("user_id", user.id).execute()
     if not src_check.data:
         raise HTTPException(status_code=404, detail="Source not found or access denied.")
 
+    src = src_check.data[0]
     job_res = client.table("ingestion_jobs").select("*").eq("source_id", source_id).execute()
-    if not job_res.data:
-        raise HTTPException(status_code=404, detail="Status not found for this source.")
+    job = job_res.data[0] if job_res.data else {}
 
-    return {"status": job_res.data[0].get("status", "unknown")}
+    raw_status = job.get("status") or src.get("ingestion_status") or "unknown"
+    error_msg = job.get("error_message") or src.get("ingestion_error")
+
+    return {
+        "status": raw_status,
+        "error_message": error_msg,
+        "page_count": src.get("page_count"),
+        "filename": src.get("original_filename")
+    }
+
+
+@router.post("/{source_id}/retry", response_model=dict, status_code=202)
+def retry_source_endpoint(
+    notebook_id: str,
+    source_id: str,
+    background_tasks: BackgroundTasks,
+    user=Depends(login_required),
+    client: Client = Depends(get_supabase_client)
+):
+    """Re-enqueues processing for a failed or stalled source document.
+
+    Args:
+        notebook_id: UUID of the notebook.
+        source_id: UUID of the source document.
+        background_tasks: FastAPI background task manager.
+        user: Authenticated user object from dependency.
+        client: Supabase client instance.
+
+    Returns:
+        Dictionary with status 'queued' and confirmation message.
+
+    Raises:
+        HTTPException: 404 if notebook or source not found.
+    """
+    nb_check = client.table("notebooks").select("id").eq("id", notebook_id).eq("user_id", user.id).execute()
+    if not nb_check.data:
+        raise HTTPException(status_code=404, detail="Notebook not found or access denied.")
+
+    return source_service.retry_source_ingestion(
+        client=client,
+        user_id=user.id,
+        notebook_id=notebook_id,
+        source_id=source_id,
+        background_tasks=background_tasks
+    )
+
 
 
 @router.delete("/{source_id}", status_code=204)
