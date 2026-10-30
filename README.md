@@ -45,9 +45,9 @@ SmallBook is an open-source, personalized AI research assistant built as an enha
 ### 🎥 Product Demo Walkthrough
 *Watch SmallBook in action: multi-document ingestion, strict RAG grounding with page citations, and automated quiz/flashcard generation.*
 
-<video src="media/SmallBook%20Demo.mp4" width="800" controls="controls" poster="media/Workspace.png"></video>
 
-> *▶️ **[Click here to watch the full demo video](media/SmallBook%20Demo.mp4)** directly if inline playback is not enabled in your browser.*
+https://github.com/user-attachments/assets/15d04bff-4f68-44cf-842f-c30265a316d7
+
 
 ### 📊 Research Dashboard & Notebook Library
 *Organize your academic projects into isolated notebooks with customized multi-model LLM preferences.*
