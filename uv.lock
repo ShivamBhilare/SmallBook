@@ -2555,7 +2555,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "litellm", specifier = ">=1.96.2" },
     { name = "numpy" },
-    { name = "pymupdf4llm" },
+    { name = "pymupdf4llm", specifier = ">=0.0.17,<2.0.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "qdrant-client" },
